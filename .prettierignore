@@ -1,0 +1,7 @@
+# Planning documents and the README are written by hand; tables stay as they are.
+**/*.md
+pnpm-lock.yaml
+dist/
+coverage/
+test-results/
+playwright-report/

@@ -1,0 +1,5 @@
+# LF everywhere, so that Prettier and the checks give the same result on every platform.
+* text=auto eol=lf
+
+*.png binary
+*.ttf binary
