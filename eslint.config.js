@@ -8,6 +8,9 @@ export default [
     ignores: [
       'tests/architecture/fixtures/**',
       '**/dist/**',
+      '**/build/**',
+      '**/bin/**',
+      '**/obj/**',
       '**/node_modules/**',
       'coverage/**',
       'test-results/**',
@@ -24,10 +27,18 @@ export default [
         tsconfigRootDir: import.meta.dirname,
       },
     },
+    rules: {
+      // Reads from typed arrays in hot loops are written `values[i] as number`; `!` stays forbidden.
+      '@typescript-eslint/non-nullable-type-assertion-style': 'off',
+    },
   },
   {
-    files: ['**/*.js', '**/*.cjs'],
+    files: ['**/*.js', '**/*.cjs', '**/*.mjs'],
     ...tseslint.configs.disableTypeChecked,
+  },
+  {
+    files: ['**/*.mjs'],
+    languageOptions: { globals: globals.node },
   },
   {
     files: ['**/*.cjs'],

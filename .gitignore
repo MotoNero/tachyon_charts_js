@@ -17,3 +17,8 @@ blob-report/
 Thumbs.db
 
 .sonarqube/
+
+# .NET builds of spikes
+bin/
+obj/
+spikes/*/build/
