@@ -3,7 +3,8 @@
 Fast charts for the browser, drawn on the GPU with WebGPU, with fallbacks to WebGL 2 and Canvas 2D. Made for large
 data: millions of points in real time and files larger than memory.
 
-**Status:** early development. There is no release yet and the API will change. The packages will appear on npm under
+**Status:** early development. The rendering core draws lines, markers, areas and text on WebGPU; charts follow.
+There is no release yet and the API will change. The packages will appear on npm under
 `@tachyon-charts/…`.
 
 ## Packages

@@ -120,9 +120,11 @@ function join(contour: Contour, start: number, count: number): Point[] {
 function addTeardrop(points: Point[], edges: ColoredEdge[]): void {
   const first = Math.floor(points.length / 3);
   const second = Math.floor((2 * points.length) / 3);
-  edges.push(new ColoredEdge(points.slice(0, first + 1), cyan));
-  edges.push(new ColoredEdge(points.slice(first, second + 1), yellow));
-  edges.push(new ColoredEdge(points.slice(second), magenta));
+  edges.push(
+    new ColoredEdge(points.slice(0, first + 1), cyan),
+    new ColoredEdge(points.slice(first, second + 1), yellow),
+    new ColoredEdge(points.slice(second), magenta),
+  );
 }
 
 function addColoredEdges(contour: Contour, edges: ColoredEdge[]): void {
@@ -188,22 +190,32 @@ export function generateMsdf(
   const orientation = signedArea(contours) >= 0 ? 1 : -1;
   for (let y = 0; y < height; y++) {
     for (let x = 0; x < width; x++) {
-      let r = farAway;
-      let g = farAway;
-      let b = farAway;
-      const px = f(x + 0.5);
-      const py = f(y + 0.5);
-      for (const edge of edges) {
-        const distance = edge.measure(px, py);
-        if (edge.color & red) r = closer(r, distance);
-        if (edge.color & green) g = closer(g, distance);
-        if (edge.color & blue) b = closer(b, distance);
-      }
-      const at = offset + y * stride + x * 4;
-      destination[at] = encode(f(r.pseudo * orientation), range);
-      destination[at + 1] = encode(f(g.pseudo * orientation), range);
-      destination[at + 2] = encode(f(b.pseudo * orientation), range);
-      destination[at + 3] = 255;
+      writePixel(edges, f(x + 0.5), f(y + 0.5), orientation, range, destination, offset + y * stride + x * 4);
     }
   }
+}
+
+// The nearest edge of each channel decides its distance at the center of the pixel.
+function writePixel(
+  edges: ColoredEdge[],
+  px: number,
+  py: number,
+  orientation: number,
+  range: number,
+  destination: Uint8Array,
+  at: number,
+): void {
+  let r = farAway;
+  let g = farAway;
+  let b = farAway;
+  for (const edge of edges) {
+    const distance = edge.measure(px, py);
+    if (edge.color & red) r = closer(r, distance);
+    if (edge.color & green) g = closer(g, distance);
+    if (edge.color & blue) b = closer(b, distance);
+  }
+  destination[at] = encode(f(r.pseudo * orientation), range);
+  destination[at + 1] = encode(f(g.pseudo * orientation), range);
+  destination[at + 2] = encode(f(b.pseudo * orientation), range);
+  destination[at + 3] = 255;
 }

@@ -22,3 +22,6 @@ Thumbs.db
 bin/
 obj/
 spikes/*/build/
+
+# SonarScanner
+.scannerwork/

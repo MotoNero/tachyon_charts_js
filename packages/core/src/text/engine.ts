@@ -28,6 +28,14 @@ export interface TextFont {
   readonly italic?: boolean;
 }
 
+/** How a text is set: its em size in pixels, its color and its font. Keep the object; it is read, not kept. */
+export interface TextStyle {
+  readonly size: number;
+  readonly color: Rgba8;
+  /** The default font when left out. */
+  readonly font?: TextFont;
+}
+
 /** Rounds as MathF.Round does: halves to the even neighbor. */
 function roundHalfEven(value: number): number {
   const floor = Math.floor(value);
@@ -151,32 +159,23 @@ export class TextEngine {
    * Characters seen for the first time extend the atlas.
    * @param x - The start of the baseline; it is moved to a whole pixel, as is the baseline.
    * @param y - The baseline.
-   * @param size - The em size in pixels.
+   * @param style - Size, color and font.
    * @param glyphs - The buffer; it needs room for as many glyphs as the text has characters.
    * @param first - The glyph to start writing at.
    * @returns The number of glyphs written; spaces have none.
    */
-  layout(
-    text: string,
-    x: number,
-    y: number,
-    size: number,
-    color: Rgba8,
-    glyphs: Float32Array,
-    first = 0,
-    font?: TextFont,
-  ): number {
+  layout(text: string, x: number, y: number, style: TextStyle, glyphs: Float32Array, first = 0): number {
     if (glyphs.length < (first + text.length) * glyphStride) {
       throw new RangeError('The glyph buffer is too short for the text.');
     }
     const words = wordsOf(glyphs);
     const wordOffset = glyphs.byteOffset / 4;
-    const face = this.faceOf(font);
+    const face = this.faceOf(style.font);
     const em = face.font.unitsPerEm;
-    const pixels = f(size);
+    const pixels = f(style.size);
     const scale = f(pixels / fieldEmSize);
     const distanceScale = f(2 * fieldRange * scale);
-    const packed = packRgba8(color);
+    const packed = packRgba8(style.color);
     // On whole pixels: the baseline, so that the feet of the letters stay sharp, and the start of the text, so that
     // the same text looks the same wherever it stands. The letters keep their spacing between them.
     const startX = roundHalfEven(f(x));

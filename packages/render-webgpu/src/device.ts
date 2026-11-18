@@ -63,7 +63,7 @@ export async function createWebGpuDevice(options: WebGpuDeviceOptions = {}): Pro
       maxSampleCount: 4,
     },
     gpu.getPreferredCanvasFormat(),
-  );
+  ).watchLoss();
 }
 
 /** A {@link RenderDevice} on WebGPU. Create it with {@link createWebGpuDevice}. */
@@ -91,17 +91,22 @@ export class WebGpuDevice implements RenderDevice, DeviceContext {
     readonly canvasFormat: GPUTextureFormat = 'bgra8unorm',
   ) {
     this.frame = new WebGpuFrame(this);
-    void gpu.lost.then((info) => {
-      // Disposing destroys the device on purpose; that is no loss.
-      if (!this.disposed) {
-        this.markLost(info.message === '' ? `The device was lost (${info.reason}).` : info.message);
-      }
-    });
     gpu.addEventListener('uncapturederror', (event) => {
       if (this.validationErrors.length < keptErrors) {
         this.validationErrors.push(event.error.message);
       }
     });
+  }
+
+  /** Starts to listen for the loss of the device; {@link createWebGpuDevice} does it for every device it makes. */
+  watchLoss(): this {
+    void this.gpu.lost.then((info) => {
+      // Disposing destroys the device on purpose; that is no loss.
+      if (!this.disposed) {
+        this.markLost(info.message === '' ? `The device was lost (${info.reason}).` : info.message);
+      }
+    });
+    return this;
   }
 
   get isLost(): boolean {

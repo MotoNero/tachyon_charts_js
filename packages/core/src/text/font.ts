@@ -34,7 +34,7 @@ export class FontFile {
     const count = view.getUint16(4);
     for (let i = 0; i < count; i++) {
       const entry = 12 + i * 16;
-      const tag = String.fromCharCode(
+      const tag = String.fromCodePoint(
         view.getUint8(entry),
         view.getUint8(entry + 1),
         view.getUint8(entry + 2),
@@ -187,12 +187,8 @@ export class FontFile {
     let bestRank = 0;
     for (let i = 0; i < view.getUint16(cmap + 2); i++) {
       const record = cmap + 4 + i * 8;
-      const platform = view.getUint16(record);
-      const encoding = view.getUint16(record + 2);
       const offset = cmap + view.getUint32(record + 4);
-      const format = view.getUint16(offset);
-      const unicode = platform === 0 || (platform === 3 && (encoding === 1 || encoding === 10));
-      const rank = unicode ? (format === 12 ? 2 : format === 4 ? 1 : 0) : 0;
+      const rank = characterMapRank(view.getUint16(record), view.getUint16(record + 2), view.getUint16(offset));
       if (rank > bestRank) {
         best = offset;
         bestRank = rank;
@@ -202,20 +198,30 @@ export class FontFile {
       throw new Error('The font has no Unicode character map.');
     }
     if (bestRank === 2) {
-      const groups = view.getUint32(best + 12);
-      for (let i = 0; i < groups; i++) {
-        const group = best + 16 + i * 12;
-        const start = view.getUint32(group);
-        const end = view.getUint32(group + 4);
-        const glyph = view.getUint32(group + 8);
-        for (let code = start; code <= end; code++) {
-          this.set(code, glyph + code - start);
-        }
-      }
-      return;
+      this.readFormat12(best);
+    } else {
+      this.readFormat4(best);
     }
-    const segments = view.getUint16(best + 6) / 2;
-    const ends = best + 14;
+  }
+
+  private readFormat12(table: number): void {
+    const view = this.view;
+    const groups = view.getUint32(table + 12);
+    for (let i = 0; i < groups; i++) {
+      const group = table + 16 + i * 12;
+      const start = view.getUint32(group);
+      const end = view.getUint32(group + 4);
+      const glyph = view.getUint32(group + 8);
+      for (let code = start; code <= end; code++) {
+        this.set(code, glyph + code - start);
+      }
+    }
+  }
+
+  private readFormat4(table: number): void {
+    const view = this.view;
+    const segments = view.getUint16(table + 6) / 2;
+    const ends = table + 14;
     const starts = ends + segments * 2 + 2;
     const deltas = starts + segments * 2;
     const ranges = deltas + segments * 2;
@@ -225,17 +231,9 @@ export class FontFile {
       const delta = view.getInt16(deltas + s * 2);
       const range = view.getUint16(ranges + s * 2);
       for (let code = start; code <= end && code !== 0xffff; code++) {
-        let glyph: number;
-        if (range === 0) {
-          glyph = (code + delta) & 0xffff;
-        } else {
-          const at = ranges + s * 2 + range + (code - start) * 2;
-          glyph = view.getUint16(at);
-          if (glyph !== 0) {
-            glyph = (glyph + delta) & 0xffff;
-          }
-        }
-        this.set(code, glyph);
+        // Without a range offset the delta alone maps the code; with one, a glyph array holds the glyph to shift.
+        const stored = range === 0 ? code : view.getUint16(ranges + s * 2 + range + (code - start) * 2);
+        this.set(code, range !== 0 && stored === 0 ? 0 : (stored + delta) & 0xffff);
       }
     }
   }
@@ -268,4 +266,12 @@ export class FontFile {
       }
     }
   }
+}
+
+/** How well a subtable of the character map serves: 2 for Unicode format 12, 1 for format 4, 0 not at all. */
+function characterMapRank(platform: number, encoding: number, format: number): number {
+  const unicode = platform === 0 || (platform === 3 && (encoding === 1 || encoding === 10));
+  if (!unicode) return 0;
+  if (format === 12) return 2;
+  return format === 4 ? 1 : 0;
 }

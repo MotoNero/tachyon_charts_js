@@ -29,6 +29,18 @@ const ignoreLigatures = 4;
 const ignoreMarks = 8;
 const useMarkSet = 16;
 
+/** A test of one glyph of a context rule. */
+type Test = (glyph: number) => boolean;
+
+/** A rule of a context subtable: the glyphs before, the input glyphs and those after, then the lookups to apply. */
+interface Rule {
+  backtrack: Test[];
+  input: Test[];
+  lookahead: Test[];
+  records: number;
+  recordCount: number;
+}
+
 interface Lookup {
   type: number;
   flag: number;
@@ -106,21 +118,26 @@ export class Shaper {
     const runs = text.matchAll(/\P{M}\p{M}*|\p{M}+/gsu);
     for (const run of runs) {
       const cluster = run.index;
-      const composed = run[0].normalize('NFC');
-      const decomposed = run[0].normalize('NFD');
-      const has = (value: string): boolean => {
-        for (const character of value) {
-          if (!this.font.hasGlyph(character.codePointAt(0) ?? 0)) return false;
-        }
-        return true;
-      };
-      const chosen = has(composed) ? composed : has(decomposed) ? decomposed : run[0];
-      for (const character of chosen) {
+      for (const character of this.compose(run[0])) {
         const glyph = this.font.glyphOf(character.codePointAt(0) ?? 0);
         items.push({ glyph, cluster, xAdvance: 0, xOffset: 0, yOffset: 0, kind: this.font.classOf(glyph), attach: 0 });
       }
     }
     return items;
+  }
+
+  // The composed form when the font has all its characters, else the decomposed one, else the text as it is.
+  private compose(run: string): string {
+    const has = (value: string): boolean => {
+      for (const character of value) {
+        if (!this.font.hasGlyph(character.codePointAt(0) ?? 0)) return false;
+      }
+      return true;
+    };
+    const composed = run.normalize('NFC');
+    if (has(composed)) return composed;
+    const decomposed = run.normalize('NFD');
+    return has(decomposed) ? decomposed : run;
   }
 
   private lookupsFor(script: string): { gsub: Lookup[]; gpos: Lookup[] } {
@@ -138,55 +155,58 @@ export class Shaper {
   // The lookups of the features in the default language system of the script, in the order of the lookup list.
   private readLookups(tag: string, script: string, features: string[], extension: number): Lookup[] {
     const table = this.font.table(tag);
-    if (table === undefined) {
+    const scriptTable = table === undefined ? -1 : this.findScript(table + this.view.getUint16(table + 4), script);
+    if (table === undefined || scriptTable < 0 || this.view.getUint16(scriptTable) === 0) {
       return [];
     }
     const view = this.view;
-    const scripts = table + view.getUint16(table + 4);
     const featureList = table + view.getUint16(table + 6);
     const lookupList = table + view.getUint16(table + 8);
-    let scriptTable = -1;
-    for (const candidate of [script, 'DFLT', 'dflt', 'latn']) {
-      for (let i = 0; i < view.getUint16(scripts); i++) {
-        const record = scripts + 2 + i * 6;
-        if (this.tag(record) === candidate) {
-          scriptTable = scripts + view.getUint16(record + 4);
-          break;
-        }
-      }
-      if (scriptTable >= 0) break;
-    }
-    if (scriptTable < 0 || view.getUint16(scriptTable) === 0) {
-      return [];
-    }
     const langSys = scriptTable + view.getUint16(scriptTable);
-    const indices = new Set<number>();
-    const required = view.getUint16(langSys + 2);
-    const featureIndices = [...Array(view.getUint16(langSys + 4)).keys()].map((i) =>
+    const featureIndices = Array.from({ length: view.getUint16(langSys + 4) }, (_, i) =>
       view.getUint16(langSys + 6 + i * 2),
     );
+    const required = view.getUint16(langSys + 2);
     if (required !== 0xffff) featureIndices.push(required);
+    const indices = new Set<number>();
     for (const index of featureIndices) {
       const record = featureList + 2 + index * 6;
-      if (!features.includes(this.tag(record))) continue;
-      const feature = featureList + view.getUint16(record + 4);
-      for (let k = 0; k < view.getUint16(feature + 2); k++) {
-        indices.add(view.getUint16(feature + 4 + k * 2));
+      if (features.includes(this.tag(record))) {
+        const feature = featureList + view.getUint16(record + 4);
+        for (let k = 0; k < view.getUint16(feature + 2); k++) {
+          indices.add(view.getUint16(feature + 4 + k * 2));
+        }
       }
     }
     return [...indices].sort((a, b) => a - b).map((index) => this.readLookup(lookupList, index, extension));
   }
 
+  // The script table for the script, or the default ones HarfBuzz falls back to; -1 when there is none.
+  private findScript(scripts: number, script: string): number {
+    const view = this.view;
+    for (const candidate of [script, 'DFLT', 'dflt', 'latn']) {
+      for (let i = 0; i < view.getUint16(scripts); i++) {
+        const record = scripts + 2 + i * 6;
+        if (this.tag(record) === candidate) {
+          return scripts + view.getUint16(record + 4);
+        }
+      }
+    }
+    return -1;
+  }
+
   private readLookup(lookupList: number, index: number, extension: number): Lookup {
     const view = this.view;
     const lookup = lookupList + view.getUint16(lookupList + 2 + index * 2);
-    let type = view.getUint16(lookup);
+    // An extension lookup points from each of its subtables to the real one, which also tells the real type.
+    const lookupType = view.getUint16(lookup);
+    let type = lookupType;
     const flag = view.getUint16(lookup + 2);
     const count = view.getUint16(lookup + 4);
     const tables: number[] = [];
     for (let i = 0; i < count; i++) {
       let sub = lookup + view.getUint16(lookup + 6 + i * 2);
-      if (type === extension) {
+      if (lookupType === extension) {
         type = view.getUint16(sub + 2);
         sub += view.getUint32(sub + 4);
       }
@@ -198,7 +218,7 @@ export class Shaper {
 
   private tag(offset: number): string {
     const view = this.view;
-    return String.fromCharCode(
+    return String.fromCodePoint(
       view.getUint8(offset),
       view.getUint8(offset + 1),
       view.getUint8(offset + 2),
@@ -267,7 +287,7 @@ export class Shaper {
         const coverage = this.font.readCoverage(table + view.getUint16(table + 2)).get(item.glyph);
         if (coverage === undefined) return -1;
         const sequence = table + view.getUint16(table + 6 + coverage * 2);
-        const glyphs = [...Array(view.getUint16(sequence)).keys()].map((k) => view.getUint16(sequence + 2 + k * 2));
+        const glyphs = Array.from({ length: view.getUint16(sequence) }, (_, k) => view.getUint16(sequence + 2 + k * 2));
         const replaced = glyphs.map((glyph) => ({ ...item, glyph, kind: this.font.classOf(glyph) }));
         items.splice(i, 1, ...replaced);
         return glyphs.length;
@@ -317,7 +337,7 @@ export class Shaper {
       }
       this.replace(first, glyph);
       first.kind = 2;
-      for (const k of matched.reverse()) {
+      for (const k of matched.toReversed()) {
         items.splice(k, 1);
       }
       return 1;
@@ -333,6 +353,7 @@ export class Shaper {
 
   // ---- Context, shared by GSUB 5/6 and GPOS 7/8 ----
 
+  // Applies the first rule of a context subtable that matches at the position; returns -1 when none does.
   private context(
     items: Item[],
     lookup: Lookup,
@@ -341,132 +362,151 @@ export class Shaper {
     i: number,
     apply: (index: number, nested: Lookup) => void,
   ): number {
-    const view = this.view;
-    const format = view.getUint16(table);
     const chained = type === 6 || type === 8;
-    let backtrack: ((glyph: number) => boolean)[] = [];
-    let input: ((glyph: number) => boolean)[];
-    let lookahead: ((glyph: number) => boolean)[] = [];
-    let records: number;
-    let recordCount: number;
-    const coverageTest = (offset: number) => {
-      const coverage = this.font.readCoverage(offset);
-      return (glyph: number) => coverage.has(glyph);
-    };
+    const format = this.view.getUint16(table);
     const first = (items[i] as Item).glyph;
-    if (format === 3) {
-      let at = table + 2;
-      const list = (count: number): ((glyph: number) => boolean)[] =>
-        [...Array(count).keys()].map((k) => coverageTest(table + view.getUint16(at + 2 + k * 2)));
-      if (chained) {
-        const b = view.getUint16(at);
-        backtrack = list(b);
-        at += 2 + b * 2;
-        const n = view.getUint16(at);
-        input = list(n);
-        at += 2 + n * 2;
-        const a = view.getUint16(at);
-        lookahead = list(a);
-        at += 2 + a * 2;
-        recordCount = view.getUint16(at);
-        records = at + 2;
-      } else {
-        const n = view.getUint16(at);
-        recordCount = view.getUint16(at + 2);
-        input = [...Array(n).keys()].map((k) => coverageTest(table + view.getUint16(at + 4 + k * 2)));
-        records = at + 4 + n * 2;
+    const rules = format === 3 ? [this.coverageRule(table, chained)] : this.glyphRules(table, format, chained, first);
+    for (const rule of rules) {
+      const positions = this.match(items, lookup, i, rule);
+      if (positions) {
+        this.applyRecords(lookup, rule, positions, apply);
+        return rule.input.length;
       }
-      if (!(input[0]?.(first) ?? false)) return -1;
-      return this.matchAndApply(items, lookup, i, backtrack, input, lookahead, records, recordCount, apply);
-    }
-    const coverage = this.font.readCoverage(table + view.getUint16(table + 2)).get(first);
-    if (coverage === undefined) return -1;
-    let classes: [Map<number, number>, Map<number, number>, Map<number, number>] | undefined;
-    let setOffset: number;
-    if (format === 2) {
-      const read = (at: number) => this.font.readClasses(table + view.getUint16(at));
-      classes = chained ? [read(table + 4), read(table + 6), read(table + 8)] : [new Map(), read(table + 4), new Map()];
-      const index = classes[1].get(first) ?? 0;
-      const sets = chained ? table + 10 : table + 6;
-      if (index >= view.getUint16(sets)) return -1;
-      const offset = view.getUint16(sets + 2 + index * 2);
-      if (offset === 0) return -1;
-      setOffset = table + offset;
-    } else {
-      const sets = chained ? table + 4 : table + 4;
-      setOffset = table + view.getUint16(sets + 2 + coverage * 2);
-    }
-    for (let r = 0; r < view.getUint16(setOffset); r++) {
-      let at = setOffset + view.getUint16(setOffset + 2 + r * 2);
-      const test = (value: number, which: number) =>
-        classes
-          ? (glyph: number) => ((classes as Map<number, number>[])[which]?.get(glyph) ?? 0) === value
-          : (glyph: number) => glyph === value;
-      if (chained) {
-        const b = view.getUint16(at);
-        backtrack = [...Array(b).keys()].map((k) => test(view.getUint16(at + 2 + k * 2), 0));
-        at += 2 + b * 2;
-        const n = view.getUint16(at);
-        input = [() => true, ...[...Array(n - 1).keys()].map((k) => test(view.getUint16(at + 2 + k * 2), 1))];
-        at += 2 + (n - 1) * 2;
-        const a = view.getUint16(at);
-        lookahead = [...Array(a).keys()].map((k) => test(view.getUint16(at + 2 + k * 2), 2));
-        at += 2 + a * 2;
-        recordCount = view.getUint16(at);
-        records = at + 2;
-      } else {
-        const n = view.getUint16(at);
-        recordCount = view.getUint16(at + 2);
-        input = [() => true, ...[...Array(n - 1).keys()].map((k) => test(view.getUint16(at + 4 + k * 2), 1))];
-        records = at + 4 + (n - 1) * 2;
-      }
-      const result = this.matchAndApply(items, lookup, i, backtrack, input, lookahead, records, recordCount, apply);
-      if (result >= 0) return result;
     }
     return -1;
   }
 
-  private matchAndApply(
-    items: Item[],
-    lookup: Lookup,
-    i: number,
-    backtrack: ((glyph: number) => boolean)[],
-    input: ((glyph: number) => boolean)[],
-    lookahead: ((glyph: number) => boolean)[],
-    records: number,
-    recordCount: number,
-    apply: (index: number, nested: Lookup) => void,
-  ): number {
-    const positions = [i];
+  // Format 3: one rule of coverage tables.
+  private coverageRule(table: number, chained: boolean): Rule {
+    const view = this.view;
+    const coverages = (at: number, count: number): Test[] =>
+      Array.from({ length: count }, (_, k) => {
+        const coverage = this.font.readCoverage(table + view.getUint16(at + k * 2));
+        return (glyph: number) => coverage.has(glyph);
+      });
+    let at = table + 2;
+    if (!chained) {
+      const count = view.getUint16(at);
+      return {
+        backtrack: [],
+        input: coverages(at + 4, count),
+        lookahead: [],
+        records: at + 4 + count * 2,
+        recordCount: view.getUint16(at + 2),
+      };
+    }
+    const backtrack = coverages(at + 2, view.getUint16(at));
+    at += 2 + backtrack.length * 2;
+    const input = coverages(at + 2, view.getUint16(at));
+    at += 2 + input.length * 2;
+    const lookahead = coverages(at + 2, view.getUint16(at));
+    at += 2 + lookahead.length * 2;
+    return { backtrack, input, lookahead, records: at + 2, recordCount: view.getUint16(at) };
+  }
+
+  // Formats 1 and 2: the rules of the set the first glyph selects, by glyph or by class.
+  private glyphRules(table: number, format: number, chained: boolean, first: number): Rule[] {
+    const view = this.view;
+    const coverage = this.font.readCoverage(table + view.getUint16(table + 2)).get(first);
+    if (coverage === undefined) return [];
+    let test =
+      (value: number): Test =>
+      (glyph: number) =>
+        glyph === value;
+    let tests = { backtrack: test, input: test, lookahead: test };
+    let setIndex = coverage;
+    let sets = table + 4;
+    if (format === 2) {
+      const classes = (at: number) => this.font.readClasses(table + view.getUint16(at));
+      const byClass =
+        (map: Map<number, number>) =>
+        (value: number): Test =>
+        (glyph: number) =>
+          (map.get(glyph) ?? 0) === value;
+      const input = classes(chained ? table + 6 : table + 4);
+      test = byClass(input);
+      tests = chained
+        ? { backtrack: byClass(classes(table + 4)), input: test, lookahead: byClass(classes(table + 8)) }
+        : { backtrack: test, input: test, lookahead: test };
+      setIndex = input.get(first) ?? 0;
+      sets = chained ? table + 10 : table + 6;
+    }
+    if (setIndex >= view.getUint16(sets) || view.getUint16(sets + 2 + setIndex * 2) === 0) return [];
+    const set = table + view.getUint16(sets + 2 + setIndex * 2);
+    return Array.from({ length: view.getUint16(set) }, (_, r) =>
+      this.parseRule(set + view.getUint16(set + 2 + r * 2), chained, tests),
+    );
+  }
+
+  private parseRule(
+    at: number,
+    chained: boolean,
+    tests: { backtrack: (value: number) => Test; input: (value: number) => Test; lookahead: (value: number) => Test },
+  ): Rule {
+    const view = this.view;
+    const values = (from: number, count: number, make: (value: number) => Test): Test[] =>
+      Array.from({ length: count }, (_, k) => make(view.getUint16(from + k * 2)));
+    // The first input glyph is the one the subtable was found by; the rule lists only those after it.
+    const anything: Test = () => true;
+    if (!chained) {
+      const count = view.getUint16(at);
+      return {
+        backtrack: [],
+        input: [anything, ...values(at + 4, count - 1, tests.input)],
+        lookahead: [],
+        records: at + 4 + (count - 1) * 2,
+        recordCount: view.getUint16(at + 2),
+      };
+    }
+    const backtrack = values(at + 2, view.getUint16(at), tests.backtrack);
+    at += 2 + backtrack.length * 2;
+    const inputCount = view.getUint16(at);
+    const input = [anything, ...values(at + 2, inputCount - 1, tests.input)];
+    at += 2 + (inputCount - 1) * 2;
+    const lookahead = values(at + 2, view.getUint16(at), tests.lookahead);
+    at += 2 + lookahead.length * 2;
+    return { backtrack, input, lookahead, records: at + 2, recordCount: view.getUint16(at) };
+  }
+
+  /** The positions of the input glyphs when the rule matches at i, with backtrack and lookahead; else undefined. */
+  private match(items: Item[], lookup: Lookup, i: number, rule: Rule): number[] | undefined {
+    const glyphAt = (at: number): number => (items[at] as Item).glyph;
+    const positions: number[] = [];
     let at = i;
-    for (let k = 1; k < input.length; k++) {
-      at = this.next(items, lookup, at + 1);
-      if (at < 0 || !(input[k]?.((items[at] as Item).glyph) ?? false)) return -1;
+    for (let k = 0; k < rule.input.length; k++) {
+      if (k > 0) at = this.next(items, lookup, at + 1);
+      if (at < 0 || !(rule.input[k]?.(glyphAt(at)) ?? false)) return undefined;
       positions.push(at);
     }
     let ahead = at;
-    for (const test of lookahead) {
+    for (const test of rule.lookahead) {
       ahead = this.next(items, lookup, ahead + 1);
-      if (ahead < 0 || !test((items[ahead] as Item).glyph)) return -1;
+      if (ahead < 0 || !test(glyphAt(ahead))) return undefined;
     }
     let behind = i;
-    for (const test of backtrack) {
+    for (const test of rule.backtrack) {
       behind = this.previous(items, lookup, behind - 1);
-      if (behind < 0 || !test((items[behind] as Item).glyph)) return -1;
+      if (behind < 0 || !test(glyphAt(behind))) return undefined;
     }
+    return positions;
+  }
+
+  private applyRecords(
+    lookup: Lookup,
+    rule: Rule,
+    positions: number[],
+    apply: (index: number, nested: Lookup) => void,
+  ): void {
     const view = this.view;
     const tag = lookup.type === 5 || lookup.type === 6 ? 'GSUB' : 'GPOS';
     const table = this.font.table(tag) as number;
     const lookupList = table + view.getUint16(table + 8);
-    for (let r = 0; r < recordCount; r++) {
-      const sequence = view.getUint16(records + r * 4);
-      const index = view.getUint16(records + r * 4 + 2);
-      const position = positions[sequence];
+    for (let r = 0; r < rule.recordCount; r++) {
+      const position = positions[view.getUint16(rule.records + r * 4)];
       if (position !== undefined) {
-        apply(position, this.readLookup(lookupList, index, tag === 'GSUB' ? 7 : 9));
+        apply(position, this.readLookup(lookupList, view.getUint16(rule.records + r * 4 + 2), tag === 'GSUB' ? 7 : 9));
       }
     }
-    return input.length;
   }
 
   // ---- Positioning ----
