@@ -5,3 +5,5 @@ export * from './render';
 export * from './text';
 export * from './numerics';
 export * from './data';
+export * from './locale';
+export * from './axes';
