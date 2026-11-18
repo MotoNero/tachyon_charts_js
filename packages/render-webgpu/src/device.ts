@@ -14,6 +14,10 @@ import {
   type SurfaceRenderTarget,
   type TextureDesc,
 } from '@tachyon-charts/core';
+import type { DeviceContext } from './context';
+import { WebGpuFrame } from './frame';
+import { WebGpuBuffer, WebGpuTexture } from './resources';
+import { WebGpuOffscreenTarget, WebGpuSurfaceTarget, WebGpuTarget } from './targets';
 
 /** Options for {@link createWebGpuDevice}. */
 export interface WebGpuDeviceOptions {
@@ -49,21 +53,26 @@ export async function createWebGpuDevice(options: WebGpuDeviceOptions = {}): Pro
   });
   const info = adapter.info;
   const name = [info.vendor, info.architecture].filter((part) => part !== '').join(' ');
-  return new WebGpuDevice(device, {
-    backendName: name === '' ? 'WebGPU' : `WebGPU (${name})`,
-    supportsCompute: true,
-    maxBufferSize: device.limits.maxBufferSize,
-    maxTextureDimension: device.limits.maxTextureDimension2D,
-    maxSampleCount: 4,
-  });
+  return new WebGpuDevice(
+    device,
+    {
+      backendName: name === '' ? 'WebGPU' : `WebGPU (${name})`,
+      supportsCompute: true,
+      maxBufferSize: device.limits.maxBufferSize,
+      maxTextureDimension: device.limits.maxTextureDimension2D,
+      maxSampleCount: 4,
+    },
+    gpu.getPreferredCanvasFormat(),
+  );
 }
 
 /** A {@link RenderDevice} on WebGPU. Create it with {@link createWebGpuDevice}. */
-export class WebGpuDevice implements RenderDevice {
+export class WebGpuDevice implements RenderDevice, DeviceContext {
   private disposed = false;
   private lost: string | undefined;
   private readonly lostListeners = new Set<(reason: string) => void>();
   private readonly validationErrors: string[] = [];
+  private readonly frame = new WebGpuFrame(this);
 
   /** Draw calls issued so far. */
   drawCallCount = 0;
@@ -73,10 +82,12 @@ export class WebGpuDevice implements RenderDevice {
   /**
    * @param gpu - The WebGPU device; the other parts of this package draw with it.
    * @param capabilities - What the device supports.
+   * @param canvasFormat - The texture format canvases show best on this machine.
    */
   constructor(
     readonly gpu: GPUDevice,
     readonly capabilities: DeviceCapabilities,
+    readonly canvasFormat: GPUTextureFormat = 'bgra8unorm',
   ) {
     void gpu.lost.then((info) => {
       // Disposing destroys the device on purpose; that is no loss.
@@ -121,29 +132,34 @@ export class WebGpuDevice implements RenderDevice {
 
   createBuffer(desc: BufferDesc): GpuBuffer {
     this.ensureUsable();
-    throw notYet(`buffers (${String(desc.sizeInBytes)} bytes)`);
+    return new WebGpuBuffer(this, desc.sizeInBytes, desc.usage);
   }
 
   createTexture(desc: TextureDesc): GpuTexture {
     this.ensureUsable();
-    throw notYet(`textures (${desc.format})`);
+    return new WebGpuTexture(this, desc.size, desc.format);
   }
 
   createOffscreenTarget(size: PixelSize, dpiScale: number): OffscreenRenderTarget {
     this.ensureUsable();
-    throw notYet(`offscreen targets (${String(size.width)} × ${String(size.height)} at ${String(dpiScale)})`);
+    return new WebGpuOffscreenTarget(this, size, dpiScale);
   }
 
   createSurfaceTarget(surface: SurfaceHandle, size: PixelSize, dpiScale: number): SurfaceRenderTarget {
     this.ensureUsable();
-    throw notYet(
-      `surface targets (${surface.kind}, ${String(size.width)} × ${String(size.height)} at ${String(dpiScale)})`,
-    );
+    return new WebGpuSurfaceTarget(this, surface, size, dpiScale, this.canvasFormat);
   }
 
   beginFrame(target: RenderTarget): CommandList {
     this.ensureUsable();
-    throw notYet(`frames (${String(target.size.width)} × ${String(target.size.height)})`);
+    if (!(target instanceof WebGpuTarget) || target.device !== this) {
+      throw new TypeError('The target belongs to another device.');
+    }
+    if (this.frame.isActive) {
+      throw new Error('A frame is still being recorded; submit or dispose it first.');
+    }
+    target.ensureUsable();
+    return this.frame.begin(target);
   }
 
   async whenIdle(): Promise<void> {
@@ -187,8 +203,4 @@ export class WebGpuDevice implements RenderDevice {
       listener(reason);
     }
   }
-}
-
-function notYet(what: string): Error {
-  return new Error(`The WebGPU device cannot create ${what} yet.`);
 }
