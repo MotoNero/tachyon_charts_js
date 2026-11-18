@@ -1,0 +1,7 @@
+{
+  "compilerOptions": {
+    "paths": {
+      "@tachyon-charts/*": ["./packages/*/src/index.ts"]
+    }
+  }
+}

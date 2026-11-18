@@ -1,0 +1,35 @@
+{
+  "files": [],
+  "references": [
+    {
+      "path": "packages/core"
+    },
+    {
+      "path": "packages/render-webgpu"
+    },
+    {
+      "path": "packages/render-webgl"
+    },
+    {
+      "path": "packages/render-canvas"
+    },
+    {
+      "path": "packages/element"
+    },
+    {
+      "path": "packages/large-data"
+    },
+    {
+      "path": "packages/3d"
+    },
+    {
+      "path": "packages/geo"
+    },
+    {
+      "path": "packages/medical"
+    },
+    {
+      "path": "packages/configurator"
+    }
+  ]
+}

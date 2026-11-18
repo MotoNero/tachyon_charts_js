@@ -1,0 +1,25 @@
+{
+  "name": "@tachyon-charts/configurator",
+  "version": "0.1.0-dev",
+  "description": "Tachyon Charts: The configurator as a web app.",
+  "license": "Apache-2.0",
+  "type": "module",
+  "sideEffects": false,
+  "exports": {
+    ".": {
+      "types": "./dist/index.d.ts",
+      "import": "./dist/index.js"
+    }
+  },
+  "files": [
+    "dist"
+  ],
+  "dependencies": {
+    "@tachyon-charts/core": "workspace:*",
+    "@tachyon-charts/element": "workspace:*",
+    "@tachyon-charts/large-data": "workspace:*",
+    "@tachyon-charts/3d": "workspace:*",
+    "@tachyon-charts/geo": "workspace:*",
+    "@tachyon-charts/medical": "workspace:*"
+  }
+}

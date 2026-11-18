@@ -1,0 +1,30 @@
+{
+  "extends": "../../tsconfig.base.json",
+  "compilerOptions": {
+    "rootDir": "src",
+    "outDir": "dist",
+    "lib": ["ES2023", "DOM", "DOM.Iterable"],
+    "types": []
+  },
+  "include": ["src"],
+  "references": [
+    {
+      "path": "../core"
+    },
+    {
+      "path": "../element"
+    },
+    {
+      "path": "../large-data"
+    },
+    {
+      "path": "../3d"
+    },
+    {
+      "path": "../geo"
+    },
+    {
+      "path": "../medical"
+    }
+  ]
+}

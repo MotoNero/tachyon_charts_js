@@ -1,0 +1,8 @@
+{
+  "name": "@tachyon-charts/example-basic",
+  "private": true,
+  "type": "module",
+  "dependencies": {
+    "@tachyon-charts/core": "workspace:*"
+  }
+}

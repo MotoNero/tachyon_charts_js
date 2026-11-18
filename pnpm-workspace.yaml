@@ -1,0 +1,6 @@
+packages:
+  - packages/*
+  - examples/*
+
+# New versions of dependencies are only taken once they are two weeks old (minutes).
+minimumReleaseAge: 20160
