@@ -4,3 +4,9 @@ packages:
 
 # New versions of dependencies are only taken once they are two weeks old (minutes).
 minimumReleaseAge: 20160
+
+# Accepted findings of the dependency scan, development tools only; reviewed at the end of every phase.
+auditConfig:
+  ignoreGhsas:
+    - GHSA-g3hv-75wg-m249 # minimatch in eslint: denial of service through glob patterns, ours are fixed
+    - GHSA-fc5q-39xc-vjpf # picomatch in dependency-cruiser: no fixed version yet, patterns are ours

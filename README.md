@@ -21,6 +21,10 @@ data: millions of points in real time and files larger than memory.
 | `@tachyon-charts/medical` | DICOM and NIfTI images |
 | `@tachyon-charts/configurator` | The configurator as a web app |
 
+## Documentation
+
+- [File formats](docs/guide/file-formats.md): column files, pyramids, point tiles, rasters and maps
+
 ## Build from source
 
 Requires Node.js 22.12 or later. pnpm comes with Node.js through Corepack.
