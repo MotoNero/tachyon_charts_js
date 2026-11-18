@@ -9,11 +9,42 @@ export interface Culture {
   readonly language: ChartLanguage;
   readonly decimalSeparator: string;
   readonly negativeSign: string;
+  /** The short names of the months, January first, as in "Mar 2026". */
+  readonly abbreviatedMonths: readonly string[];
+  /** The short names of the months beside a day, as in "1 Mar 2026"; some languages bend them there. */
+  readonly abbreviatedMonthsGenitive: readonly string[];
 }
 
+const englishMonths = ['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun', 'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec'];
+
 const cultures: Record<ChartLanguage, Culture> = {
-  english: { language: 'english', decimalSeparator: '.', negativeSign: '-' },
-  german: { language: 'german', decimalSeparator: ',', negativeSign: '-' },
+  english: {
+    language: 'english',
+    decimalSeparator: '.',
+    negativeSign: '-',
+    abbreviatedMonths: englishMonths,
+    abbreviatedMonthsGenitive: englishMonths,
+  },
+  german: {
+    language: 'german',
+    decimalSeparator: ',',
+    negativeSign: '-',
+    abbreviatedMonths: ['Jan', 'Feb', 'Mär', 'Apr', 'Mai', 'Jun', 'Jul', 'Aug', 'Sep', 'Okt', 'Nov', 'Dez'],
+    abbreviatedMonthsGenitive: [
+      'Jan.',
+      'Feb.',
+      'März',
+      'Apr.',
+      'Mai',
+      'Juni',
+      'Juli',
+      'Aug.',
+      'Sept.',
+      'Okt.',
+      'Nov.',
+      'Dez.',
+    ],
+  },
 };
 
 /** The culture of a language. */
