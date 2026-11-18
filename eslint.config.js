@@ -25,7 +25,8 @@ export default [
   {
     languageOptions: {
       parserOptions: {
-        projectService: { allowDefaultProject: ['*.js', '*.cjs', '*.ts'] },
+        // Files outside of the packages, such as the configs at the root, are checked with the options of the tests.
+        projectService: { allowDefaultProject: ['*.js', '*.cjs', '*.ts'], defaultProject: 'tests/tsconfig.json' },
         tsconfigRootDir: import.meta.dirname,
       },
     },
