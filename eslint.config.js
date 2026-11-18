@@ -11,6 +11,8 @@ export default [
       '**/build/**',
       '**/bin/**',
       '**/obj/**',
+      // Declarations of the tool scripts; the tests check them with the compiler.
+      'tools/*.d.mts',
       '**/node_modules/**',
       'coverage/**',
       'test-results/**',
