@@ -42,6 +42,22 @@ export function packRgba8(color: Rgba8): number {
   return (((color.a & 255) << 24) | ((color.b & 255) << 16) | ((color.g & 255) << 8) | (color.r & 255)) >>> 0;
 }
 
+const wordViews = new WeakMap<ArrayBufferLike, Uint32Array>();
+
+/**
+ * The memory of a float array as 32-bit words, to read and write packed colors. A color with full alpha has the
+ * bits of a NaN, which JavaScript may change on the way through a number, so colors go through words only. The view
+ * covers the whole buffer and is made once per buffer: index it with `array.byteOffset / 4 + i`.
+ */
+export function wordsOf(array: Float32Array): Uint32Array {
+  let words = wordViews.get(array.buffer);
+  if (!words) {
+    words = new Uint32Array(array.buffer, 0, Math.floor(array.buffer.byteLength / 4));
+    wordViews.set(array.buffer, words);
+  }
+  return words;
+}
+
 /**
  * Reads a color from text as the themes write it: `#RRGGBB`, or `#RRGGBBAA` with the opacity last.
  * @param text - The color.

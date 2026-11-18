@@ -5,6 +5,7 @@
 import {
   BufferUsage,
   packRgba8,
+  wordsOf,
   type CommandList,
   type GpuBuffer,
   type GpuTexture,
@@ -16,14 +17,15 @@ import {
   type Rgba8,
 } from '@tachyon-charts/core';
 import type { DeviceContext } from './context';
-import { flatVertexSize, markerSize, paramsSize, PipelineCache, pointSize } from './pipelines';
-import { WebGpuBuffer } from './resources';
+import { flatVertexSize, glyphSize, markerSize, paramsSize, PipelineCache, pointSize } from './pipelines';
+import { WebGpuBuffer, WebGpuTexture } from './resources';
 import type { WebGpuTarget } from './targets';
 
 const enum Kind {
   Flat,
   Polyline,
   Markers,
+  Glyphs,
 }
 
 const shapeCodes: Record<MarkerShape, number> = { circle: 0, square: 1, triangle: 2, diamond: 3, cross: 4, plus: 5 };
@@ -34,6 +36,7 @@ class Op {
   first = 0;
   count = 0;
   buffer: GPUBuffer | undefined;
+  texture: WebGpuTexture | undefined;
   hasClip = false;
   clipX = 0;
   clipY = 0;
@@ -77,6 +80,12 @@ export class WebGpuFrame implements CommandList {
   private uniformFloats = new Float32Array(0);
   private uniformWords = new Uint32Array(0);
 
+  // Glyphs of the frame, 13 words each, copied as they come.
+  private glyphWords = new Float32Array(13 * 256);
+  private glyphCount = 0;
+  private glyphBuffer: GPUBuffer | undefined;
+  // A bind group per texture drawn from, made once.
+  private readonly textureGroups = new WeakMap<WebGpuTexture, GPUBindGroup>();
   private vertexBuffer: GPUBuffer | undefined;
   private uniformBuffer: GPUBuffer | undefined;
   private uniformGroup: GPUBindGroup | undefined;
@@ -188,9 +197,10 @@ export class WebGpuFrame implements CommandList {
     op.count = usable;
     this.setClip(op, clip);
     this.ensureVertices(usable);
-    const colors = new Uint32Array(vertices.buffer, vertices.byteOffset, usable * 3);
+    const colors = wordsOf(vertices);
+    const base = vertices.byteOffset / 4;
     for (let i = 0; i < usable; i++) {
-      this.vertex(vertices[i * 3] as number, vertices[i * 3 + 1] as number, colors[i * 3 + 2] as number);
+      this.vertex(vertices[i * 3] as number, vertices[i * 3 + 1] as number, colors[base + i * 3 + 2] as number);
     }
   }
 
@@ -247,7 +257,34 @@ export class WebGpuFrame implements CommandList {
   }
 
   drawGlyphs(atlas: GpuTexture, glyphs: Float32Array, count: number): void {
-    this.notYet('glyphs', atlas, glyphs, count);
+    this.ensureRecording();
+    if (!(atlas instanceof WebGpuTexture) || atlas.device !== this.device) {
+      throw new TypeError('The atlas belongs to another device.');
+    }
+    atlas.ensureUsable();
+    const usable = Math.min(count, Math.floor(glyphs.length / 13));
+    if (usable <= 0) {
+      return;
+    }
+    const op = this.nextOp(Kind.Glyphs);
+    op.texture = atlas;
+    op.first = this.glyphCount;
+    op.count = usable;
+    const needed = (this.glyphCount + usable) * 13;
+    if (needed > this.glyphWords.length) {
+      const grown = new Float32Array(Math.max(needed, this.glyphWords.length * 2));
+      grown.set(this.glyphWords.subarray(0, this.glyphCount * 13));
+      this.glyphWords = grown;
+    }
+    // Copied as words, so that the color keeps its bits.
+    const source = wordsOf(glyphs);
+    const start = glyphs.byteOffset / 4;
+    const target = wordsOf(this.glyphWords);
+    const into = this.glyphCount * 13;
+    for (let k = 0; k < usable * 13; k++) {
+      target[into + k] = source[start + k] as number;
+    }
+    this.glyphCount += usable;
   }
 
   drawImage(image: GpuTexture, bounds: PixelRect): void {
@@ -268,6 +305,7 @@ export class WebGpuFrame implements CommandList {
     const target = this.target as WebGpuTarget;
     const gpu = this.device.gpu;
     this.uploadVertices();
+    this.uploadGlyphs();
     this.uploadUniforms(target);
     const pipelines = this.pipelines.get(target.format);
 
@@ -287,6 +325,11 @@ export class WebGpuFrame implements CommandList {
         pass.setPipeline(pipelines.flat);
         pass.setVertexBuffer(0, this.vertexBuffer as GPUBuffer);
         pass.draw(op.count, 1, op.first, 0);
+      } else if (op.kind === Kind.Glyphs) {
+        pass.setPipeline(pipelines.text);
+        pass.setBindGroup(1, this.textureGroup(op.texture as WebGpuTexture));
+        pass.setVertexBuffer(0, this.glyphBuffer as GPUBuffer, op.first * glyphSize, op.count * glyphSize);
+        pass.draw(6, op.count, 0, 0);
       } else if (op.kind === Kind.Markers) {
         pass.setPipeline(pipelines.marker);
         pass.setVertexBuffer(0, op.buffer as GPUBuffer, op.first * markerSize, op.count * markerSize);
@@ -323,11 +366,14 @@ export class WebGpuFrame implements CommandList {
 
   private reset(): void {
     for (let i = 0; i < this.opCount; i++) {
-      (this.ops[i] as Op).buffer = undefined;
+      const op = this.ops[i] as Op;
+      op.buffer = undefined;
+      op.texture = undefined;
     }
     this.opCount = 0;
     this.slots = 1;
     this.vertexCount = 0;
+    this.glyphCount = 0;
   }
 
   private finish(): void {
@@ -404,6 +450,31 @@ export class WebGpuFrame implements CommandList {
       op.clipWidth = clip.height;
       op.clipHeight = clip.width;
     }
+  }
+
+  private textureGroup(texture: WebGpuTexture): GPUBindGroup {
+    let group = this.textureGroups.get(texture);
+    if (!group) {
+      group = this.device.gpu.createBindGroup({
+        layout: this.pipelines.textureLayout,
+        entries: [{ binding: 0, resource: texture.view }],
+      });
+      this.textureGroups.set(texture, group);
+    }
+    return group;
+  }
+
+  private uploadGlyphs(): void {
+    if (this.glyphCount === 0) {
+      return;
+    }
+    const bytes = this.glyphCount * glyphSize;
+    if (!this.glyphBuffer || this.glyphBuffer.size < bytes) {
+      const size = Math.max(bytes, (this.glyphBuffer?.size ?? 0) * 2);
+      this.glyphBuffer?.destroy();
+      this.glyphBuffer = this.device.gpu.createBuffer({ size, usage: GPUBufferUsage.VERTEX | GPUBufferUsage.COPY_DST });
+    }
+    this.device.gpu.queue.writeBuffer(this.glyphBuffer, 0, this.glyphWords.buffer, 0, bytes);
   }
 
   private uploadVertices(): void {
