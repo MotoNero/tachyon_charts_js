@@ -35,6 +35,14 @@ export function rgba(r: number, g: number, b: number, a = 255): Rgba8 {
 }
 
 /**
+ * Packs a color into the 32-bit word that marker, glyph and mesh buffers hold: red in the lowest byte. Write it
+ * through a `Uint32Array` over the same memory as the floats.
+ */
+export function packRgba8(color: Rgba8): number {
+  return (((color.a & 255) << 24) | ((color.b & 255) << 16) | ((color.g & 255) << 8) | (color.r & 255)) >>> 0;
+}
+
+/**
  * Reads a color from text as the themes write it: `#RRGGBB`, or `#RRGGBBAA` with the opacity last.
  * @param text - The color.
  * @returns The color.

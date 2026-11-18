@@ -72,7 +72,8 @@ export class WebGpuDevice implements RenderDevice, DeviceContext {
   private lost: string | undefined;
   private readonly lostListeners = new Set<(reason: string) => void>();
   private readonly validationErrors: string[] = [];
-  private readonly frame = new WebGpuFrame(this);
+  // Made in the constructor: it needs the GPU device, which a field initializer would not see yet.
+  private readonly frame: WebGpuFrame;
 
   /** Draw calls issued so far. */
   drawCallCount = 0;
@@ -89,6 +90,7 @@ export class WebGpuDevice implements RenderDevice, DeviceContext {
     readonly capabilities: DeviceCapabilities,
     readonly canvasFormat: GPUTextureFormat = 'bgra8unorm',
   ) {
+    this.frame = new WebGpuFrame(this);
     void gpu.lost.then((info) => {
       // Disposing destroys the device on purpose; that is no loss.
       if (!this.disposed) {

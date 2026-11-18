@@ -105,6 +105,8 @@ export interface CommandList {
    * @param count - The number of corners.
    */
   fillMesh(vertices: Float32Array, count: number, clip?: PixelRect): void;
+  /** Marks the area of a text label with a rectangle; stands in for text where none is drawn, as in tests. */
+  drawTextPlaceholder(bounds: PixelRect, color: Rgba8): void;
   /**
    * Draws an anti-aliased line through consecutive points with round joins and caps. The GPU transforms the points,
    * so a buffer that stays the same can follow the axes. Segments touching a {@link lineGap} point are left out.

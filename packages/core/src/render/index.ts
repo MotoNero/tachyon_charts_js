@@ -13,4 +13,4 @@ export type {
   TextureDesc,
   TextureFormat,
 } from './types';
-export { BufferUsage, parseColor, rgba } from './types';
+export { BufferUsage, packRgba8, parseColor, rgba } from './types';

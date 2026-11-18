@@ -5,3 +5,4 @@ export { createWebGpuDevice, WebGpuDevice, type WebGpuDeviceOptions } from './de
 export { WebGpuFrame } from './frame';
 export { WebGpuBuffer, WebGpuTexture } from './resources';
 export { WebGpuOffscreenTarget, WebGpuSurfaceTarget, WebGpuTarget } from './targets';
+export { PipelineCache } from './pipelines';
