@@ -18,7 +18,7 @@ import {
   version,
   ZoomPanModifier,
 } from '@tachyon-charts/core';
-import { bindChartInput } from '@tachyon-charts/element';
+import { bindChartInput, watchPreferredTheme } from '@tachyon-charts/element';
 import { createWebGpuDevice } from '@tachyon-charts/render-webgpu';
 import robotoUrl from '../../../shared/fonts/Roboto-Regular.ttf?url';
 
@@ -92,6 +92,11 @@ if (!device || !canvas) {
   };
   pipeline.add(tooltip);
   bindChartInput(canvas, pipeline);
+  // Light or dark after the system, switching while the page is open.
+  watchPreferredTheme((theme) => {
+    chart.theme = theme;
+    document.body.style.background = theme.surface?.background ?? '';
+  });
 
   const size = (): { width: number; height: number } => ({
     width: Math.max(Math.round(canvas.clientWidth * devicePixelRatio), 1),

@@ -15,3 +15,4 @@ export * from './fluent';
 export * from './input';
 export * from './overlays';
 export * from './hit-testing';
+export * from './themes';

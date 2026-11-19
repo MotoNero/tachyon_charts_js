@@ -1,6 +1,7 @@
 // The root of a chart: axes, panes and series, drawn in the passes of a frame (ChartSurface of the .NET version).
 import type { Axis, TickSet } from '../axes/axis';
 import { DateTimeAxis } from '../axes/date-time-axis';
+import { resolveTheme, toSurfaceStyle, type ThemeDocument } from '../themes/theme';
 import type { HitResult, HitTestMode } from '../hit-testing/hit-test';
 import type { Point } from '../input/primitives';
 import { OverlayCanvas, type ChartOverlay } from '../overlays/chart-overlay';
@@ -18,7 +19,7 @@ import { DoubleRange } from '../numerics/range';
 import type { LinearAxisTransform } from '../numerics/transform';
 import { glyphStride, type CommandList } from '../render/commands';
 import type { RenderDevice, RenderTarget } from '../render/device';
-import type { PixelRect, Rgba8 } from '../render/types';
+import { parseColor, type PixelRect, type Rgba8 } from '../render/types';
 import type { TextEngine, TextFont } from '../text/engine';
 import { SeriesFrame, type ChartSeries } from './chart-series';
 import { defaultSurfaceStyle, type ChartSurfaceStyle } from './chart-surface-style';
@@ -27,8 +28,8 @@ const axisTitleInset = 7;
 const defaultLabelSize = 11;
 const defaultTitleSize = 14;
 const autoRangePadding = 0.05;
-const tickColor: Rgba8 = { r: 150, g: 160, b: 175, a: 255 };
-const textColor: Rgba8 = { r: 200, g: 208, b: 220, a: 255 };
+const defaultTick: Rgba8 = { r: 150, g: 160, b: 175, a: 255 };
+const defaultText: Rgba8 = { r: 200, g: 208, b: 220, a: 255 };
 
 interface FittedRange {
   min: number;
@@ -83,8 +84,18 @@ export class ChartSurface {
   private renderedWidth = -1;
   private renderedHeight = -1;
   private renderedScale = -1;
-  private readonly labelSize = defaultLabelSize;
-  private readonly titleSize = defaultTitleSize;
+  private labelSize = defaultLabelSize;
+  private titleSize = defaultTitleSize;
+  private tickColor = defaultTick;
+  private labelColor = defaultText;
+  private titleColor = defaultText;
+  private crosshairColors: { line: Rgba8; fill: Rgba8; text: Rgba8 } | undefined;
+  private themeDocument: ThemeDocument | undefined;
+  private themeFamily: string | undefined;
+  private ownAxisFont: TextFont | undefined;
+  private glowRadius = 0;
+  private glowIntensity = 0;
+  private arrangeScale = 1;
 
   /**
    * @param horizontalAxes - The axes at the top and bottom; the first one draws the vertical grid lines.
@@ -152,14 +163,30 @@ export class ChartSurface {
 
   /** The font of the axis labels and titles; the default font of the engine when left out. */
   get axisFont(): TextFont | undefined {
-    return this.measurer.font;
+    return this.ownAxisFont;
   }
 
   set axisFont(value: TextFont | undefined) {
-    if (value !== this.measurer.font) {
-      this.measurer.font = value;
+    if (value !== this.ownAxisFont) {
+      this.ownAxisFont = value;
+      this.measurer.font = this.withThemeFamily(value);
       this.structure++;
     }
+  }
+
+  /**
+   * The theme: colors, text sizes and effects, in the JSON format of the .NET version; `undefined` for the colors of a
+   * chart without a theme. Setting it resolves its base themes and replaces {@link ChartSurface.style}.
+   * @throws Error when a base theme is unknown or a color cannot be read; RangeError for a text size that is not
+   * positive and finite.
+   */
+  get theme(): ThemeDocument | undefined {
+    return this.themeDocument;
+  }
+
+  set theme(value: ThemeDocument | undefined) {
+    this.applyTheme(value === undefined ? undefined : resolveTheme(value));
+    this.structure++;
   }
 
   /** The colors of the background and grid passes. */
@@ -372,7 +399,7 @@ export class ChartSurface {
         }
       }
       // Overlay pass: tick marks, the preview of a zoom, the overlays and all text.
-      fill(frame, this.tickRects, tickColor);
+      fill(frame, this.tickRects, this.tickColor);
       this.drawZoomRectangle(frame, target.dpiScale);
       const usedCanvas = this.drawOverlays(frame, target);
       if (this.glyphCount > 0) {
@@ -416,12 +443,12 @@ export class ChartSurface {
       target.dpiScale,
       target.size.width / target.dpiScale,
       {
-        accent: tickColor,
-        text: textColor,
+        accent: this.tickColor,
+        text: this.labelColor,
         background,
-        crosshair: tickColor,
-        crosshairLabelFill: tickColor,
-        crosshairLabelText: background,
+        crosshair: this.crosshairColors?.line ?? this.tickColor,
+        crosshairLabelFill: this.crosshairColors?.fill ?? this.tickColor,
+        crosshairLabelText: this.crosshairColors?.text ?? background,
       },
       this.labelSize,
     );
@@ -466,6 +493,38 @@ export class ChartSurface {
     const dx = frame.x.toPixel(point.x) - pixelX;
     const dy = mode === 'nearestX' ? 0 : frame.y.toPixel(point.y) - pixelY;
     return { ...point, series, distance: Math.sqrt(dx * dx + dy * dy) / scale };
+  }
+
+  private applyTheme(theme: ThemeDocument | undefined): void {
+    const size = theme?.text?.size;
+    if (size !== undefined && !(size > 0 && Number.isFinite(size))) {
+      throw new RangeError(`The theme text size must be positive and finite, not ${String(size)}.`);
+    }
+    const color = (text: string | undefined, fallback: Rgba8): Rgba8 => (text ? parseColor(text) : fallback);
+    this.surfaceStyle = theme ? toSurfaceStyle(theme) : defaultSurfaceStyle;
+    this.tickColor = color(theme?.axis?.tick, defaultTick);
+    this.labelColor = color(theme?.axis?.label, defaultText);
+    this.titleColor = color(theme?.axis?.title, defaultText);
+    const crosshair = theme?.crosshair;
+    this.crosshairColors = crosshair && {
+      line: color(crosshair.line, this.tickColor),
+      fill: color(crosshair.labelBackground, this.tickColor),
+      text: color(crosshair.labelText, this.surfaceStyle.backgroundColor),
+    };
+    this.themeFamily = firstFamily(theme?.text?.fontFamily);
+    this.measurer.font = this.withThemeFamily(this.ownAxisFont);
+    this.themeDocument = theme;
+    const glow = theme?.effects?.glow;
+    this.glowRadius = glow?.enabled === true ? (glow.radius ?? 0) : 0;
+    this.glowIntensity = this.glowRadius > 0 ? (glow?.intensity ?? 0) : 0;
+    this.labelSize = size ?? defaultLabelSize;
+    this.titleSize = size === undefined ? defaultTitleSize : size + 3;
+    this.measurer.size = this.labelSize;
+  }
+
+  // A font without a family of its own takes that of the theme.
+  private withThemeFamily(font: TextFont | undefined): TextFont | undefined {
+    return font?.family === undefined && this.themeFamily !== undefined ? { ...font, family: this.themeFamily } : font;
   }
 
   private fillPaneBackgrounds(frame: CommandList): void {
@@ -538,6 +597,7 @@ export class ChartSurface {
 
   private arrange(target: RenderTarget): void {
     const scale = target.dpiScale;
+    this.arrangeScale = scale;
     const size = { width: target.size.width / scale, height: target.size.height / scale };
     const layout = arrangeChart(size, this.titleText, this.horizontal, this.paneList, this.measurer, this.options);
     this.paneRects.length = 0;
@@ -553,9 +613,10 @@ export class ChartSurface {
       this.addBorder(pixels);
     }
     if (this.titleText) {
-      const width = this.textEngine.measureWidth(this.titleText, this.titleSize, this.titleTextFont);
+      const font = this.withThemeFamily(this.titleTextFont);
+      const width = this.textEngine.measureWidth(this.titleText, this.titleSize, font);
       const left = layout.title.x + (layout.title.width - width) / 2;
-      this.addText(this.titleText, left, layout.title.bottom - 2, this.titleSize, textColor, scale, this.titleTextFont);
+      this.addText(this.titleText, left, layout.title.bottom - 2, this.titleSize, this.titleColor, scale, font);
     }
     for (const placement of layout.axes) {
       this.arrangeAxis(placement, layout, scale);
@@ -684,10 +745,10 @@ export class ChartSurface {
         position,
         pivot,
         axis.labelRotation,
-        scale,
+        this.labelColor,
       );
     } else {
-      this.addText(label, labelX, baseline, this.labelSize, textColor, scale, this.measurer.font);
+      this.addText(label, labelX, baseline, this.labelSize, this.labelColor, scale, this.measurer.font);
     }
   }
 
@@ -701,7 +762,7 @@ export class ChartSurface {
           bounds.x + (bounds.width - width) / 2,
           bounds.bottom - 2,
           this.labelSize,
-          textColor,
+          this.titleColor,
           scale,
           font,
         );
@@ -712,7 +773,7 @@ export class ChartSurface {
           bounds.x + (bounds.width - width) / 2,
           bounds.y + this.labelSize,
           this.labelSize,
-          textColor,
+          this.titleColor,
           scale,
           font,
         );
@@ -721,7 +782,7 @@ export class ChartSurface {
         const x = axis.position === 'left' ? bounds.x + axisTitleInset : bounds.right - axisTitleInset;
         const y = bounds.y + bounds.height / 2;
         const degrees = axis.position === 'left' ? -90 : 90;
-        this.addTurnedText(title, x - width / 2, y + this.labelSize * 0.36, x, y, degrees, scale);
+        this.addTurnedText(title, x - width / 2, y + this.labelSize * 0.36, x, y, degrees, this.titleColor);
         break;
       }
     }
@@ -791,6 +852,8 @@ export class ChartSurface {
         series.xAxis.createTransform(bounds.x, bounds.width),
         series.yAxis.createTransform(bounds.y, bounds.height),
         scale,
+        this.glowRadius * scale,
+        this.glowIntensity,
       );
     });
   }
@@ -803,10 +866,11 @@ export class ChartSurface {
     pivotX: number,
     pivotY: number,
     degrees: number,
-    scale: number,
+    color: Rgba8,
   ): void {
     const first = this.glyphCount;
-    this.addText(text, x, baseline, this.labelSize, textColor, scale, this.measurer.font);
+    const scale = this.arrangeScale;
+    this.addText(text, x, baseline, this.labelSize, color, scale, this.measurer.font);
     const radians = Math.fround((degrees * Math.PI) / 180);
     for (let i = first; i < this.glyphCount; i++) {
       const at = i * glyphStride;
@@ -849,4 +913,13 @@ function fill(frame: CommandList, rectangles: readonly PixelRect[], color: Rgba8
       frame.fillRectangle(rectangle, color);
     }
   }
+}
+
+// The first family a theme names; the embedded Roboto is the default font of the engine.
+function firstFamily(families: string | undefined): string | undefined {
+  const first = families
+    ?.split(',')
+    .map((name) => name.trim())
+    .find((name) => name !== '');
+  return first === undefined || first.toLowerCase() === 'roboto' ? undefined : first;
 }

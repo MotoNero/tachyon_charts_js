@@ -244,12 +244,14 @@ export class LineSeries extends ChartSeries {
     if (line.count > 0) {
       this.gpu.ensure(device, line.count * 8).write(0, line.data.subarray(0, line.count * 2));
     }
-    const glow = this.glow;
+    // The own glow of the line, otherwise the one of the theme.
+    const radius = this.glow === undefined ? frame.glowRadius : f(this.glow * frame.dpiScale);
+    const intensity = this.glow === undefined ? frame.glowIntensity : this.intensity;
     this.style = {
       widthInPixels: f(this.lineThickness * frame.dpiScale),
       color: this.lineColor,
       clip: frame.bounds,
-      ...(glow === undefined ? {} : { glowRadius: f(glow * frame.dpiScale), glowIntensity: f(this.intensity) }),
+      ...(radius > 0 ? { glowRadius: f(radius), glowIntensity: f(intensity) } : {}),
     };
   }
 

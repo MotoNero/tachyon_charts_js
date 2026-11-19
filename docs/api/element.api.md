@@ -7,12 +7,36 @@
 import { ChartKey } from '@tachyon-charts/core';
 import { ModifierPipeline } from '@tachyon-charts/core';
 import { Point } from '@tachyon-charts/core';
+import { ThemeDocument } from '@tachyon-charts/core';
 
 // @public
 export function bindChartInput(element: HTMLElement, pipeline: ModifierPipeline, options?: InputBindingOptions): () => void;
 
 // @public
 export function chartKeyOf(key: string): ChartKey | undefined;
+
+// @public
+export function cssColorToHex(value: string, element: Element): string | undefined;
+
+// @public
+export const cssThemeProperties: {
+    readonly '--tachyon-background': "surface.background";
+    readonly '--tachyon-plot-area': "surface.plotArea";
+    readonly '--tachyon-border': "surface.border";
+    readonly '--tachyon-grid-major': "grid.major";
+    readonly '--tachyon-grid-minor': "grid.minor";
+    readonly '--tachyon-grid-band': "grid.band";
+    readonly '--tachyon-axis-line': "axis.line";
+    readonly '--tachyon-axis-tick': "axis.tick";
+    readonly '--tachyon-axis-label': "axis.label";
+    readonly '--tachyon-axis-title': "axis.title";
+    readonly '--tachyon-font-family': "text.fontFamily";
+    readonly '--tachyon-font-size': "text.size";
+    readonly '--tachyon-palette': "palette";
+    readonly '--tachyon-crosshair-line': "crosshair.line";
+    readonly '--tachyon-crosshair-label-background': "crosshair.labelBackground";
+    readonly '--tachyon-crosshair-label-text': "crosshair.labelText";
+};
 
 // @public
 export interface InputBindingOptions {
@@ -29,7 +53,16 @@ export function modifiersOf(event: {
 }): number;
 
 // @public
+export function preferredTheme(): ThemeDocument;
+
+// @public
+export function themeFromCss(element: Element, base?: ThemeDocument): ThemeDocument;
+
+// @public
 export const version = "0.1.0-dev";
+
+// @public
+export function watchPreferredTheme(listener: (theme: ThemeDocument) => void): () => void;
 
 // @public
 export function wheelNotches(event: {

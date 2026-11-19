@@ -11,6 +11,12 @@ export function accumulate(values: NumberArray, start: number, end: number, extr
 export function alignToStep(range: DoubleRange, step: number): DoubleRange;
 
 // @public
+export interface AnimationTokens {
+    readonly durationMs?: number;
+    readonly easing?: string;
+}
+
+// @public
 export class AreaSeries extends RibbonSeries {
     constructor(
     source: PointSource, xAxis: Axis, yAxis: Axis);
@@ -148,6 +154,14 @@ export interface AxisTick {
 }
 
 // @public
+export interface AxisTokens {
+    readonly label?: string;
+    readonly line?: string;
+    readonly tick?: string;
+    readonly title?: string;
+}
+
+// @public
 export class BandSeries extends RibbonSeries {
     constructor(
     first: PointSource,
@@ -214,6 +228,9 @@ export const BufferUsage: {
 export interface BuiltChart {
     readonly surface: ChartSurface;
 }
+
+// @public
+export const builtInThemes: readonly ThemeDocument[];
 
 // @public
 export class CategoryAxis extends Axis {
@@ -392,6 +409,8 @@ export class ChartSurface {
     get series(): readonly ChartSeries[];
     get style(): ChartSurfaceStyle;
     set style(value: ChartSurfaceStyle);
+    get theme(): ThemeDocument | undefined;
+    set theme(value: ThemeDocument | undefined);
     get title(): string | undefined;
     set title(value: string | undefined);
     get titleFont(): TextFont | undefined;
@@ -470,6 +489,13 @@ export class CrosshairOverlay extends ChartOverlay {
     series: readonly ChartSeries[];
     show(position: Point, snapped?: HitResult, values?: readonly HitResult[], header?: string): void;
     get shownValues(): readonly HitResult[];
+}
+
+// @public
+export interface CrosshairTokens {
+    readonly labelBackground?: string;
+    readonly labelText?: string;
+    readonly line?: string;
 }
 
 // @public
@@ -625,6 +651,12 @@ export class DoubleRange {
 }
 
 // @public
+export interface EffectTokens {
+    readonly glow?: GlowTokens;
+    readonly seriesOpacity?: number;
+}
+
+// @public
 export const emptyMetadata: DataMetadata;
 
 // @public
@@ -686,6 +718,9 @@ export class FifoDataSource implements PointSource {
 }
 
 // @public
+export function findBuiltInTheme(name: string): ThemeDocument | undefined;
+
+// @public
 export function findNearest(source: PointSource, origin: number, frame: SeriesFrame, pixelX: number, pixelY: number, maximumDistance: number, mode: HitTestMode): FoundPoint | undefined;
 
 // @public
@@ -721,6 +756,13 @@ export interface GestureInputEvent {
 }
 
 // @public
+export interface GlowTokens {
+    readonly enabled?: boolean;
+    readonly intensity?: number;
+    readonly radius?: number;
+}
+
+// @public
 export const glyphStride = 13;
 
 // @public
@@ -736,6 +778,13 @@ export interface GpuTexture extends Disposable {
     readonly size: PixelSize;
     write(pixels: ArrayBufferView): void;
     writeRow(row: number, pixels: ArrayBufferView): void;
+}
+
+// @public
+export interface GridTokens {
+    readonly band?: string;
+    readonly major?: string;
+    readonly minor?: string;
 }
 
 // @public
@@ -1058,6 +1107,15 @@ export interface PaneHit {
 export function parseColor(text: string): Rgba8;
 
 // @public
+export function parseTheme(json: string): ThemeDocument;
+
+// @public
+export function parseThemeColor(text: string): Rgba8;
+
+// @public
+export function parseThemeGradient(text: string): ThemeGradient;
+
+// @public
 export interface PixelRect {
     readonly height: number;
     readonly width: number;
@@ -1220,6 +1278,9 @@ export interface ReservedRoom {
 }
 
 // @public
+export function resolveTheme(theme: ThemeDocument, catalog?: ReadonlyMap<string, ThemeDocument>): ThemeDocument;
+
+// @public
 export function rgba(r: number, g: number, b: number, a?: number): Rgba8;
 
 // @public
@@ -1347,9 +1408,13 @@ export class SeriesFrame {
     bounds: PixelRect,
     x: LinearAxisTransform,
     y: LinearAxisTransform,
-    dpiScale: number);
+    dpiScale: number,
+    glowRadius?: number,
+    glowIntensity?: number);
     readonly bounds: PixelRect;
     readonly dpiScale: number;
+    readonly glowIntensity: number;
+    readonly glowRadius: number;
     readonly x: LinearAxisTransform;
     readonly y: LinearAxisTransform;
 }
@@ -1409,6 +1474,13 @@ export interface SurfaceRenderTarget extends RenderTarget {
 }
 
 // @public
+export interface SurfaceTokens {
+    readonly background?: string;
+    readonly border?: string;
+    readonly plotArea?: string;
+}
+
+// @public
 export class SymLogScaling implements AxisScaling {
     constructor(
     base: number,
@@ -1464,6 +1536,12 @@ export interface TextStyle {
 }
 
 // @public
+export interface TextTokens {
+    readonly fontFamily?: string;
+    readonly size?: number;
+}
+
+// @public
 export interface TextureDesc {
     readonly format: TextureFormat;
     readonly size: PixelSize;
@@ -1477,6 +1555,27 @@ export type TextureFormat =
 | 'r8unorm'
 /** One 32-bit float channel, for heatmap values. */
 | 'r32float';
+
+// @public
+export interface ThemeDocument {
+    readonly animation?: AnimationTokens;
+    readonly axis?: AxisTokens;
+    readonly base?: string;
+    readonly colormap?: string;
+    readonly crosshair?: CrosshairTokens;
+    readonly effects?: EffectTokens;
+    readonly grid?: GridTokens;
+    readonly name: string;
+    readonly palette?: readonly string[];
+    readonly surface?: SurfaceTokens;
+    readonly text?: TextTokens;
+}
+
+// @public
+export interface ThemeGradient {
+    readonly end: Rgba8;
+    readonly start: Rgba8;
+}
 
 // @public
 export interface TickSet {
@@ -1522,6 +1621,9 @@ export class TooltipModifier extends ChartModifier {
 }
 
 // @public
+export function toSurfaceStyle(theme: ThemeDocument): ChartSurfaceStyle;
+
+// @public
 export function upperBound(x: NumberArray, count: number, value: number): number;
 
 // @public
@@ -1533,6 +1635,9 @@ export interface WheelInputEvent {
     readonly modifiers: number;
     readonly position: Point;
 }
+
+// @public
+export function withOverrides(theme: ThemeDocument, overrides: ThemeDocument): ThemeDocument;
 
 // @public
 export function wordsOf(array: Float32Array): Uint32Array;

@@ -70,6 +70,21 @@ pipeline.add(new CrosshairModifier());
 bindChartInput(canvas, pipeline);
 ```
 
+## Themes
+
+![The theme preview in the light theme: a line and markers with titled axes](docs/images/theme-light.png)
+
+Charts take the themes of the .NET version, from the same JSON files: Tachyon Dark and Light, High Contrast, Neon,
+Paper, Instrument and Signal, or a theme of your own that changes some values of one of them. `@tachyon-charts/element`
+adds light or dark after the preference of the system and themes from CSS custom properties:
+
+```ts
+chart.theme = findBuiltInTheme('light');
+chart.theme = resolveTheme({ name: 'Mine', base: 'dark', grid: { major: '#FF000080' } });
+watchPreferredTheme((theme) => (chart.theme = theme));
+chart.theme = themeFromCss(container); // --tachyon-background, --tachyon-grid-major, --tachyon-palette …
+```
+
 ## Packages
 
 | Package | Content |

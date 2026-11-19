@@ -18,6 +18,10 @@ export class SeriesFrame {
     readonly y: LinearAxisTransform,
     /** Physical pixels per device-independent unit. */
     readonly dpiScale: number,
+    /** The reach of the glow of lines the theme asks for, in physical pixels; 0 for none. */
+    readonly glowRadius = 0,
+    /** The strength of that glow, 0..1. */
+    readonly glowIntensity = 0,
   ) {}
 }
 
