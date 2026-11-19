@@ -6,8 +6,11 @@ export type ChartLanguage = 'english' | 'german';
 
 /** How numbers and names are written in a language. */
 export interface Culture {
+  /** The language of the culture. */
   readonly language: ChartLanguage;
+  /** The character between the whole number and its fraction. */
   readonly decimalSeparator: string;
+  /** The sign of negative numbers. */
   readonly negativeSign: string;
   /** The short names of the months, January first, as in "Mar 2026". */
   readonly abbreviatedMonths: readonly string[];

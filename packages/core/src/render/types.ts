@@ -2,23 +2,33 @@
 
 /** A size in physical pixels. */
 export interface PixelSize {
+  /** The width. */
   readonly width: number;
+  /** The height. */
   readonly height: number;
 }
 
 /** A rectangle in physical pixels, measured from the top left of the target. */
 export interface PixelRect {
+  /** The left edge. */
   readonly x: number;
+  /** The top edge. */
   readonly y: number;
+  /** The width. */
   readonly width: number;
+  /** The height. */
   readonly height: number;
 }
 
 /** A color with four channels from 0 to 255; alpha 255 is opaque. */
 export interface Rgba8 {
+  /** Red, 0 to 255. */
   readonly r: number;
+  /** Green, 0 to 255. */
   readonly g: number;
+  /** Blue, 0 to 255. */
   readonly b: number;
+  /** Opacity, 0 (none) to 255 (full). */
   readonly a: number;
 }
 
@@ -103,7 +113,9 @@ export interface BufferDesc {
 
 /** Describes a texture to create. */
 export interface TextureDesc {
+  /** The size in texels. */
   readonly size: PixelSize;
+  /** The format of a texel. */
   readonly format: TextureFormat;
 }
 
@@ -126,6 +138,7 @@ export interface DeviceCapabilities {
  * draw on, such as a canvas or an offscreen canvas in a worker, and refuses the others.
  */
 export interface SurfaceHandle {
+  /** The kind of surface. */
   readonly kind: 'canvas';
   /** An `HTMLCanvasElement` or `OffscreenCanvas`. */
   readonly canvas: unknown;

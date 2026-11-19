@@ -23,14 +23,19 @@ const maximumShapedTexts = 4096;
 
 /** The look of a text: a family the engine knows, or the default font, in bold or italic. */
 export interface TextFont {
+  /** The name of a family added with `addFont`; the default font when left out. */
   readonly family?: string;
+  /** Whether the bold face is used. */
   readonly bold?: boolean;
+  /** Whether the italic face is used. */
   readonly italic?: boolean;
 }
 
 /** How a text is set: its em size in pixels, its color and its font. Keep the object; it is read, not kept. */
 export interface TextStyle {
+  /** The size in physical pixels. */
   readonly size: number;
+  /** The color of the text. */
   readonly color: Rgba8;
   /** The default font when left out. */
   readonly font?: TextFont;

@@ -184,14 +184,17 @@ export class BarSeries extends ChartSeries {
     this.touch();
   }
 
+  /** {@inheritDoc ChartSeries.accentColor} */
   override get accentColor(): Rgba8 {
     return (this.rowFills[0] as SeriesFill).colorAt(0, 0);
   }
 
+  /** {@inheritDoc ChartSeries.version} */
   get version(): number {
     return this.changes;
   }
 
+  /** {@inheritDoc ChartSeries.drawnPointCount} */
   override get drawnPointCount(): number {
     return Math.trunc(this.mesh.count / 6);
   }
@@ -209,11 +212,13 @@ export class BarSeries extends ChartSeries {
     this.touch();
   }
 
+  /** {@inheritDoc ChartSeries.dataRange} */
   override dataRange(axis: 'x' | 'y'): DoubleRange | undefined {
     this.readEnds();
     return axis === 'x' ? this.ranges.x : this.ranges.y;
   }
 
+  /** {@inheritDoc ChartSeries.prepare} */
   override prepare(_device: unknown, frame: SeriesFrame): void {
     if (this.builtVersion === this.changes && this.builtFrame === frame) {
       return;
@@ -224,6 +229,7 @@ export class BarSeries extends ChartSeries {
     this.builtFrame = frame;
   }
 
+  /** {@inheritDoc ChartSeries.draw} */
   draw(commands: CommandList, frame: SeriesFrame): void {
     if (this.mesh.count > 0) {
       commands.fillMesh(this.mesh.data, this.mesh.count, frame.bounds);

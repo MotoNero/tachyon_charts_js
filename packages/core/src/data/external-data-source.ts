@@ -22,17 +22,21 @@ export class ExternalDataSource implements PointSource {
    * @param isSortedX - What the application knows of the order of X; scanned when left out.
    */
   constructor(
+    /** The X values; a part of a larger buffer is fine (`subarray`). */
     readonly x: NumberArray,
+    /** The Y values, as many. */
     readonly y: NumberArray,
     private readonly isSortedX?: boolean,
   ) {
     checkLengths(x, y);
   }
 
+  /** {@inheritDoc PointSource.version} */
   get version(): number {
     return this.changes;
   }
 
+  /** {@inheritDoc PointSource.metadata} */
   get metadata(): DataMetadata {
     if (!this.cached) {
       const scanner = new MetadataScanner();
@@ -46,10 +50,12 @@ export class ExternalDataSource implements PointSource {
     return this.cached;
   }
 
+  /** {@inheritDoc PointSource.snapshot} */
   snapshot(): DataSnapshot {
     return this.snapshotInto({ x: this.x, y: this.y, count: 0, version: 0, metadata: this.metadata, epoch: 0 });
   }
 
+  /** {@inheritDoc PointSource.snapshotInto} */
   snapshotInto(target: DataSnapshot): DataSnapshot {
     target.x = this.x;
     target.y = this.y;
@@ -60,6 +66,7 @@ export class ExternalDataSource implements PointSource {
     return target;
   }
 
+  /** {@inheritDoc PointSource.latest} */
   latest(): number | undefined {
     return this.y.length > 0 ? this.y[this.y.length - 1] : undefined;
   }

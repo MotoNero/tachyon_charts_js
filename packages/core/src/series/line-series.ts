@@ -96,6 +96,7 @@ export class LineSeries extends ChartSeries {
   private style: PolylineStyle | undefined;
 
   constructor(
+    /** The data. */
     readonly source: PointSource,
     xAxis: Axis,
     yAxis: Axis,
@@ -191,22 +192,27 @@ export class LineSeries extends ChartSeries {
     this.changed();
   }
 
+  /** {@inheritDoc ChartSeries.accentColor} */
   override get accentColor(): Rgba8 {
     return this.lineColor;
   }
 
+  /** {@inheritDoc ChartSeries.version} */
   get version(): number {
     return this.source.version + this.appearance;
   }
 
+  /** {@inheritDoc ChartSeries.drawnPointCount} */
   override get drawnPointCount(): number {
     return this.result.count;
   }
 
+  /** {@inheritDoc ChartSeries.dataRange} */
   override dataRange(axis: 'x' | 'y'): DoubleRange | undefined {
     return this.ranges.of(axis, this.xAxis);
   }
 
+  /** {@inheritDoc ChartSeries.prepareData} */
   override prepareData(frame: SeriesFrame): void {
     const version = this.source.version;
     if (version === this.builtData && this.appearance === this.builtOptions && frame === this.builtFrame) {
@@ -219,6 +225,7 @@ export class LineSeries extends ChartSeries {
     this.build(frame);
   }
 
+  /** {@inheritDoc ChartSeries.prepare} */
   override prepare(device: RenderDevice, frame: SeriesFrame): void {
     this.prepareData(frame);
     if (!this.uploadPending) {
@@ -238,6 +245,7 @@ export class LineSeries extends ChartSeries {
     };
   }
 
+  /** {@inheritDoc ChartSeries.releaseResources} */
   override releaseResources(): void {
     this.dispose();
   }
@@ -248,6 +256,7 @@ export class LineSeries extends ChartSeries {
     this.builtData = -1;
   }
 
+  /** {@inheritDoc ChartSeries.draw} */
   draw(commands: CommandList): void {
     const buffer = this.gpu.buffer;
     if (this.result.count >= 2 && buffer && this.style) {

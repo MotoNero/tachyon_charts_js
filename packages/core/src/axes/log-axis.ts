@@ -45,6 +45,7 @@ export class LogAxis extends Axis {
     this.reset();
   }
 
+  /** What happens to values at or below zero: hidden, clamped to the floor, or shown on a symmetric scale. */
   get nonPositive(): NonPositiveValues {
     return this.mode;
   }
@@ -80,6 +81,7 @@ export class LogAxis extends Axis {
     this.reset();
   }
 
+  /** The logarithm, or the symmetric logarithm for values of both signs. */
   override get scaling(): AxisScaling {
     if (!this.cachedScaling) {
       if (this.mode === 'symlog') this.cachedScaling = new SymLogScaling(this.logBase, this.threshold);
@@ -89,6 +91,7 @@ export class LogAxis extends Axis {
     return this.cachedScaling;
   }
 
+  /** {@inheritDoc Axis.generateTicks} */
   generateTicks(length: number, measurer: TextMeasurer): TickSet {
     if (!Number.isFinite(length) || length < 0) {
       throw new RangeError(`The length must not be negative or infinite, not ${String(length)}.`);
@@ -119,6 +122,7 @@ export class LogAxis extends Axis {
     return { major, minor: this.createMinorValues(range, step, pixelsPerDecade), step };
   }
 
+  /** {@inheritDoc Axis.normalizeRange} */
   protected override normalizeRange(range: DoubleRange): DoubleRange {
     if (this.mode === 'symlog') {
       return range;

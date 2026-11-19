@@ -46,14 +46,17 @@ export class DataSource implements PointSource {
     this.current = this.scanner.toMetadata(0);
   }
 
+  /** {@inheritDoc PointSource.version} */
   get version(): number {
     return this.changes;
   }
 
+  /** {@inheritDoc PointSource.metadata} */
   get metadata(): DataMetadata {
     return this.current;
   }
 
+  /** {@inheritDoc PointSource.snapshot} */
   snapshot(): DataSnapshot {
     return {
       x: this.x,
@@ -65,6 +68,7 @@ export class DataSource implements PointSource {
     };
   }
 
+  /** {@inheritDoc PointSource.snapshotInto} */
   snapshotInto(target: DataSnapshot): DataSnapshot {
     target.x = this.x;
     target.y = this.y;
@@ -75,6 +79,7 @@ export class DataSource implements PointSource {
     return target;
   }
 
+  /** {@inheritDoc PointSource.latest} */
   latest(): number | undefined {
     return this.count > 0 ? this.y[this.count - 1] : undefined;
   }

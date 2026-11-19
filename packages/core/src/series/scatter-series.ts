@@ -37,6 +37,7 @@ export class ScatterSeries extends ChartSeries {
   private readonly gpu = new VertexBuffer();
 
   constructor(
+    /** The data. */
     readonly source: PointSource,
     xAxis: Axis,
     yAxis: Axis,
@@ -124,26 +125,32 @@ export class ScatterSeries extends ChartSeries {
     this.instanceChanged();
   }
 
+  /** {@inheritDoc ChartSeries.accentColor} */
   override get accentColor(): Rgba8 {
     return this.fillColor;
   }
 
+  /** {@inheritDoc ChartSeries.version} */
   get version(): number {
     return this.source.version + this.appearance + this.instancesChanged;
   }
 
+  /** {@inheritDoc ChartSeries.drawnPointCount} */
   override get drawnPointCount(): number {
     return this.count;
   }
 
+  /** {@inheritDoc ChartSeries.dataRange} */
   override dataRange(axis: 'x' | 'y'): DoubleRange | undefined {
     return this.ranges.of(axis, this.xAxis);
   }
 
+  /** {@inheritDoc ChartSeries.takeSnapshot} */
   override takeSnapshot(): void {
     this.source.snapshotInto(this.view);
   }
 
+  /** {@inheritDoc ChartSeries.prepare} */
   override prepare(device: RenderDevice): void {
     const snapshot = this.view;
     if (
@@ -165,6 +172,7 @@ export class ScatterSeries extends ChartSeries {
     this.uploadedInstances = this.instancesChanged;
   }
 
+  /** {@inheritDoc ChartSeries.releaseResources} */
   override releaseResources(): void {
     this.dispose();
   }
@@ -175,6 +183,7 @@ export class ScatterSeries extends ChartSeries {
     this.device = undefined;
   }
 
+  /** {@inheritDoc ChartSeries.draw} */
   draw(commands: CommandList, frame: SeriesFrame): void {
     const buffer = this.gpu.buffer;
     if (!buffer || this.count === 0) {

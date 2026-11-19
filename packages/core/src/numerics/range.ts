@@ -9,7 +9,9 @@ export class DoubleRange {
    * @throws RangeError when a bound is not finite or `min` is above `max`.
    */
   constructor(
+    /** The lower end. */
     readonly min: number,
+    /** The upper end. */
     readonly max: number,
     isEmpty = false,
   ) {
@@ -41,6 +43,7 @@ export class DoubleRange {
     return this.min / 2 + this.max / 2;
   }
 
+  /** Whether a value lies inside, both ends included. */
   contains(value: number): boolean {
     return value >= this.min && value <= this.max;
   }
@@ -68,6 +71,7 @@ export class DoubleRange {
     return (this.isEmpty && other.isEmpty) || (this.min === other.min && this.max === other.max);
   }
 
+  /** The range as "[min, max]", or "empty". */
   toString(): string {
     return this.isEmpty ? '[empty]' : `[${String(this.min)}, ${String(this.max)}]`;
   }

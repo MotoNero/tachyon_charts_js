@@ -3,7 +3,9 @@ import { checkLengths, MetadataScanner, type DataMetadata, type DataSnapshot, ty
 
 /** A connected part of the ring arrays. */
 export interface RingSegment {
+  /** The first index in the arrays of the ring. */
   readonly start: number;
+  /** The number of values from there. */
   readonly length: number;
 }
 
@@ -16,7 +18,9 @@ export interface FifoChanges {
   readonly version: number;
   /** The index of the first point counted over the whole life of the ring. */
   readonly firstIndex: number;
+  /** The older part, up to the end of the arrays. */
   readonly first: RingSegment;
+  /** The newer part, from the start of the arrays. */
   readonly second: RingSegment;
   /** Whether the segments hold all changes; when not, the ring was overwritten since the version. */
   readonly isComplete: boolean;
@@ -62,6 +66,7 @@ export class FifoDataSource implements PointSource {
     return Math.min(this.published, this.capacity);
   }
 
+  /** {@inheritDoc PointSource.version} */
   get version(): number {
     return this.published;
   }
@@ -169,10 +174,12 @@ export class FifoDataSource implements PointSource {
     };
   }
 
+  /** {@inheritDoc PointSource.snapshotInto} */
   snapshotInto(target: DataSnapshot): DataSnapshot {
     return Object.assign(target, this.snapshot());
   }
 
+  /** {@inheritDoc PointSource.latest} */
   latest(): number | undefined {
     return this.published === 0 ? undefined : this.y[(this.published - 1) % this.capacity];
   }

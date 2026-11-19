@@ -3,12 +3,19 @@ import type { Rgba8 } from '../render/types';
 
 /** The colors of the background and grid passes; a theme maps its tokens to them. Alpha 0 leaves a part out. */
 export interface ChartSurfaceStyle {
+  /** The color behind everything. */
   readonly backgroundColor: Rgba8;
+  /** The color at the top of each pane. */
   readonly plotGradientStart: Rgba8;
+  /** The color at the bottom of each pane. */
   readonly plotGradientEnd: Rgba8;
+  /** The line around each pane. */
   readonly borderColor: Rgba8;
+  /** The grid lines at the labeled ticks. */
   readonly majorGridColor: Rgba8;
+  /** The grid lines at the ticks between. */
   readonly minorGridColor: Rgba8;
+  /** Every second space between labeled X ticks. */
   readonly bandColor: Rgba8;
 }
 

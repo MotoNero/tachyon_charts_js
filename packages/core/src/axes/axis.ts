@@ -18,13 +18,17 @@ export interface TextMeasurer {
 
 /** A labeled tick. */
 export interface AxisTick {
+  /** The value of the tick on the axis. */
   readonly value: number;
+  /** The text beside the tick. */
   readonly label: string;
 }
 
 /** The ticks of an axis for a visible range. */
 export interface TickSet {
+  /** The labeled ticks, from the start of the range. */
   readonly major: readonly AxisTick[];
+  /** The values of the unlabeled ticks between them. */
   readonly minor: readonly number[];
   /** The distance of the major ticks in the unit of the axis; 0 for a single tick. */
   readonly step: number;
@@ -53,7 +57,9 @@ export abstract class Axis {
    * @param position - The side of the plot area.
    */
   protected constructor(
+    /** The identifier series refer to. */
     readonly id: string,
+    /** The side of the plot area. */
     readonly position: AxisPosition,
   ) {
     if (typeof id !== 'string' || id === '') {
@@ -66,6 +72,7 @@ export abstract class Axis {
     return this.changes;
   }
 
+  /** Whether the axis lies at the top or bottom. */
   get isHorizontal(): boolean {
     return this.position === 'top' || this.position === 'bottom';
   }

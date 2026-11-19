@@ -9,9 +9,13 @@ import type { PixelRect, Rgba8 } from '../render/types';
 /** Where a series draws in a frame: its pane in physical pixels and the mappings of its axes to pixels. */
 export class SeriesFrame {
   constructor(
+    /** The pane in physical pixels. */
     readonly bounds: PixelRect,
+    /** The mapping of X values to pixels. */
     readonly x: LinearAxisTransform,
+    /** The mapping of Y values to pixels. */
     readonly y: LinearAxisTransform,
+    /** Physical pixels per device-independent unit. */
     readonly dpiScale: number,
   ) {}
 }
@@ -32,7 +36,9 @@ export abstract class ChartSeries {
    * @param yAxis - The vertical axis, one of a pane.
    */
   constructor(
+    /** The horizontal axis. */
     readonly xAxis: Axis,
+    /** The vertical axis, one of a pane. */
     readonly yAxis: Axis,
   ) {}
 

@@ -7,7 +7,9 @@ import { accumulate, Extremes } from './min-max';
 
 /** One side of a message channel: a worker, the scope inside a worker, or a port of a `MessageChannel`. */
 export interface MessageEndpoint {
+  /** Sends a message, handing over the buffers in `transfer`. */
   postMessage(message: unknown, transfer: ArrayBuffer[]): void;
+  /** Listens for messages. */
   addEventListener(type: 'message', listener: (event: { readonly data: unknown }) => void): void;
   /** Present on a `MessagePort`, which delivers only after it; called once a listener is set. */
   start?(): void;
@@ -15,25 +17,38 @@ export interface MessageEndpoint {
 
 /** A request for the extremes of the blocks `[firstBlock, lastBlock)` of the values in shared memory. */
 export interface PyramidRequest {
+  /** Marks the messages of the pyramid among others on the same channel. */
   readonly kind: 'tachyon-pyramid';
+  /** Pairs an answer with its request. */
   readonly id: number;
+  /** The memory of the values. */
   readonly buffer: SharedArrayBuffer;
-  readonly type: ArrayType;
+  /** The type of array the values have. */
+  readonly type: SharedArrayType;
+  /** Where the values start in the memory. */
   readonly byteOffset: number;
+  /** The first block of 16 values. */
   readonly firstBlock: number;
+  /** The block after the last one. */
   readonly lastBlock: number;
 }
 
 /** The answer to a {@link PyramidRequest}. */
 export interface PyramidReply {
+  /** Marks the messages of the pyramid among others on the same channel. */
   readonly kind: 'tachyon-pyramid';
+  /** Pairs an answer with its request. */
   readonly id: number;
+  /** The first block of 16 values. */
   readonly firstBlock: number;
+  /** The smallest finite value of each block. */
   readonly min: Float64Array;
+  /** The largest finite value of each block. */
   readonly max: Float64Array;
 }
 
-type ArrayType =
+/** The typed arrays a worker reads from shared memory. */
+export type SharedArrayType =
   | 'Float64Array'
   | 'Float32Array'
   | 'Int32Array'
@@ -52,17 +67,17 @@ const constructors = {
   Uint16Array,
   Int8Array,
   Uint8Array,
-} satisfies Record<ArrayType, unknown>;
+} satisfies Record<SharedArrayType, unknown>;
 
 type SharedView = new (buffer: ArrayBufferLike, byteOffset: number, length: number) => NumberArray;
 
 /** The name of the array type, if its values lie in shared memory and a worker can read them. */
-export function sharedTypeOf(values: NumberArray): ArrayType | undefined {
+export function sharedTypeOf(values: NumberArray): SharedArrayType | undefined {
   if (typeof SharedArrayBuffer === 'undefined' || !(values.buffer instanceof SharedArrayBuffer)) {
     return undefined;
   }
   const name = values.constructor.name;
-  return name in constructors ? (name as ArrayType) : undefined;
+  return name in constructors ? (name as SharedArrayType) : undefined;
 }
 
 function isRequest(data: unknown): data is PyramidRequest {

@@ -14,7 +14,6 @@ import {
   type SurfaceRenderTarget,
   type TextureDesc,
 } from '@tachyon-charts/core';
-import type { DeviceContext } from './context';
 import { WebGpuFrame } from './frame';
 import { WebGpuBuffer, WebGpuTexture } from './resources';
 import { WebGpuOffscreenTarget, WebGpuSurfaceTarget, WebGpuTarget } from './targets';
@@ -66,8 +65,8 @@ export async function createWebGpuDevice(options: WebGpuDeviceOptions = {}): Pro
   ).watchLoss();
 }
 
-/** A {@link RenderDevice} on WebGPU. Create it with {@link createWebGpuDevice}. */
-export class WebGpuDevice implements RenderDevice, DeviceContext {
+/** A {@link @tachyon-charts/core#RenderDevice} on WebGPU. Create it with {@link createWebGpuDevice}. */
+export class WebGpuDevice implements RenderDevice {
   private disposed = false;
   private lost: string | undefined;
   private readonly lostListeners = new Set<(reason: string) => void>();
@@ -86,8 +85,11 @@ export class WebGpuDevice implements RenderDevice, DeviceContext {
    * @param canvasFormat - The texture format canvases show best on this machine.
    */
   constructor(
+    /** The WebGPU device; the other parts of this package draw with it. */
     readonly gpu: GPUDevice,
+    /** What the device supports. */
     readonly capabilities: DeviceCapabilities,
+    /** The texture format canvases show best on this machine. */
     readonly canvasFormat: GPUTextureFormat = 'bgra8unorm',
   ) {
     this.frame = new WebGpuFrame(this);
@@ -109,10 +111,12 @@ export class WebGpuDevice implements RenderDevice, DeviceContext {
     return this;
   }
 
+  /** Whether the device was lost; it then refuses all work. */
   get isLost(): boolean {
     return this.lost !== undefined;
   }
 
+  /** Why the device was lost, `undefined` while it works. */
   get lostReason(): string | undefined {
     return this.lost;
   }
@@ -122,6 +126,7 @@ export class WebGpuDevice implements RenderDevice, DeviceContext {
     return this.validationErrors;
   }
 
+  /** Calls the listener once when the device is lost, at once if it is lost already; returns a function that removes it. */
   onLost(listener: (reason: string) => void): () => void {
     if (this.lost !== undefined) {
       listener(this.lost);
@@ -131,32 +136,38 @@ export class WebGpuDevice implements RenderDevice, DeviceContext {
     return () => this.lostListeners.delete(listener);
   }
 
+  /** Loses the device on purpose, to test what an application does then. */
   simulateLoss(): void {
     this.ensureNotDisposed();
     this.markLost('The device loss was simulated.');
     this.gpu.destroy();
   }
 
+  /** Creates a buffer in GPU memory. */
   createBuffer(desc: BufferDesc): GpuBuffer {
     this.ensureUsable();
     return new WebGpuBuffer(this, desc.sizeInBytes, desc.usage);
   }
 
+  /** Creates a texture. */
   createTexture(desc: TextureDesc): GpuTexture {
     this.ensureUsable();
     return new WebGpuTexture(this, desc.size, desc.format);
   }
 
+  /** Creates a target that is not on screen; its content can be read back. */
   createOffscreenTarget(size: PixelSize, dpiScale: number): OffscreenRenderTarget {
     this.ensureUsable();
     return new WebGpuOffscreenTarget(this, size, dpiScale);
   }
 
+  /** Creates a target that shows its frames on a canvas. */
   createSurfaceTarget(surface: SurfaceHandle, size: PixelSize, dpiScale: number): SurfaceRenderTarget {
     this.ensureUsable();
     return new WebGpuSurfaceTarget(this, surface, size, dpiScale, this.canvasFormat);
   }
 
+  /** Starts recording a frame for a target of this device. */
   beginFrame(target: RenderTarget): CommandList {
     this.ensureUsable();
     if (!(target instanceof WebGpuTarget) || target.device !== this) {
@@ -169,6 +180,7 @@ export class WebGpuDevice implements RenderDevice, DeviceContext {
     return this.frame.begin(target);
   }
 
+  /** Resolves when the GPU has done all submitted work. */
   async whenIdle(): Promise<void> {
     this.ensureNotDisposed();
     if (this.lost === undefined) {
@@ -176,6 +188,7 @@ export class WebGpuDevice implements RenderDevice, DeviceContext {
     }
   }
 
+  /** Frees the device and all it holds. */
   dispose(): void {
     if (this.disposed) {
       return;

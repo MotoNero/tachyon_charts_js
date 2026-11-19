@@ -7,6 +7,7 @@ export type NumberArray =
 
 /** What is known about the content of a data source without scanning it. */
 export interface DataMetadata {
+  /** The number of points. */
   readonly count: number;
   /** Whether X never falls; equal neighbors count as sorted, NaN does not. */
   readonly isSortedX: boolean;
@@ -23,10 +24,15 @@ export interface DataMetadata {
  * change it, because published values never change and the source takes new arrays to grow or to clear.
  */
 export interface DataSnapshot {
+  /** The X values; only the first `count` belong to the snapshot. */
   x: NumberArray;
+  /** The Y values; only the first `count` belong to the snapshot. */
   y: NumberArray;
+  /** The number of points in the snapshot. */
   count: number;
+  /** The version of the source when the snapshot was taken. */
   version: number;
+  /** What is known about the points of the snapshot. */
   metadata: DataMetadata;
   /** Grows when the source starts over, as with clear(); between equal epochs the content only grew. */
   epoch: number;
@@ -36,6 +42,7 @@ export interface DataSnapshot {
 export interface PointSource {
   /** Grows with every change. */
   readonly version: number;
+  /** What is known about the content without scanning it. */
   readonly metadata: DataMetadata;
   /** A consistent view of the current content. */
   snapshot(): DataSnapshot;
@@ -50,6 +57,7 @@ export function emptySnapshot(): DataSnapshot {
   return { x: new Float64Array(0), y: new Float64Array(0), count: 0, version: 0, metadata: emptyMetadata, epoch: 0 };
 }
 
+/** The metadata of a source without points. */
 export const emptyMetadata: DataMetadata = {
   count: 0,
   isSortedX: true,
@@ -92,6 +100,7 @@ export class MetadataScanner {
     }
   }
 
+  /** The metadata of the values seen so far, for a source of `count` points. */
   toMetadata(count: number): DataMetadata {
     return {
       count,

@@ -5,6 +5,7 @@ export { decimateMinMax, lowerBound, upperBound, type ColumnArray } from './min-
 export {
   servePyramidRequests,
   sharedTypeOf,
+  type SharedArrayType,
   type MessageEndpoint,
   type PyramidReply,
   type PyramidRequest,

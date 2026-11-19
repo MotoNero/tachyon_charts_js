@@ -93,6 +93,7 @@ export class NumericAxis extends Axis {
     return formatTicks(format, [value], span / 1000)[0] ?? '';
   }
 
+  /** {@inheritDoc Axis.generateTicks} */
   generateTicks(length: number, measurer: TextMeasurer): TickSet {
     if (!Number.isFinite(length) || length < 0) {
       throw new RangeError(`The length must not be negative, not ${String(length)}.`);

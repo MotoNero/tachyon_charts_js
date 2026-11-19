@@ -11,3 +11,4 @@ obj/
 shared/
 packages/render-webgpu/src/generated/
 tests/golden/
+docs/api/

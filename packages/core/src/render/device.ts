@@ -60,7 +60,9 @@ export interface RenderDevice extends Disposable {
   onLost(listener: (reason: string) => void): () => void;
   /** Makes the device behave as if it were lost, as a test hook. */
   simulateLoss(): void;
+  /** Creates a buffer in GPU memory. */
   createBuffer(desc: BufferDesc): GpuBuffer;
+  /** Creates a texture. */
   createTexture(desc: TextureDesc): GpuTexture;
   /** Creates a target that is not on screen and can be read back. */
   createOffscreenTarget(size: PixelSize, dpiScale: number): OffscreenRenderTarget;

@@ -1,4 +1,4 @@
-/** Version of the package @tachyon-charts/core. */
+/** Version of the package `@tachyon-charts/core`. */
 export const version = '0.1.0-dev';
 
 export * from './render';
@@ -11,3 +11,4 @@ export * from './layout';
 export * from './resampling';
 export * from './pipeline';
 export * from './series';
+export * from './fluent';

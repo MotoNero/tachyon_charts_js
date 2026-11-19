@@ -27,10 +27,12 @@ export class TextEngineMeasurer implements TextMeasurer {
     this.textSize = value;
   }
 
+  /** {@inheritDoc TextMeasurer.lineHeight} */
   get lineHeight(): number {
     return this.engine.lineHeight(this.textSize, this.font);
   }
 
+  /** {@inheritDoc TextMeasurer.measureWidth} */
   measureWidth(text: string): number {
     return this.engine.measureWidth(text, this.textSize, this.font);
   }

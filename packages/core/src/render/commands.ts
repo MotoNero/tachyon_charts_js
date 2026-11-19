@@ -9,12 +9,15 @@ export const lineGap = 1e30;
 export interface PolylineStyle {
   /** The width in physical pixels; below one pixel the line is drawn one pixel wide with less coverage. */
   readonly widthInPixels: number;
+  /** The color. */
   readonly color: Rgba8;
   /** Factors from buffer values to pixels; 1, 1 when left out. */
   readonly scaleX?: number;
+  /** The factor from buffer Y values to pixels; 1 when left out. */
   readonly scaleY?: number;
   /** The pixel position of the buffer value zero; 0, 0 when left out. */
   readonly offsetX?: number;
+  /** The pixel position of the buffer Y value zero; 0 when left out. */
   readonly offsetY?: number;
   /** Nothing is drawn outside of it; the whole target when left out. */
   readonly clip?: PixelRect;
@@ -35,15 +38,23 @@ export const markerStride = 16;
 
 /** The appearance of a batch of markers and the transform of their positions. */
 export interface MarkerStyle {
+  /** The shape of all markers of the batch. */
   readonly shape: MarkerShape;
+  /** The width of the border; 0 for none. */
   readonly borderWidthInPixels: number;
+  /** The color of the border. */
   readonly borderColor: Rgba8;
+  /** The factor from buffer X values to pixels; 1 when left out. */
   readonly scaleX?: number;
+  /** The factor from buffer Y values to pixels; 1 when left out. */
   readonly scaleY?: number;
+  /** The pixel position of the buffer X value zero; 0 when left out. */
   readonly offsetX?: number;
+  /** The pixel position of the buffer Y value zero; 0 when left out. */
   readonly offsetY?: number;
   /** Multiplies the size of every marker; 1 when left out. */
   readonly sizeScale?: number;
+  /** Nothing is drawn outside of it; the whole target when left out. */
   readonly clip?: PixelRect;
 }
 
@@ -56,6 +67,7 @@ export interface RasterStyle {
   readonly minimum: number;
   /** The value at the end of the colormap. */
   readonly maximum: number;
+  /** Whether the colormap runs over the logarithm of the values. */
   readonly isLogarithmic?: boolean;
   /** The color of NaN; transparent when left out. */
   readonly missingColor?: Rgba8;
@@ -65,10 +77,15 @@ export interface RasterStyle {
   readonly aboveColor?: Rgba8;
   /** The part of the texture to show, in texture coordinates 0..1; all of it when left out. */
   readonly sectionX?: number;
+  /** The top row of the part of the raster to show. */
   readonly sectionY?: number;
+  /** The width of that part in texels. */
   readonly sectionWidth?: number;
+  /** The height of that part in texels. */
   readonly sectionHeight?: number;
+  /** Whether values blend between texel centers. */
   readonly isInterpolated?: boolean;
+  /** What a pixel shows when several texels fall on it. */
   readonly reduction?: RasterReduction;
   /** Rows the texture is shifted by, for a ring of rows such as a scrolling spectrogram. */
   readonly rowShift?: number;

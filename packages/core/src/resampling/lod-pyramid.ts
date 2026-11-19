@@ -40,8 +40,14 @@ export class LodPyramid {
   private readonly levels: Level[] = [new Level(initialBlocks)];
   private readonly scratch = new Extremes();
 
-  /** @throws RangeError when the factor is below 2. */
-  constructor(readonly factor = LodPyramid.defaultFactor) {
+  /**
+   * @param factor - The number of blocks of one level that form a block of the next, at least 2.
+   * @throws RangeError when the factor is below 2.
+   */
+  constructor(
+    /** The number of blocks of one level that form a block of the next. */
+    readonly factor = LodPyramid.defaultFactor,
+  ) {
     if (!Number.isInteger(factor) || factor < 2) {
       throw new RangeError(`The factor must be an integer of at least 2, not ${String(factor)}.`);
     }

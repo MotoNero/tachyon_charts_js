@@ -3,6 +3,7 @@ import type { PixelSize, TextureFormat } from './types';
 
 /** Something that holds GPU memory or other resources until it is disposed. Disposing twice does nothing. */
 export interface Disposable {
+  /** Frees what it holds; using it afterwards throws. */
   dispose(): void;
 }
 
@@ -22,7 +23,9 @@ export interface GpuBuffer extends Disposable {
 
 /** A two-dimensional image in GPU memory. */
 export interface GpuTexture extends Disposable {
+  /** The size in texels. */
   readonly size: PixelSize;
+  /** The format of a texel. */
   readonly format: TextureFormat;
   /** Replaces the whole content; rows tightly packed, top row first. */
   write(pixels: ArrayBufferView): void;

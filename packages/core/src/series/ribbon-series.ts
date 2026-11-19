@@ -17,8 +17,12 @@ export interface SeriesFill {
 
 /** One color everywhere. */
 export class SolidFill implements SeriesFill {
-  constructor(readonly color: Rgba8) {}
+  constructor(
+    /** The color of the fill. */
+    readonly color: Rgba8,
+  ) {}
 
+  /** {@inheritDoc SeriesFill.colorAt} */
   colorAt(): Rgba8 {
     return this.color;
   }
@@ -27,10 +31,13 @@ export class SolidFill implements SeriesFill {
 /** A gradient from the top of the pane to its bottom. */
 export class PositionGradientFill implements SeriesFill {
   constructor(
+    /** The color at the top of the pane. */
     readonly top: Rgba8,
+    /** The color at the bottom of the pane. */
     readonly bottom: Rgba8,
   ) {}
 
+  /** {@inheritDoc SeriesFill.colorAt} */
   colorAt(position: number): Rgba8 {
     return mixColors(this.top, this.bottom, position);
   }
@@ -150,6 +157,7 @@ export abstract class RibbonSeries extends ChartSeries {
     return this.appearance;
   }
 
+  /** Asks for a new frame after a change of the look. */
   protected changed(): void {
     this.appearance++;
   }
@@ -166,6 +174,7 @@ export abstract class RibbonSeries extends ChartSeries {
     ) => void,
   ): void;
 
+  /** {@inheritDoc ChartSeries.prepare} */
   override prepare(_device: unknown, frame: SeriesFrame): void {
     const version = this.version;
     if (version === this.builtVersion && frame === this.builtFrame) {
@@ -179,6 +188,7 @@ export abstract class RibbonSeries extends ChartSeries {
     this.builtFrame = frame;
   }
 
+  /** {@inheritDoc ChartSeries.draw} */
   draw(commands: CommandList, frame: SeriesFrame): void {
     if (this.mesh.count > 0) {
       commands.fillMesh(this.mesh.data, this.mesh.count, frame.bounds);
@@ -241,6 +251,7 @@ export class AreaSeries extends RibbonSeries {
   private yCache: { metadata: unknown; base: number; range: DoubleRange } | undefined;
 
   constructor(
+    /** The data. */
     readonly source: PointSource,
     xAxis: Axis,
     yAxis: Axis,
@@ -268,14 +279,17 @@ export class AreaSeries extends RibbonSeries {
     this.changed();
   }
 
+  /** {@inheritDoc ChartSeries.accentColor} */
   override get accentColor(): Rgba8 {
     return this.areaFill.colorAt(0, 0);
   }
 
+  /** {@inheritDoc ChartSeries.version} */
   get version(): number {
     return this.source.version + this.appearanceVersion;
   }
 
+  /** {@inheritDoc ChartSeries.dataRange} */
   override dataRange(axis: 'x' | 'y'): DoubleRange | undefined {
     const metadata = this.source.metadata;
     if (metadata.count === 0) {
@@ -293,6 +307,7 @@ export class AreaSeries extends RibbonSeries {
     return this.yCache.range;
   }
 
+  /** {@inheritDoc RibbonSeries.build} */
   protected build(_frame: SeriesFrame, add: Parameters<RibbonSeries['build']>[1]): void {
     const snapshot = this.source.snapshot();
     if (this.lower.length !== snapshot.count) {
@@ -347,6 +362,7 @@ export class StackedAreaSeries extends RibbonSeries {
 
   /** @throws RangeError without layers. */
   constructor(
+    /** The layers, the lowest first. */
     readonly layers: readonly PointSource[],
     xAxis: Axis,
     yAxis: Axis,
@@ -381,6 +397,7 @@ export class StackedAreaSeries extends RibbonSeries {
     this.changed();
   }
 
+  /** {@inheritDoc ChartSeries.version} */
   get version(): number {
     let sum = this.appearanceVersion;
     for (const layer of this.layers) {
@@ -389,6 +406,7 @@ export class StackedAreaSeries extends RibbonSeries {
     return sum;
   }
 
+  /** {@inheritDoc ChartSeries.dataRange} */
   override dataRange(axis: 'x' | 'y'): DoubleRange | undefined {
     const first = this.layers[0] as PointSource;
     if (axis === 'x') {
@@ -398,6 +416,7 @@ export class StackedAreaSeries extends RibbonSeries {
     return this.yRange;
   }
 
+  /** {@inheritDoc RibbonSeries.build} */
   protected build(_frame: SeriesFrame, add: Parameters<RibbonSeries['build']>[1]): void {
     const edges = this.readEdges();
     const snapshot = (this.layers[0] as PointSource).snapshot();
@@ -475,7 +494,9 @@ export class BandSeries extends RibbonSeries {
   private yCache: { first: unknown; second: unknown; range: DoubleRange } | undefined;
 
   constructor(
+    /** The first curve. */
     readonly first: PointSource,
+    /** The second curve. */
     readonly second: PointSource,
     xAxis: Axis,
     yAxis: Axis,
@@ -503,10 +524,12 @@ export class BandSeries extends RibbonSeries {
     this.changed();
   }
 
+  /** {@inheritDoc ChartSeries.version} */
   get version(): number {
     return this.first.version + this.second.version + this.appearanceVersion;
   }
 
+  /** {@inheritDoc ChartSeries.dataRange} */
   override dataRange(axis: 'x' | 'y'): DoubleRange | undefined {
     const [one, two] = [this.first.metadata, this.second.metadata];
     if (one.count === 0) {
@@ -521,6 +544,7 @@ export class BandSeries extends RibbonSeries {
     return this.yCache.range;
   }
 
+  /** {@inheritDoc RibbonSeries.build} */
   protected build(_frame: SeriesFrame, add: Parameters<RibbonSeries['build']>[1]): void {
     const one = this.first.snapshot();
     const two = this.second.snapshot();

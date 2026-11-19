@@ -21,6 +21,7 @@ export interface ResampleResult {
   mode: Exclude<ResamplingMode, 'auto'>;
   /** The visible points `[start, end)`. */
   start: number;
+  /** The end of the visible points, exclusive. */
   end: number;
   /** The number of indices LTTB selected. */
   selectedCount: number;

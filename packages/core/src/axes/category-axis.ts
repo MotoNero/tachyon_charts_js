@@ -44,11 +44,13 @@ export class CategoryAxis extends Axis {
     this.changed();
   }
 
+  /** {@inheritDoc Axis.measureLabelHeight} */
   override measureLabelHeight(measurer: TextMeasurer): number {
     const angle = (Math.abs(this.rotation) * Math.PI) / 180;
     return this.longest(measurer) * Math.sin(angle) + measurer.lineHeight * Math.cos(angle);
   }
 
+  /** {@inheritDoc Axis.generateTicks} */
   generateTicks(length: number, measurer: TextMeasurer): TickSet {
     const range = this.visibleRange;
     if (this.names.length === 0 || length <= 0) {

@@ -8,16 +8,22 @@ export class DipRect {
   static readonly empty = new DipRect(0, 0, 0, 0);
 
   constructor(
+    /** The left edge. */
     readonly x: number,
+    /** The top edge. */
     readonly y: number,
+    /** The width. */
     readonly width: number,
+    /** The height. */
     readonly height: number,
   ) {}
 
+  /** The right edge. */
   get right(): number {
     return this.x + this.width;
   }
 
+  /** The bottom edge. */
   get bottom(): number {
     return this.y + this.height;
   }
@@ -40,7 +46,9 @@ export class DipRect {
 
 /** A size in device-independent units. */
 export interface DipSize {
+  /** The width. */
   readonly width: number;
+  /** The height. */
   readonly height: number;
 }
 
@@ -54,9 +62,13 @@ export interface LayoutPane {
 
 /** Room at the edges of a chart that the layout keeps free, such as for a legend. */
 export interface ReservedRoom {
+  /** Room at the left edge. */
   readonly left: number;
+  /** Room at the top, below the title. */
   readonly top: number;
+  /** Room at the right edge. */
   readonly right: number;
+  /** Room at the bottom edge. */
   readonly bottom: number;
 }
 
@@ -87,7 +99,9 @@ export interface ChartLayoutOptions {
 
 /** Where an axis sits. */
 export interface AxisPlacement {
+  /** The axis. */
   readonly axis: Axis;
+  /** Where it sits, ticks, labels and title included. */
   readonly bounds: DipRect;
 }
 
@@ -97,7 +111,9 @@ export interface ChartLayoutResult {
   readonly title: DipRect;
   /** The area of all panes and the gaps between them. */
   readonly plotArea: DipRect;
+  /** The panes, top first. */
   readonly panes: readonly DipRect[];
+  /** Where each visible axis sits. */
   readonly axes: readonly AxisPlacement[];
 }
 

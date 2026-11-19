@@ -117,6 +117,7 @@ export class DateTimeAxis extends Axis {
   constructor(
     id: string,
     position: AxisPosition,
+    /** The unit of the times: milliseconds as in `Date`, ticks of 100 ns, or nanoseconds. */
     readonly resolution: TimeResolution = 'milliseconds',
   ) {
     super(id, position);
@@ -197,6 +198,7 @@ export class DateTimeAxis extends Axis {
     return this.originTime + BigInt(Math.round(value));
   }
 
+  /** The time at a value of the axis, in its zone, as "yyyy-MM-dd HH:mm:ss". */
   override formatCursorValue(value: number): string {
     if (!Number.isFinite(value)) {
       return super.formatCursorValue(value);
@@ -219,6 +221,7 @@ export class DateTimeAxis extends Axis {
     return new DateTimeAxisTransform(first, last, forward ? start : start + length, forward ? start + length : start);
   }
 
+  /** {@inheritDoc Axis.generateTicks} */
   generateTicks(length: number, measurer: TextMeasurer): TickSet {
     if (!Number.isFinite(length) || length < 0) {
       throw new RangeError(`The length must not be negative, not ${String(length)}.`);

@@ -3,7 +3,9 @@ import type { NumberArray } from '../data/source';
 
 /** The extremes of finite values; empty while `min > max`. */
 export class Extremes {
+  /** The smallest finite value seen; +∞ before any. */
   min = Number.POSITIVE_INFINITY;
+  /** The largest finite value seen; −∞ before any. */
   max = Number.NEGATIVE_INFINITY;
 
   /** Whether no finite value was seen. */
