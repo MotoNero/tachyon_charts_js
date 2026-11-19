@@ -4,8 +4,39 @@
 
 ```ts
 
+import { ChartKey } from '@tachyon-charts/core';
+import { ModifierPipeline } from '@tachyon-charts/core';
+import { Point } from '@tachyon-charts/core';
+
+// @public
+export function bindChartInput(element: HTMLElement, pipeline: ModifierPipeline, options?: InputBindingOptions): () => void;
+
+// @public
+export function chartKeyOf(key: string): ChartKey | undefined;
+
+// @public
+export interface InputBindingOptions {
+    readonly doubleClickDistance?: number;
+    readonly doubleClickTime?: number;
+}
+
+// @public
+export function modifiersOf(event: {
+    shiftKey: boolean;
+    ctrlKey: boolean;
+    altKey: boolean;
+    metaKey: boolean;
+}): number;
+
 // @public
 export const version = "0.1.0-dev";
+
+// @public
+export function wheelNotches(event: {
+    deltaX: number;
+    deltaY: number;
+    deltaMode: number;
+}): Point;
 
 // (No @packageDocumentation comment for this package)
 

@@ -1,6 +1,9 @@
 // The root of a chart: axes, panes and series, drawn in the passes of a frame (ChartSurface of the .NET version).
 import type { Axis, TickSet } from '../axes/axis';
 import { DateTimeAxis } from '../axes/date-time-axis';
+import type { HitResult, HitTestMode } from '../hit-testing/hit-test';
+import type { Point } from '../input/primitives';
+import { OverlayCanvas, type ChartOverlay } from '../overlays/chart-overlay';
 import { chartText } from '../locale/culture';
 import {
   arrangeChart,
@@ -60,6 +63,11 @@ export class ChartSurface {
   private readonly tickRects: PixelRect[] = [];
   private glyphs = new Float32Array(512 * glyphStride);
   private glyphCount = 0;
+  private overlayList: ChartOverlay[] = [];
+  private overlayChanges = 0;
+  private renderedOverlays = -1;
+  private zoomArea: DipRect | undefined;
+  private readonly canvas: OverlayCanvas;
   private readonly fitted = new Map<Axis, FittedRange>();
   private lastDevice: RenderDevice | undefined;
   private layout: ChartLayoutResult | undefined;
@@ -100,6 +108,7 @@ export class ChartSurface {
       measureWidth: () => 0,
     });
     this.measurer = new TextEngineMeasurer(textEngine, defaultLabelSize);
+    this.canvas = new OverlayCanvas(textEngine);
   }
 
   /** The axes at the top and bottom. */
@@ -205,6 +214,68 @@ export class ChartSurface {
     return true;
   }
 
+  /** The overlays, drawn above the series in this order. */
+  get overlays(): readonly ChartOverlay[] {
+    return this.overlayList;
+  }
+
+  /** Adds an overlay on top of the others. */
+  addOverlay(overlay: ChartOverlay): void {
+    if (!this.overlayList.includes(overlay)) {
+      this.overlayList = [...this.overlayList, overlay];
+      this.overlayChanges++;
+    }
+  }
+
+  /** Removes an overlay; returns whether it was there. */
+  removeOverlay(overlay: ChartOverlay): boolean {
+    if (!this.overlayList.includes(overlay)) {
+      return false;
+    }
+    this.overlayList = this.overlayList.filter((item) => item !== overlay);
+    this.overlayChanges++;
+    return true;
+  }
+
+  /** The preview of a zoom in device-independent units, `undefined` for none. */
+  get zoomRectangle(): DipRect | undefined {
+    return this.zoomArea;
+  }
+
+  set zoomRectangle(value: DipRect | undefined) {
+    if (value !== this.zoomArea) {
+      this.zoomArea = value;
+      this.overlayChanges++;
+    }
+  }
+
+  /**
+   * The point of any visible series nearest to a position in device-independent units, within `maximumDistance`;
+   * `undefined` for none or before the first frame.
+   */
+  hitTest(position: Point, maximumDistance: number, mode: HitTestMode): HitResult | undefined {
+    let best: HitResult | undefined;
+    for (let i = 0; i < this.seriesList.length; i++) {
+      const hit = this.find(i, position, maximumDistance, mode);
+      if (hit && (!best || hit.distance < best.distance)) {
+        best = hit;
+      }
+    }
+    return best;
+  }
+
+  /** The nearest point of every visible series within `maximumDistance` of a position. */
+  hitTestAll(position: Point, maximumDistance: number, mode: HitTestMode): HitResult[] {
+    const hits: HitResult[] = [];
+    for (let i = 0; i < this.seriesList.length; i++) {
+      const hit = this.find(i, position, maximumDistance, mode);
+      if (hit) {
+        hits.push(hit);
+      }
+    }
+    return hits;
+  }
+
   /** Asks for a new frame, for changes the chart cannot see. */
   invalidate(): void {
     this.invalidated = true;
@@ -217,6 +288,7 @@ export class ChartSurface {
       this.renderedStructure !== this.structure ||
       this.renderedAxes !== this.sumAxisVersions() ||
       this.renderedSeries !== this.sumSeriesVersions() ||
+      this.renderedOverlays !== this.sumOverlayVersions() ||
       this.renderedWidth !== target.size.width ||
       this.renderedHeight !== target.size.height ||
       this.renderedScale !== target.dpiScale
@@ -236,6 +308,7 @@ export class ChartSurface {
     this.invalidated = false;
     this.renderedStructure = this.structure;
     this.renderedSeries = this.sumSeriesVersions();
+    this.renderedOverlays = this.sumOverlayVersions();
     for (const series of this.seriesList) {
       series.takeSnapshot();
     }
@@ -298,10 +371,16 @@ export class ChartSurface {
           points += item.drawnPointCount;
         }
       }
-      // Overlay pass: tick marks and text.
+      // Overlay pass: tick marks, the preview of a zoom, the overlays and all text.
       fill(frame, this.tickRects, tickColor);
+      this.drawZoomRectangle(frame, target.dpiScale);
+      const usedCanvas = this.drawOverlays(frame, target);
       if (this.glyphCount > 0) {
         frame.drawGlyphs(atlas, this.glyphs, this.glyphCount);
+      }
+      if (usedCanvas && this.canvas.glyphCount > 0) {
+        // Overlays may have asked for new glyphs, which reach the texture only with this call.
+        frame.drawGlyphs(this.textEngine.atlasOn(device), this.canvas.glyphs, this.canvas.glyphCount);
       }
       frame.submit();
       this.drawnPoints = points;
@@ -309,6 +388,84 @@ export class ChartSurface {
     } finally {
       frame.dispose();
     }
+  }
+
+  private drawZoomRectangle(frame: CommandList, scale: number): void {
+    const area = this.zoomArea;
+    if (!area) {
+      return;
+    }
+    const pixels = area.toPixels(scale);
+    const border = this.surfaceStyle.zoomRectangleBorderColor;
+    frame.fillRectangle(pixels, this.surfaceStyle.zoomRectangleColor);
+    frame.fillRectangle({ x: pixels.x, y: pixels.y, width: pixels.width, height: 1 }, border);
+    frame.fillRectangle({ x: pixels.x, y: pixels.y + pixels.height - 1, width: pixels.width, height: 1 }, border);
+    frame.fillRectangle({ x: pixels.x, y: pixels.y, width: 1, height: pixels.height }, border);
+    frame.fillRectangle({ x: pixels.x + pixels.width - 1, y: pixels.y, width: 1, height: pixels.height }, border);
+  }
+
+  private drawOverlays(frame: CommandList, target: RenderTarget): boolean {
+    const layout = this.layout;
+    if (this.overlayList.length === 0 || !layout) {
+      return false;
+    }
+    const background = this.surfaceStyle.backgroundColor;
+    this.canvas.begin(
+      frame,
+      layout,
+      target.dpiScale,
+      target.size.width / target.dpiScale,
+      {
+        accent: tickColor,
+        text: textColor,
+        background,
+        crosshair: tickColor,
+        crosshairLabelFill: tickColor,
+        crosshairLabelText: background,
+      },
+      this.labelSize,
+    );
+    for (const overlay of this.overlayList) {
+      overlay.draw(this.canvas);
+      this.canvas.clip = undefined;
+    }
+    return true;
+  }
+
+  private sumOverlayVersions(): number {
+    let sum = this.overlayChanges;
+    for (const overlay of this.overlayList) {
+      sum += overlay.version;
+    }
+    return sum;
+  }
+
+  // A hit of one series in the frame of its pane, in physical pixels.
+  private find(index: number, position: Point, maximumDistance: number, mode: HitTestMode): HitResult | undefined {
+    const series = this.seriesList[index];
+    const frame = this.frames[index];
+    if (!series?.isVisible || !frame) {
+      return undefined;
+    }
+    const scale = frame.dpiScale;
+    const pixelX = position.x * scale;
+    const pixelY = position.y * scale;
+    const bounds = frame.bounds;
+    if (
+      pixelX < bounds.x ||
+      pixelX > bounds.x + bounds.width ||
+      pixelY < bounds.y ||
+      pixelY > bounds.y + bounds.height
+    ) {
+      return undefined;
+    }
+    const point = series.findPoint(frame, pixelX, pixelY, maximumDistance * scale, mode);
+    if (!point) {
+      return undefined;
+    }
+    const dx = frame.x.toPixel(point.x) - pixelX;
+    const dy = mode === 'nearestX' ? 0 : frame.y.toPixel(point.y) - pixelY;
+    return { ...point, series, distance: Math.sqrt(dx * dx + dy * dy) / scale };
   }
 
   private fillPaneBackgrounds(frame: CommandList): void {

@@ -17,6 +17,10 @@ export interface ChartSurfaceStyle {
   readonly minorGridColor: Rgba8;
   /** Every second space between labeled X ticks. */
   readonly bandColor: Rgba8;
+  /** The inside of the preview of a zoom. */
+  readonly zoomRectangleColor: Rgba8;
+  /** The edge of the preview of a zoom. */
+  readonly zoomRectangleBorderColor: Rgba8;
 }
 
 /** The colors of a chart without a theme. */
@@ -28,4 +32,6 @@ export const defaultSurfaceStyle: ChartSurfaceStyle = Object.freeze({
   majorGridColor: { r: 58, g: 66, b: 82, a: 255 },
   minorGridColor: { r: 255, g: 255, b: 255, a: 0 },
   bandColor: { r: 255, g: 255, b: 255, a: 0 },
+  zoomRectangleColor: { r: 120, g: 170, b: 255, a: 48 },
+  zoomRectangleBorderColor: { r: 120, g: 170, b: 255, a: 220 },
 });

@@ -51,6 +51,25 @@ const { surface } = new ChartBuilder()
 Axes are numeric, logarithmic, categories or time in any time zone, with daylight saving and labels in English or
 German. The public API of every package is listed in `docs/api`.
 
+## Interaction
+
+![A crosshair with the values of two lines beside it and the values of both axes at its lines](docs/images/crosshair-values.png)
+
+The wheel zooms around the pointer, dragging pans, Ctrl and drag zooms into a rectangle, dragging an axis moves it and
+Shift scales it, arrows and + and − move and zoom, Home or a double click shows all data again, Ctrl+Z and Ctrl+Y undo
+and redo, and two fingers pan and pinch. A crosshair shows the values of the axes and of all series, a tooltip reports
+the nearest point. The interactions are modifiers in a pipeline, the same as in the .NET version, and
+`bindChartInput` from `@tachyon-charts/element` feeds them the pointer, wheel and key events of a canvas:
+
+```ts
+const pipeline = new ModifierPipeline();
+pipeline.interaction = new ChartInteraction(chart);
+pipeline.add(new ZoomPanModifier());
+pipeline.add(new RubberBandZoomModifier());
+pipeline.add(new CrosshairModifier());
+bindChartInput(canvas, pipeline);
+```
+
 ## Packages
 
 | Package | Content |

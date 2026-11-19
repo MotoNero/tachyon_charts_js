@@ -12,3 +12,6 @@ export * from './resampling';
 export * from './pipeline';
 export * from './series';
 export * from './fluent';
+export * from './input';
+export * from './overlays';
+export * from './hit-testing';

@@ -1,5 +1,24 @@
-// A line chart with two series and a million points, drawn on WebGPU and drawn again when the window changes size.
-import { ChartSurface, DataSource, LineSeries, NumericAxis, rgba, TextEngine, version } from '@tachyon-charts/core';
+// A line chart with two series and a million points, drawn on WebGPU and drawn again when the window changes size or
+// the view moves: the wheel zooms, dragging pans, control and drag zooms into a rectangle, dragging an axis moves it,
+// the keys move and zoom, a double click shows all data again, and a crosshair and a tooltip follow the pointer.
+import {
+  AxisDragModifier,
+  ChartInteraction,
+  ChartSurface,
+  CrosshairModifier,
+  DataSource,
+  KeyboardNavigationModifier,
+  LineSeries,
+  ModifierPipeline,
+  NumericAxis,
+  rgba,
+  RubberBandZoomModifier,
+  TextEngine,
+  TooltipModifier,
+  version,
+  ZoomPanModifier,
+} from '@tachyon-charts/core';
+import { bindChartInput } from '@tachyon-charts/element';
 import { createWebGpuDevice } from '@tachyon-charts/render-webgpu';
 import robotoUrl from '../../../shared/fonts/Roboto-Regular.ttf?url';
 
@@ -41,6 +60,38 @@ if (!device || !canvas) {
   line.thickness = 3;
   chart.addSeries(wave);
   chart.addSeries(line);
+  wave.name = 'Noisy wave';
+  line.name = 'Smooth wave';
+
+  // The interactions, as in the .NET version.
+  const pipeline = new ModifierPipeline();
+  pipeline.interaction = new ChartInteraction(chart);
+  for (const modifier of [
+    new ZoomPanModifier(),
+    new RubberBandZoomModifier(),
+    new AxisDragModifier(),
+    new KeyboardNavigationModifier(),
+  ]) {
+    pipeline.add(modifier);
+  }
+  const crosshair = new CrosshairModifier();
+  crosshair.showsValues = true;
+  pipeline.add(crosshair);
+  const tooltip = new TooltipModifier();
+  const tip = document.querySelector<HTMLElement>('#tooltip');
+  tooltip.onChanged = (data) => {
+    if (!tip) {
+      return;
+    }
+    tip.hidden = !data;
+    if (data) {
+      tip.textContent = `${data.seriesName ?? ''}  x ${data.xText}  y ${data.yText}`;
+      tip.style.left = `${String(data.position.x + 16)}px`;
+      tip.style.top = `${String(data.position.y + 16)}px`;
+    }
+  };
+  pipeline.add(tooltip);
+  bindChartInput(canvas, pipeline);
 
   const size = (): { width: number; height: number } => ({
     width: Math.max(Math.round(canvas.clientWidth * devicePixelRatio), 1),

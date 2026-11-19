@@ -4,6 +4,7 @@
   "type": "module",
   "dependencies": {
     "@tachyon-charts/core": "workspace:*",
-    "@tachyon-charts/render-webgpu": "workspace:*"
+    "@tachyon-charts/render-webgpu": "workspace:*",
+    "@tachyon-charts/element": "workspace:*"
   }
 }

@@ -113,6 +113,17 @@ export interface AxisDefinition {
 }
 
 // @public
+export class AxisDragModifier extends ChartModifier {
+    constructor();
+    static readonly defaultPriority = 30;
+    onCaptureLost(): void;
+    onPointer(input: PointerInputEvent): ModifierResult;
+    onWheel(input: WheelInputEvent): ModifierResult;
+    scaleKey: number;
+    zoomStep: number;
+}
+
+// @public
 export type AxisKind = 'numeric' | 'dateTime' | 'log' | 'category';
 
 // @public
@@ -248,6 +259,43 @@ export class ChartDefinition {
 }
 
 // @public
+export type ChartDirection = 'x' | 'y' | 'both';
+
+// @public
+export interface ChartEdit {
+    redo(): void;
+    undo(): void;
+}
+
+// @public
+export class ChartInteraction {
+    constructor(
+    chart: ChartSurface, dispatch?: (change: () => void) => void);
+    autoRange(axis: Axis): void;
+    autoRangePane(pane: PaneHit): void;
+    readonly chart: ChartSurface;
+    readonly history: ZoomHistory;
+    hitAxis(position: Point): AxisPlacement | undefined;
+    hitPane(position: Point): PaneHit | undefined;
+    pan(pane: PaneHit, delta: Point, direction: ChartDirection): void;
+    panAxis(placement: AxisPlacement, distance: number): void;
+    redo(): void;
+    run(change: () => void): void;
+    showZoomRectangle(area: DipRect | undefined): void;
+    undo(): void;
+    xValueAt(position: Point): number;
+    zoom(pane: PaneHit, position: Point, factor: number, direction: ChartDirection): void;
+    zoomAxis(placement: AxisPlacement, position: number, factor: number): void;
+    zoomTo(pane: PaneHit, area: DipRect, direction: ChartDirection): void;
+}
+
+// @public
+export type ChartKey = 'Backspace' | 'Tab' | 'Enter' | 'Escape' | 'Space' | 'PageUp' | 'PageDown' | 'End' | 'Home' | 'Left' | 'Up' | 'Right' | 'Down' | 'Insert' | 'Delete' | 'Add' | 'Subtract' | 'F12' | `D${0 | 1 | 2 | 3 | 4 | 5 | 6 | 7 | 8 | 9}` | 'A' | 'B' | 'C' | 'D' | 'E' | 'F' | 'G' | 'H' | 'I' | 'J' | 'K' | 'L' | 'M' | 'N' | 'O' | 'P' | 'Q' | 'R' | 'S' | 'T' | 'U' | 'V' | 'W' | 'X' | 'Y' | 'Z';
+
+// @public
+export type ChartKeyAction = 'panLeft' | 'panRight' | 'panUp' | 'panDown' | 'zoomIn' | 'zoomOut' | 'autoRange' | 'undo' | 'redo';
+
+// @public
 export type ChartLanguage = 'english' | 'german';
 
 // @public
@@ -272,6 +320,30 @@ export interface ChartLayoutResult {
 }
 
 // @public
+export abstract class ChartModifier {
+    constructor(
+    priority?: number);
+    attach(value: ChartInteraction | undefined): void;
+    get interaction(): ChartInteraction | undefined;
+    isEnabled: boolean;
+    protected onAttached(_interaction: ChartInteraction): void;
+    onCaptureLost(_capture: InputCapture): void;
+    protected onDetached(_interaction: ChartInteraction): void;
+    onGesture(_input: GestureInputEvent): ModifierResult;
+    onKey(_input: KeyInputEvent): ModifierResult;
+    onPointer(_input: PointerInputEvent): ModifierResult;
+    onWheel(_input: WheelInputEvent): ModifierResult;
+    readonly priority: number;
+}
+
+// @public
+export abstract class ChartOverlay {
+    protected changed(): void;
+    abstract draw(canvas: OverlayCanvas): void;
+    get version(): number;
+}
+
+// @public
 export abstract class ChartSeries {
     constructor(
     xAxis: Axis,
@@ -280,6 +352,7 @@ export abstract class ChartSeries {
     dataRange(_axis: 'x' | 'y'): DoubleRange | undefined;
     abstract draw(commands: CommandList, frame: SeriesFrame): void;
     get drawnPointCount(): number;
+    findPoint(_frame: SeriesFrame, _pixelX: number, _pixelY: number, _maximumDistance: number, _mode: HitTestMode): FoundPoint | undefined;
     get isVisible(): boolean;
     set isVisible(value: boolean);
     name: string | undefined;
@@ -296,6 +369,7 @@ export abstract class ChartSeries {
 // @public
 export class ChartSurface {
     constructor(horizontalAxes: readonly Axis[], panes: readonly LayoutPane[], textEngine: TextEngine, options?: ChartLayoutOptions);
+    addOverlay(overlay: ChartOverlay): void;
     addSeries(series: ChartSeries): void;
     get axisFont(): TextFont | undefined;
     set axisFont(value: TextFont | undefined);
@@ -305,10 +379,14 @@ export class ChartSurface {
     finishRender(device: RenderDevice, target: RenderTarget): void;
     get frameCount(): number;
     hasChanges(target: RenderTarget): boolean;
+    hitTest(position: Point, maximumDistance: number, mode: HitTestMode): HitResult | undefined;
+    hitTestAll(position: Point, maximumDistance: number, mode: HitTestMode): HitResult[];
     get horizontalAxes(): readonly Axis[];
     invalidate(): void;
+    get overlays(): readonly ChartOverlay[];
     get panes(): readonly LayoutPane[];
     prepareData(): void;
+    removeOverlay(overlay: ChartOverlay): boolean;
     removeSeries(series: ChartSeries): boolean;
     render(device: RenderDevice, target: RenderTarget): void;
     get series(): readonly ChartSeries[];
@@ -318,6 +396,8 @@ export class ChartSurface {
     set title(value: string | undefined);
     get titleFont(): TextFont | undefined;
     set titleFont(value: TextFont | undefined);
+    get zoomRectangle(): DipRect | undefined;
+    set zoomRectangle(value: DipRect | undefined);
 }
 
 // @public
@@ -329,6 +409,8 @@ export interface ChartSurfaceStyle {
     readonly minorGridColor: Rgba8;
     readonly plotGradientEnd: Rgba8;
     readonly plotGradientStart: Rgba8;
+    readonly zoomRectangleBorderColor: Rgba8;
+    readonly zoomRectangleColor: Rgba8;
 }
 
 // @public
@@ -365,6 +447,30 @@ export function computeBarEnds(rows: readonly ArrayLike<number>[], layout: BarLa
     lower: Float64Array[];
     upper: Float64Array[];
 };
+
+// @public
+export class CrosshairModifier extends ChartModifier {
+    constructor();
+    protected onAttached(interaction: ChartInteraction): void;
+    protected onDetached(interaction: ChartInteraction): void;
+    onMoved: ((x: number | undefined) => void) | undefined;
+    onPointer(input: PointerInputEvent): ModifierResult;
+    readonly overlay: CrosshairOverlay;
+    showsValues: boolean;
+    snapDistance: number;
+    snapToData: boolean;
+    valueDistance: number;
+}
+
+// @public
+export class CrosshairOverlay extends ChartOverlay {
+    get at(): Point | undefined;
+    draw(canvas: OverlayCanvas): void;
+    hide(): void;
+    series: readonly ChartSeries[];
+    show(position: Point, snapped?: HitResult, values?: readonly HitResult[], header?: string): void;
+    get shownValues(): readonly HitResult[];
+}
 
 // @public
 export interface Culture {
@@ -580,16 +686,39 @@ export class FifoDataSource implements PointSource {
 }
 
 // @public
+export function findNearest(source: PointSource, origin: number, frame: SeriesFrame, pixelX: number, pixelY: number, maximumDistance: number, mode: HitTestMode): FoundPoint | undefined;
+
+// @public
 export function formatFixed(value: number, decimals: number, culture: Culture): string;
 
 // @public
 export function formatGeneral(value: number, precision: number, culture: Culture): string;
 
 // @public
+export function formatHitY(hit: HitResult): string;
+
+// @public
 export function formatScientific(value: number, fractionDigits: number, optional: boolean, culture: Culture): string;
 
 // @public
 export function formatTicks(format: NumericLabelFormat, values: readonly number[], step: number): string[];
+
+// @public
+export interface FoundPoint {
+    readonly index: number;
+    readonly x: number;
+    readonly y: number;
+}
+
+// @public
+export interface GestureInputEvent {
+    readonly delta: Point;
+    readonly kind: 'pan' | 'pinch';
+    readonly modifiers: number;
+    readonly phase: 'started' | 'changed' | 'completed' | 'canceled';
+    readonly position: Point;
+    readonly scale: number;
+}
 
 // @public
 export const glyphStride = 13;
@@ -610,6 +739,30 @@ export interface GpuTexture extends Disposable {
 }
 
 // @public
+export interface HitResult extends FoundPoint {
+    readonly distance: number;
+    readonly series: ChartSeries;
+}
+
+// @public
+export type HitTestMode = 'nearest' | 'nearestX';
+
+// @public
+export interface InputCapture {
+    readonly kind: 'pointer' | 'keyboard' | 'gesture';
+    readonly pointerId: number;
+}
+
+// @public
+export const InputModifiers: {
+    readonly none: 0;
+    readonly shift: 1;
+    readonly control: 2;
+    readonly alt: 4;
+    readonly meta: 8;
+};
+
+// @public
 export function insertCrossings(x: ArrayLike<number>, first: ArrayLike<number>, second: ArrayLike<number>): {
     x: number[];
     first: number[];
@@ -618,6 +771,30 @@ export function insertCrossings(x: ArrayLike<number>, first: ArrayLike<number>, 
 
 // @public
 export const invariantCulture: Culture;
+
+// @public
+export interface KeyBinding {
+    readonly key: ChartKey;
+    readonly kind?: 'pressed' | 'released';
+    readonly modifiers?: number;
+}
+
+// @public
+export class KeyboardNavigationModifier extends ChartModifier {
+    constructor();
+    readonly bindings: Map<ChartKeyAction, KeyBinding>;
+    onKey(input: KeyInputEvent): ModifierResult;
+    panStep: number;
+    zoomStep: number;
+}
+
+// @public
+export interface KeyInputEvent {
+    readonly isRepeat: boolean;
+    readonly key: ChartKey;
+    readonly kind: 'pressed' | 'released';
+    readonly modifiers: number;
+}
 
 // @public
 export interface LayoutPane {
@@ -680,6 +857,7 @@ export class LineSeries extends ChartSeries {
     dispose(): void;
     draw(commands: CommandList): void;
     get drawnPointCount(): number;
+    findPoint(frame: SeriesFrame, pixelX: number, pixelY: number, maximumDistance: number, mode: HitTestMode): FoundPoint | undefined;
     get glowIntensity(): number;
     set glowIntensity(value: number);
     get glowRadius(): number | undefined;
@@ -762,6 +940,9 @@ export interface MarkerStyle {
 }
 
 // @public
+export function matchesKey(binding: KeyBinding, input: KeyInputEvent): boolean;
+
+// @public
 export const meshVertexStride = 3;
 
 // @public
@@ -781,6 +962,25 @@ export class MetadataScanner {
 
 // @public
 export function mixColors(first: Rgba8, second: Rgba8, amount: number): Rgba8;
+
+// @public
+export class ModifierPipeline {
+    add(modifier: ChartModifier): void;
+    cancelAllCaptures(): void;
+    clear(): void;
+    get interaction(): ChartInteraction | undefined;
+    set interaction(value: ChartInteraction | undefined);
+    isPointerCaptured(pointerId: number): boolean;
+    get modifiers(): readonly ChartModifier[];
+    processGesture(input: GestureInputEvent): boolean;
+    processKey(input: KeyInputEvent): boolean;
+    processPointer(input: PointerInputEvent): boolean;
+    processWheel(input: WheelInputEvent): boolean;
+    remove(modifier: ChartModifier): boolean;
+}
+
+// @public
+export type ModifierResult = 'ignored' | 'handled' | 'capture' | 'release';
 
 // @public
 export function niceStep(length: number, targetIntervals: number): number;
@@ -812,7 +1012,47 @@ export interface OffscreenRenderTarget extends RenderTarget {
 }
 
 // @public
+export class OverlayCanvas {
+    constructor(textEngine: TextEngine);
+    begin(commands: CommandList, layout: ChartLayoutResult, scale: number, chartWidth: number, colors: OverlayColors, labelSize: number): void;
+    clip: DipRect | undefined;
+    get colors(): OverlayColors;
+    drawLabel(text: string, x: number, y: number, background: Rgba8, foreground: Rgba8): DipRect;
+    drawLine(from: Point, to: Point, width: number, color: Rgba8): void;
+    drawRectangle(area: DipRect, color: Rgba8): void;
+    drawText(text: string, x: number, baseline: number, size: number, color: Rgba8): void;
+    fillPolygon(corners: readonly Point[], color: Rgba8): void;
+    fillRectangle(area: DipRect, color: Rgba8): void;
+    get glyphCount(): number;
+    get glyphs(): Float32Array;
+    get labelSize(): number;
+    get layout(): ChartLayoutResult;
+    lineHeight(size: number): number;
+    measureWidth(text: string, size: number): number;
+    paneAt(position: Point): DipRect | undefined;
+    pointOf(xAxis: Axis, yAxis: Axis, x: number, y: number): Point | undefined;
+    positionOf(axis: Axis, value: number): number | undefined;
+    valueAt(axis: Axis, position: number): number | undefined;
+}
+
+// @public
+export interface OverlayColors {
+    readonly accent: Rgba8;
+    readonly background: Rgba8;
+    readonly crosshair: Rgba8;
+    readonly crosshairLabelFill: Rgba8;
+    readonly crosshairLabelText: Rgba8;
+    readonly text: Rgba8;
+}
+
+// @public
 export function packRgba8(color: Rgba8): number;
+
+// @public
+export interface PaneHit {
+    readonly axes: readonly Axis[];
+    readonly bounds: DipRect;
+}
 
 // @public
 export function parseColor(text: string): Rgba8;
@@ -829,6 +1069,32 @@ export interface PixelRect {
 export interface PixelSize {
     readonly height: number;
     readonly width: number;
+}
+
+// @public
+export interface Point {
+    readonly x: number;
+    readonly y: number;
+}
+
+// @public
+export type PointerButton = 'none' | 'primary' | 'secondary' | 'middle' | 'x1' | 'x2';
+
+// @public
+export type PointerDeviceKind = 'unknown' | 'mouse' | 'touch' | 'pen';
+
+// @public
+export type PointerEventKind = 'entered' | 'moved' | 'pressed' | 'released' | 'exited' | 'canceled';
+
+// @public
+export interface PointerInputEvent {
+    readonly changedButton: PointerButton;
+    readonly clickCount: number;
+    readonly deviceKind: PointerDeviceKind;
+    readonly kind: PointerEventKind;
+    readonly modifiers: number;
+    readonly pointerId: number;
+    readonly position: Point;
 }
 
 // @public
@@ -983,6 +1249,19 @@ export interface RingSegment {
 export function roundHalfEven(value: number): number;
 
 // @public
+export class RubberBandZoomModifier extends ChartModifier {
+    constructor();
+    button: PointerButton;
+    static readonly defaultPriority = 20;
+    direction: ChartDirection;
+    minimumExtent: number;
+    modifierKey: number;
+    onCaptureLost(): void;
+    onKey(input: KeyInputEvent): ModifierResult;
+    onPointer(input: PointerInputEvent): ModifierResult;
+}
+
+// @public
 export class ScatterBuilder {
     constructor(source: PointSource);
     border(color: Rgba8, thickness: number): this;
@@ -1025,6 +1304,7 @@ export class ScatterSeries extends ChartSeries {
     dispose(): void;
     draw(commands: CommandList, frame: SeriesFrame): void;
     get drawnPointCount(): number;
+    findPoint(frame: SeriesFrame, pixelX: number, pixelY: number, maximumDistance: number, mode: HitTestMode): FoundPoint | undefined;
     get pointColors(): readonly Rgba8[] | undefined;
     set pointColors(value: readonly Rgba8[] | undefined);
     get pointSizes(): ArrayLike<number> | undefined;
@@ -1220,13 +1500,70 @@ export class TimeZone {
 }
 
 // @public
+export interface TooltipData {
+    readonly color: Rgba8;
+    readonly index: number;
+    readonly position: Point;
+    readonly seriesName: string | undefined;
+    readonly x: number;
+    readonly xText: string;
+    readonly y: number;
+    readonly yText: string;
+}
+
+// @public
+export class TooltipModifier extends ChartModifier {
+    constructor();
+    maximumDistance: number;
+    onCaptureLost(): void;
+    onChanged: ((data: TooltipData | undefined) => void) | undefined;
+    protected onDetached(): void;
+    onPointer(input: PointerInputEvent): ModifierResult;
+}
+
+// @public
 export function upperBound(x: NumberArray, count: number, value: number): number;
 
 // @public
 export const version = "0.1.0-dev";
 
 // @public
+export interface WheelInputEvent {
+    readonly delta: Point;
+    readonly modifiers: number;
+    readonly position: Point;
+}
+
+// @public
 export function wordsOf(array: Float32Array): Uint32Array;
+
+// @public
+export class ZoomHistory {
+    get canRedo(): boolean;
+    get canUndo(): boolean;
+    capacity: number;
+    clear(): void;
+    clock: () => number;
+    mergeWindow: number;
+    record(chart: ChartSurface): void;
+    recordEdit(edit: ChartEdit): void;
+    redo(chart: ChartSurface): boolean;
+    undo(chart: ChartSurface): boolean;
+}
+
+// @public
+export class ZoomPanModifier extends ChartModifier {
+    constructor();
+    static readonly defaultPriority = 10;
+    onCaptureLost(): void;
+    onGesture(input: GestureInputEvent): ModifierResult;
+    onPointer(input: PointerInputEvent): ModifierResult;
+    onWheel(input: WheelInputEvent): ModifierResult;
+    panButton: PointerButton;
+    panDirection: ChartDirection;
+    zoomDirection: ChartDirection;
+    zoomStep: number;
+}
 
 // (No @packageDocumentation comment for this package)
 

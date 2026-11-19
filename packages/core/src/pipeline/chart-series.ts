@@ -1,5 +1,6 @@
 // The base of all series and the frame a series draws in (ChartSeries and SeriesFrame of the .NET version).
 import type { Axis } from '../axes/axis';
+import type { FoundPoint, HitTestMode } from '../hit-testing/types';
 import type { DoubleRange } from '../numerics/range';
 import type { LinearAxisTransform } from '../numerics/transform';
 import type { CommandList } from '../render/commands';
@@ -79,6 +80,20 @@ export abstract class ChartSeries {
    * frame, so it returns ranges the series keeps rather than new ones.
    */
   dataRange(_axis: 'x' | 'y'): DoubleRange | undefined {
+    return undefined;
+  }
+
+  /**
+   * The point nearest to a position in physical pixels of the frame, within `maximumDistance` pixels; `undefined` for
+   * none or for series without points to find.
+   */
+  findPoint(
+    _frame: SeriesFrame,
+    _pixelX: number,
+    _pixelY: number,
+    _maximumDistance: number,
+    _mode: HitTestMode,
+  ): FoundPoint | undefined {
     return undefined;
   }
 
