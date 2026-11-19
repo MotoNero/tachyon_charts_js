@@ -9,3 +9,4 @@ export * from './locale';
 export * from './axes';
 export * from './layout';
 export * from './resampling';
+export * from './pipeline';

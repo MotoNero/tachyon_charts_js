@@ -33,6 +33,8 @@ export default [
     rules: {
       // Reads from typed arrays in hot loops are written `values[i] as number`; `!` stays forbidden.
       '@typescript-eslint/non-nullable-type-assertion-style': 'off',
+      // Hooks of a base class that do nothing name their parameters with a leading underscore.
+      '@typescript-eslint/no-unused-vars': ['error', { args: 'after-used', argsIgnorePattern: '^_' }],
     },
   },
   {
