@@ -7,3 +7,4 @@ export * from './numerics';
 export * from './data';
 export * from './locale';
 export * from './axes';
+export * from './layout';
