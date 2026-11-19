@@ -1,4 +1,11 @@
-# Tachyon Charts for JavaScript
+<h1>
+  <picture>
+    <source media="(prefers-color-scheme: dark)" srcset="shared/logo/tachyon-charts-lockup-dark-transparent.svg">
+    <img alt="Tachyon Charts" src="shared/logo/tachyon-charts-lockup-light-transparent.svg" width="440">
+  </picture>
+</h1>
+
+**Tachyon Charts for JavaScript**
 
 Fast charts for the browser, drawn on the GPU with WebGPU, with fallbacks to WebGL 2 and Canvas 2D. Made for large
 data: millions of points in real time and files larger than memory.
