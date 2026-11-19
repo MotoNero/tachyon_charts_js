@@ -281,7 +281,7 @@ function keepLabelsInside(
     }
     const ticks = axis.generateTicks(right - left, measurer).major;
     const first = ticks[0];
-    const last = ticks[ticks.length - 1];
+    const last = ticks.at(-1);
     if (!first || !last) {
       continue;
     }

@@ -54,8 +54,11 @@ function createSteps(): TickStep[] {
   for (const factor of [2, 3, 6, 12]) {
     list.push({ kind: 'hours', factor, nanoseconds: factor * hours });
   }
-  list.push({ kind: 'days', factor: 1, nanoseconds: days }, { kind: 'days', factor: 2, nanoseconds: 2 * days });
-  list.push({ kind: 'weeks', factor: 1, nanoseconds: 7 * days });
+  list.push(
+    { kind: 'days', factor: 1, nanoseconds: days },
+    { kind: 'days', factor: 2, nanoseconds: 2 * days },
+    { kind: 'weeks', factor: 1, nanoseconds: 7 * days },
+  );
   for (const factor of [1, 3, 6]) {
     list.push({ kind: 'months', factor, nanoseconds: factor * month });
   }
@@ -417,9 +420,15 @@ export class DateTimeAxis extends Axis {
       }
       return text;
     }
-    const digits = step.nanoseconds >= 1e6 ? 3 : step.nanoseconds >= 1e3 ? 6 : 9;
+    let digits = 9;
+    if (step.nanoseconds >= 1e6) {
+      digits = 3;
+    } else if (step.nanoseconds >= 1e3) {
+      digits = 6;
+    }
     const fraction = pad(nanosecond, 9).slice(0, digits);
-    return `${isFirst ? `${clock}:${seconds}` : seconds}${culture.decimalSeparator}${fraction}`;
+    const whole = isFirst ? `${clock}:${seconds}` : seconds;
+    return `${whole}${culture.decimalSeparator}${fraction}`;
   }
 
   private nanosecondOfSecond(time: bigint): number {

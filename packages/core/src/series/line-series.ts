@@ -7,7 +7,7 @@ import type { CommandList, PolylineStyle } from '../render/commands';
 import type { RenderDevice } from '../render/device';
 import type { GpuBuffer } from '../render/resources';
 import { BufferUsage, type Rgba8 } from '../render/types';
-import { SeriesResampler, type ResamplingMode } from '../resampling/series-resampler';
+import { SeriesResampler, type ResampleResult, type ResamplingMode } from '../resampling/series-resampler';
 import { ChartSeries, type SeriesFrame } from '../pipeline/chart-series';
 import { expandDashes } from './dash-expander';
 import { smoothRuns, Vertices } from './vertices';
@@ -35,12 +35,8 @@ export class DataRanges {
       this.metadataSeen = metadata;
       this.originSeen = origin;
       const range = metadata.xRange;
-      this.x =
-        metadata.count === 0
-          ? undefined
-          : origin === 0 || range.isEmpty
-            ? range
-            : new DoubleRange(range.min - origin, range.max - origin);
+      const relative = origin === 0 || range.isEmpty ? range : new DoubleRange(range.min - origin, range.max - origin);
+      this.x = metadata.count === 0 ? undefined : relative;
       this.y = metadata.count === 0 ? undefined : metadata.yRange;
     }
     return axis === 'x' ? this.x : this.y;
@@ -270,9 +266,8 @@ export class LineSeries extends ChartSeries {
 
   // The vertices in pixels, without the GPU.
   private build(frame: SeriesFrame): void {
-    const line = this.line;
-    line.clear();
-    this.result = line;
+    this.line.clear();
+    this.result = this.line;
     const columns = Math.max(Math.ceil(frame.bounds.width), 1);
     if (this.minima.length !== columns) {
       this.minima = new Float64Array(columns);
@@ -285,26 +280,37 @@ export class LineSeries extends ChartSeries {
     const result = this.resampler.resample(visible, this.mode, this.minima, this.maxima, this.indices);
     // Taken after resampling: its indices are valid here, the source only grows behind them.
     const snapshot = this.source.snapshotInto(this.view);
-    const mode = result.mode;
-    if (mode === 'minMax') {
+    if (result.mode === 'minMax') {
       this.addColumns(frame);
-    } else if (mode === 'lttb') {
-      for (let i = 0; i < result.selectedCount; i++) {
-        const index = this.indices[i] as number;
-        const previous = i > 0 ? (this.indices[i - 1] as number) : index;
-        this.addPoint(snapshot, index, previous, origin, frame);
-      }
+    } else if (result.mode === 'lttb') {
+      this.addSelection(snapshot, result.selectedCount, origin, frame);
     } else {
-      // One point more on each side, so that the line leaves the plot area instead of ending inside.
-      const first = Math.max(result.start - 1, 0);
-      const last = Math.min(Math.min(result.end, snapshot.count) + 1, snapshot.count);
-      for (let i = first; i < last; i++) {
-        this.addPoint(snapshot, i, i > first ? i - 1 : i, origin, frame);
-      }
+      this.addRange(snapshot, result.start, result.end, origin, frame);
     }
-    line.endRun();
+    this.line.endRun();
+    this.shape(result.mode, frame);
+  }
+
+  private addSelection(snapshot: DataSnapshot, count: number, origin: number, frame: SeriesFrame): void {
+    for (let i = 0; i < count; i++) {
+      const index = this.indices[i] as number;
+      this.addPoint(snapshot, index, i > 0 ? (this.indices[i - 1] as number) : index, origin, frame);
+    }
+  }
+
+  // One point more on each side, so that the line leaves the plot area instead of ending inside.
+  private addRange(snapshot: DataSnapshot, start: number, end: number, origin: number, frame: SeriesFrame): void {
+    const first = Math.max(start - 1, 0);
+    const last = Math.min(Math.min(end, snapshot.count) + 1, snapshot.count);
+    for (let i = first; i < last; i++) {
+      this.addPoint(snapshot, i, i > first ? i - 1 : i, origin, frame);
+    }
+  }
+
+  // Curves and dashes on the line in pixels; reduced columns stay as they are.
+  private shape(mode: ResampleResult['mode'], frame: SeriesFrame): void {
     if (mode === 'none' && this.spline && !this.step) {
-      smoothRuns(line, this.other);
+      smoothRuns(this.line, this.other);
       this.result = this.other;
     }
     if (this.dashes && mode !== 'minMax') {

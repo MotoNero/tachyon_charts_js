@@ -54,6 +54,8 @@ if (!device || !canvas) {
     }
     if (chart.hasChanges(target)) {
       chart.render(device, target);
+      // The number of frames drawn, for whoever waits for the first one, such as a test.
+      canvas.dataset.frames = String(chart.frameCount);
     }
     requestAnimationFrame(frame);
   };

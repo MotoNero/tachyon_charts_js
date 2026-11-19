@@ -527,7 +527,6 @@ export class ChartSurface {
         position,
         pivot,
         axis.labelRotation,
-        textColor,
         scale,
       );
     } else {
@@ -565,7 +564,7 @@ export class ChartSurface {
         const x = axis.position === 'left' ? bounds.x + axisTitleInset : bounds.right - axisTitleInset;
         const y = bounds.y + bounds.height / 2;
         const degrees = axis.position === 'left' ? -90 : 90;
-        this.addTurnedText(title, x - width / 2, y + this.labelSize * 0.36, x, y, degrees, textColor, scale);
+        this.addTurnedText(title, x - width / 2, y + this.labelSize * 0.36, x, y, degrees, scale);
         break;
       }
     }
@@ -647,11 +646,10 @@ export class ChartSurface {
     pivotX: number,
     pivotY: number,
     degrees: number,
-    color: Rgba8,
     scale: number,
   ): void {
     const first = this.glyphCount;
-    this.addText(text, x, baseline, this.labelSize, color, scale, this.measurer.font);
+    this.addText(text, x, baseline, this.labelSize, textColor, scale, this.measurer.font);
     const radians = Math.fround((degrees * Math.PI) / 180);
     for (let i = first; i < this.glyphCount; i++) {
       const at = i * glyphStride;

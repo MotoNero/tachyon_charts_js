@@ -68,7 +68,7 @@ export class ExternalDataSource implements PointSource {
 
   /** {@inheritDoc PointSource.latest} */
   latest(): number | undefined {
-    return this.y.length > 0 ? this.y[this.y.length - 1] : undefined;
+    return this.y.at(-1);
   }
 
   /** Announces that the application changed the arrays: the metadata is scanned again, the version grows. */

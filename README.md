@@ -37,6 +37,20 @@ A line of a million points draws the extremes of each pixel column, so every pea
 builds in a worker when the data lies in a `SharedArrayBuffer`. Besides `LineSeries` there are `ScatterSeries`,
 `AreaSeries`, `StackedAreaSeries`, `BandSeries` and `BarSeries`. The complete example is in `examples/basic`.
 
+The same chart in the words of the .NET version:
+
+```ts
+const { surface } = new ChartBuilder()
+  .title('Sensors')
+  .xAxis((a) => a.title('Time'))
+  .yAxis((a) => a.autoRange())
+  .addLine(source, (l) => l.stroke(rgba(240, 130, 90)).thickness(2))
+  .build(engine);
+```
+
+Axes are numeric, logarithmic, categories or time in any time zone, with daylight saving and labels in English or
+German. The public API of every package is listed in `docs/api`.
+
 ## Packages
 
 | Package | Content |

@@ -291,57 +291,74 @@ export class BarSeries extends ChartSeries {
     }
     const places = this.horizontal ? frame.y : frame.x;
     const values = this.horizontal ? frame.x : frame.y;
-    const step = this.step();
-    const pixelsPerPlace = Math.abs(places.toPixel(step) - places.toPixel(0));
-    const { lower, upper } = this.readEnds();
-    // Only the places that are visible, by the even spacing of the places.
+    const pixelsPerPlace = Math.abs(places.toPixel(this.step()) - places.toPixel(0));
+    const ends = this.readEnds();
+    const [first, last] = this.visiblePlaces(frame, places, count);
+    if (pixelsPerPlace < 1) {
+      this.buildMerged(frame, places, values, ends, first, last);
+      return;
+    }
+    for (let i = first; i <= last; i++) {
+      this.addPlace(frame, places, values, ends, i, pixelsPerPlace);
+    }
+  }
+
+  // Only the places that are visible, by the even spacing of the places, and one more on each side.
+  private visiblePlaces(frame: SeriesFrame, places: LinearAxisTransform, count: number): [number, number] {
     const bounds = frame.bounds;
+    const step = this.step();
     const a = places.toData(this.horizontal ? bounds.y : bounds.x);
     const b = places.toData(this.horizontal ? bounds.y + bounds.height : bounds.x + bounds.width);
     const clamp = (value: number): number => Math.min(Math.max(value, 0), count - 1);
     const first = clamp(Math.trunc(Math.floor((Math.min(a, b) - this.position(0)) / step - 1)));
     const last = clamp(Math.trunc(Math.ceil((Math.max(a, b) - this.position(0)) / step + 1)));
-    if (pixelsPerPlace < 1) {
-      this.buildMerged(frame, places, values, lower, upper, first, last);
-      return;
-    }
+    return [first, last];
+  }
+
+  // The bars of all rows at one place: side by side when grouped, over each other when stacked.
+  private addPlace(
+    frame: SeriesFrame,
+    places: LinearAxisTransform,
+    values: LinearAxisTransform,
+    ends: BarEnds,
+    i: number,
+    pixelsPerPlace: number,
+  ): void {
     const isGrouped = this.barLayout === 'grouped';
     const width = pixelsPerPlace * this.share;
     const slotWidth = width / (isGrouped ? this.rowValues.length : 1);
-    for (let i = first; i <= last; i++) {
-      const center = places.toPixel(this.position(i));
-      for (let row = 0; row < this.rowValues.length; row++) {
-        const high = (upper[row] as Float64Array)[i] as number;
-        if (Number.isFinite(high)) {
-          const start = roundHalfEven(center - width / 2 + (isGrouped ? row * slotWidth : 0));
-          const end = roundHalfEven(center - width / 2 + (isGrouped ? row + 1 : 1) * slotWidth);
-          const from = roundHalfEven(values.toPixel((lower[row] as Float64Array)[i] as number));
-          const to = roundHalfEven(values.toPixel(high));
-          this.addBar(frame, row, start, end, from, to, pixelsPerPlace, high);
-        }
+    const center = places.toPixel(this.position(i));
+    for (let row = 0; row < this.rowValues.length; row++) {
+      const high = (ends.upper[row] as Float64Array)[i] as number;
+      if (Number.isFinite(high)) {
+        this.addBar(
+          frame,
+          {
+            row,
+            start: roundHalfEven(center - width / 2 + (isGrouped ? row * slotWidth : 0)),
+            end: roundHalfEven(center - width / 2 + (isGrouped ? row + 1 : 1) * slotWidth),
+            from: roundHalfEven(values.toPixel((ends.lower[row] as Float64Array)[i] as number)),
+            to: roundHalfEven(values.toPixel(high)),
+            value: high,
+          },
+          pixelsPerPlace,
+        );
       }
     }
   }
 
-  private addBar(
-    frame: SeriesFrame,
-    row: number,
-    start: number,
-    end: number,
-    from: number,
-    to: number,
-    pixelsPerPlace: number,
-    value: number,
-  ): void {
+  private addBar(frame: SeriesFrame, bar: Bar, pixelsPerPlace: number): void {
     const radius = f(this.radius * frame.dpiScale);
     const blur = f(this.blur * frame.dpiScale);
-    const [x, y, width, height] = this.horizontal
-      ? [f(Math.min(from, to)), f(start), f(Math.abs(to - from)), f(end - start)]
-      : [f(start), f(Math.min(from, to)), f(end - start), f(Math.abs(to - from))];
+    const { start, end, from, to } = bar;
+    const rect: PixelRect = this.horizontal
+      ? { x: f(Math.min(from, to)), y: f(start), width: f(Math.abs(to - from)), height: f(end - start) }
+      : { x: f(start), y: f(Math.min(from, to)), width: f(end - start), height: f(Math.abs(to - from)) };
     if (this.shadow && pixelsPerPlace >= 3) {
-      addSoftRectangle(this.mesh, f(x + f(blur / 3)), f(y + f(blur / 3)), width, height, blur, this.shadow);
+      const offset = f(blur / 3);
+      addSoftRectangle(this.mesh, { ...rect, x: f(rect.x + offset), y: f(rect.y + offset) }, blur, this.shadow);
     }
-    addRoundedRectangle(this.mesh, x, y, width, height, radius, frame.bounds, this.rowFills[row] as SeriesFill, value);
+    addRoundedRectangle(this.mesh, rect, radius, frame.bounds, this.rowFills[bar.row] as SeriesFill, bar.value);
   }
 
   // One bar per pixel and row, from the lowest to the highest end in that pixel.
@@ -349,8 +366,7 @@ export class BarSeries extends ChartSeries {
     frame: SeriesFrame,
     places: LinearAxisTransform,
     values: LinearAxisTransform,
-    lower: Float64Array[],
-    upper: Float64Array[],
+    ends: BarEnds,
     first: number,
     last: number,
   ): void {
@@ -359,39 +375,60 @@ export class BarSeries extends ChartSeries {
     if (length <= 0) {
       return;
     }
-    const low = new Float64Array(length);
-    const high = new Float64Array(length);
+    const columns = { origin, low: new Float64Array(length), high: new Float64Array(length) };
     for (let row = 0; row < this.rowValues.length; row++) {
-      low.fill(Number.POSITIVE_INFINITY);
-      high.fill(Number.NEGATIVE_INFINITY);
-      const lows = lower[row] as Float64Array;
-      const highs = upper[row] as Float64Array;
+      columns.low.fill(Number.POSITIVE_INFINITY);
+      columns.high.fill(Number.NEGATIVE_INFINITY);
       for (let i = first; i <= last; i++) {
         const column = Math.trunc(places.toPixel(this.position(i)) - origin);
-        const top = highs[i] as number;
+        const top = (ends.upper[row] as Float64Array)[i] as number;
         if (column >= 0 && column < length && Number.isFinite(top)) {
-          const bottom = lows[i] as number;
-          low[column] = Math.min(low[column] as number, Math.min(bottom, top));
-          high[column] = Math.max(high[column] as number, Math.max(bottom, top));
+          const bottom = (ends.lower[row] as Float64Array)[i] as number;
+          columns.low[column] = Math.min(columns.low[column] as number, bottom, top);
+          columns.high[column] = Math.max(columns.high[column] as number, bottom, top);
         }
       }
-      for (let column = 0; column < length; column++) {
-        const smallest = low[column] as number;
-        const largest = high[column] as number;
-        if (smallest > largest) {
-          continue;
-        }
-        const from = f(roundHalfEven(values.toPixel(smallest)));
-        const to = f(roundHalfEven(values.toPixel(largest)));
-        const start = f(origin + column);
-        const size = Math.max(Math.abs(f(to - from)), 1);
-        const [x, y, width, height] = this.horizontal
-          ? [Math.min(from, to), start, size, 1]
-          : [start, Math.min(from, to), 1, size];
-        addRoundedRectangle(this.mesh, x, y, width, height, 0, frame.bounds, this.rowFills[row] as SeriesFill, largest);
-      }
+      this.addMergedColumns(frame, values, columns, row);
     }
   }
+
+  private addMergedColumns(frame: SeriesFrame, values: LinearAxisTransform, columns: MergedColumns, row: number): void {
+    for (let column = 0; column < columns.low.length; column++) {
+      const smallest = columns.low[column] as number;
+      const largest = columns.high[column] as number;
+      if (smallest > largest) {
+        continue;
+      }
+      const from = f(roundHalfEven(values.toPixel(smallest)));
+      const to = f(roundHalfEven(values.toPixel(largest)));
+      const start = f(columns.origin + column);
+      const size = Math.max(Math.abs(f(to - from)), 1);
+      const rect: PixelRect = this.horizontal
+        ? { x: Math.min(from, to), y: start, width: size, height: 1 }
+        : { x: start, y: Math.min(from, to), width: 1, height: size };
+      addRoundedRectangle(this.mesh, rect, 0, frame.bounds, this.rowFills[row] as SeriesFill, largest);
+    }
+  }
+}
+
+interface BarEnds {
+  readonly lower: Float64Array[];
+  readonly upper: Float64Array[];
+}
+
+interface Bar {
+  readonly row: number;
+  readonly start: number;
+  readonly end: number;
+  readonly from: number;
+  readonly to: number;
+  readonly value: number;
+}
+
+interface MergedColumns {
+  readonly origin: number;
+  readonly low: Float64Array;
+  readonly high: Float64Array;
 }
 
 function colorAt(fill: SeriesFill, y: number, pane: PixelRect, value: number): number {
@@ -401,15 +438,13 @@ function colorAt(fill: SeriesFill, y: number, pane: PixelRect, value: number): n
 /** A rectangle with round corners as a fan of triangles around its middle; square corners below half a pixel. */
 export function addRoundedRectangle(
   mesh: Mesh,
-  x: number,
-  y: number,
-  width: number,
-  height: number,
+  rect: PixelRect,
   radius: number,
   pane: PixelRect,
   fill: SeriesFill,
   value: number,
 ): void {
+  const { x, y, width, height } = rect;
   const limited = Math.min(radius, f(Math.min(width, height) / 2));
   const right = f(x + width);
   const bottom = f(y + height);
@@ -458,15 +493,8 @@ export function addRoundedRectangle(
 }
 
 /** A rectangle with edges that fade to nothing over `blur` pixels, for shadows. */
-export function addSoftRectangle(
-  mesh: Mesh,
-  x: number,
-  y: number,
-  width: number,
-  height: number,
-  blur: number,
-  color: Rgba8,
-): void {
+export function addSoftRectangle(mesh: Mesh, rect: PixelRect, blur: number, color: Rgba8): void {
+  const { x, y, width, height } = rect;
   const inner = packRgba8(color);
   const outer = packRgba8({ ...color, a: 0 });
   const right = f(x + width);

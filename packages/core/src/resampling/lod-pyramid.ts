@@ -120,7 +120,9 @@ export class LodPyramid {
     accumulate(values, start, firstBlock * baseBlockSize, extremes);
     accumulate(values, lastBlock * baseBlockSize, end, extremes);
     const factor = this.factor;
-    for (let index = 0; firstBlock < lastBlock; index++) {
+    // The index climbs the levels while the range of blocks shrinks.
+    let index = 0;
+    while (firstBlock < lastBlock) {
       const level = this.levels[index] as Level;
       const next = this.levels[index + 1];
       if (!next || Math.trunc(lastBlock / factor) > next.count) {
@@ -133,6 +135,7 @@ export class LodPyramid {
       LodPyramid.accumulateBlocks(level, alignedEnd, lastBlock, extremes);
       firstBlock = alignedStart / factor;
       lastBlock = alignedEnd / factor;
+      index++;
     }
     return extremes;
   }

@@ -3,6 +3,7 @@
 import type { Axis } from '../axes/axis';
 import { emptySnapshot, type DataSnapshot, type PointSource } from '../data/source';
 import type { DoubleRange } from '../numerics/range';
+import type { AxisScaling } from '../numerics/scaling';
 import type { CommandList, MarkerShape, MarkerStyle } from '../render/commands';
 import type { RenderDevice } from '../render/device';
 import { packRgba8, type Rgba8 } from '../render/types';
@@ -11,7 +12,7 @@ import { DataRanges, originOf, VertexBuffer } from './line-series';
 
 const f = Math.fround;
 const largest = 3.4028234663852886e38;
-const shapes: readonly MarkerShape[] = ['circle', 'square', 'triangle', 'diamond', 'cross', 'plus'];
+const shapes: ReadonlySet<MarkerShape> = new Set(['circle', 'square', 'triangle', 'diamond', 'cross', 'plus']);
 
 /**
  * One marker for every finite point of a data source. Colors and sizes per point are optional; when given, they have
@@ -75,7 +76,7 @@ export class ScatterSeries extends ChartSeries {
   }
 
   set shape(value: MarkerShape) {
-    if (!shapes.includes(value)) {
+    if (!shapes.has(value)) {
       throw new RangeError(`"${value}" is no marker shape.`);
     }
     this.markerShape = value;
@@ -209,40 +210,48 @@ export class ScatterSeries extends ChartSeries {
 
   private fill(snapshot: DataSnapshot): void {
     const points = snapshot.count;
+    this.checkStyleData(points);
+    if (this.instances.length < points * 4) {
+      this.instances = new Float32Array(points * 4);
+    }
+    const words = new Uint32Array(this.instances.buffer);
+    const origin = originOf(this.xAxis);
+    const fallback = packRgba8(this.fillColor);
+    this.count = 0;
+    for (let i = 0; i < points; i++) {
+      // The GPU maps linearly, so a nonlinear scale is part of the stored position.
+      const x = forward(this.xAxis.scaling, (snapshot.x[i] as number) - origin);
+      const y = forward(this.yAxis.scaling, snapshot.y[i] as number);
+      const size = f(this.sizes ? (this.sizes[i] as number) : this.diameter);
+      if (!Number.isFinite(size) || size <= 0) {
+        throw new RangeError(`Point size ${String(i)} must be positive and finite.`);
+      }
+      if (fitsFloat(x) && fitsFloat(y)) {
+        const at = this.count * 4;
+        this.instances[at] = x;
+        this.instances[at + 1] = y;
+        this.instances[at + 2] = size;
+        words[at + 3] = this.colors ? packRgba8(this.colors[i] as Rgba8) : fallback;
+        this.count++;
+      }
+    }
+  }
+
+  private checkStyleData(points: number): void {
     if (this.colors && this.colors.length !== points) {
       throw new RangeError(`There are ${String(this.colors.length)} point colors for ${String(points)} points.`);
     }
     if (this.sizes && this.sizes.length !== points) {
       throw new RangeError(`There are ${String(this.sizes.length)} point sizes for ${String(points)} points.`);
     }
-    if (this.instances.length < points * 4) {
-      this.instances = new Float32Array(points * 4);
-    }
-    const words = new Uint32Array(this.instances.buffer);
-    const origin = originOf(this.xAxis);
-    const scaleX = this.xAxis.scaling;
-    const scaleY = this.yAxis.scaling;
-    const fallback = packRgba8(this.fillColor);
-    this.count = 0;
-    for (let i = 0; i < points; i++) {
-      // The GPU maps linearly, so a nonlinear scale is part of the stored position.
-      let x = (snapshot.x[i] as number) - origin;
-      let y = snapshot.y[i] as number;
-      x = scaleX ? scaleX.forward(x) : x;
-      y = scaleY ? scaleY.forward(y) : y;
-      const size = this.sizes ? f(this.sizes[i] as number) : f(this.diameter);
-      if (!Number.isFinite(size) || size <= 0) {
-        throw new RangeError(`Point size ${String(i)} must be positive and finite.`);
-      }
-      if (!Number.isFinite(x) || !Number.isFinite(y) || Math.abs(x) > largest || Math.abs(y) > largest) {
-        continue;
-      }
-      const at = this.count * 4;
-      this.instances[at] = x;
-      this.instances[at + 1] = y;
-      this.instances[at + 2] = size;
-      words[at + 3] = this.colors ? packRgba8(this.colors[i] as Rgba8) : fallback;
-      this.count++;
-    }
   }
+}
+
+function forward(scaling: AxisScaling | undefined, value: number): number {
+  return scaling ? scaling.forward(value) : value;
+}
+
+/** Whether a value has a place in a float32 buffer. */
+function fitsFloat(value: number): boolean {
+  return Number.isFinite(value) && Math.abs(value) <= largest;
 }

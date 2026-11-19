@@ -73,10 +73,13 @@ export function formatFixed(value: number, decimals: number, culture: Culture): 
   }
   const magnitude = Math.abs(value);
   // From 1e21 on toFixed switches to exponents; such values are whole numbers, which BigInt writes digit for digit.
-  const text =
-    magnitude >= 1e21
-      ? `${BigInt(magnitude).toString()}${decimals > 0 ? `.${'0'.repeat(decimals)}` : ''}`
-      : evenOnTie(magnitude.toFixed(decimals), magnitude, decimals);
+  let text: string;
+  if (magnitude >= 1e21) {
+    const fraction = decimals > 0 ? '.' + '0'.repeat(decimals) : '';
+    text = BigInt(magnitude).toString() + fraction;
+  } else {
+    text = evenOnTie(magnitude.toFixed(decimals), magnitude, decimals);
+  }
   const negative = value < 0 || Object.is(value, -0);
   return (negative ? culture.negativeSign : '') + localize(text, culture);
 }
@@ -94,7 +97,7 @@ export function formatGeneral(value: number, precision: number, culture: Culture
     return `${sign}0`;
   }
   const { digits, exponent } = significant(Math.abs(value), precision);
-  const trimmed = digits.replace(/0+$/, '');
+  const trimmed = withoutTrailingZeros(digits);
   if (exponent > -5 && exponent < precision) {
     let text: string;
     if (exponent < 0) {
@@ -121,13 +124,14 @@ export function formatScientific(value: number, fractionDigits: number, optional
   }
   const sign = value < 0 ? culture.negativeSign : '';
   if (value === 0) {
-    return `0${optional || fractionDigits === 0 ? '' : `${culture.decimalSeparator}${'0'.repeat(fractionDigits)}`}E+0`;
+    const zeros = optional || fractionDigits === 0 ? '' : culture.decimalSeparator + '0'.repeat(fractionDigits);
+    return `0${zeros}E+0`;
   }
   const fifteen = significant(Math.abs(value), 15);
   const { digits, exponent } = roundDigits(fifteen.digits, 1 + fractionDigits, fifteen.exponent);
   let fraction = digits.slice(1);
   if (optional) {
-    fraction = fraction.replace(/0+$/, '');
+    fraction = withoutTrailingZeros(fraction);
   }
   const mantissa = fraction.length > 0 ? `${digits[0] ?? ''}${culture.decimalSeparator}${fraction}` : (digits[0] ?? '');
   return `${sign}${mantissa}E${exponent < 0 ? '-' : '+'}${String(Math.abs(exponent))}`;
@@ -136,4 +140,13 @@ export function formatScientific(value: number, fractionDigits: number, optional
 function nonFinite(value: number): string {
   if (Number.isNaN(value)) return 'NaN';
   return value > 0 ? '∞' : '-∞';
+}
+
+/** The digits without the zeros at their end, in one pass (a regular expression would backtrack). */
+function withoutTrailingZeros(digits: string): string {
+  let end = digits.length;
+  while (end > 0 && digits.codePointAt(end - 1) === 48) {
+    end--;
+  }
+  return digits.slice(0, end);
 }

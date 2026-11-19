@@ -447,7 +447,7 @@ export class StackedAreaSeries extends RibbonSeries {
       );
       let min = Number.POSITIVE_INFINITY;
       let max = Number.NEGATIVE_INFINITY;
-      for (const value of this.edges[this.edges.length - 1] ?? []) {
+      for (const value of this.edges.at(-1) ?? []) {
         min = Math.min(min, value, 0);
         max = Math.max(max, value, 0);
       }
