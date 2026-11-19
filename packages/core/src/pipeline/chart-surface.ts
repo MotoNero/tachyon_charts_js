@@ -371,7 +371,8 @@ export class ChartSurface {
       return;
     }
     if (axis instanceof DateTimeAxis) {
-      axis.fitToTime(BigInt(Math.trunc(min)), BigInt(Math.trunc(max)), padding);
+      // Series report time relative to the origin, as their values on the axis.
+      axis.fitToTime(axis.origin + BigInt(Math.trunc(min)), axis.origin + BigInt(Math.trunc(max)), padding);
     } else {
       axis.fitTo(new DoubleRange(min, max), padding);
     }

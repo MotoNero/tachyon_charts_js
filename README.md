@@ -10,9 +10,32 @@
 Fast charts for the browser, drawn on the GPU with WebGPU, with fallbacks to WebGL 2 and Canvas 2D. Made for large
 data: millions of points in real time and files larger than memory.
 
-**Status:** early development. The rendering core draws lines, markers, areas and text on WebGPU; charts follow.
+**Status:** early development. Charts with lines, scatter markers, areas, bands and bars draw on WebGPU, with
+axes, time axes, layout and text as in the .NET version.
 There is no release yet and the API will change. The packages will appear on npm under
 `@tachyon-charts/…`.
+
+## A first chart
+
+![A line of a million points with a single spike, and a smooth line above it](docs/images/line-million-points.png)
+
+```ts
+import { ChartSurface, DataSource, LineSeries, NumericAxis, TextEngine } from '@tachyon-charts/core';
+import { createWebGpuDevice } from '@tachyon-charts/render-webgpu';
+
+const device = await createWebGpuDevice();
+const x = new NumericAxis('x', 'bottom');
+const y = new NumericAxis('y', 'left');
+const chart = new ChartSurface([x], [{ axes: [y] }], new TextEngine(robotoFontData));
+chart.addSeries(new LineSeries(source, x, y)); // source: a DataSource with append(x, y)
+
+const target = device.createSurfaceTarget({ kind: 'canvas', canvas }, { width, height }, devicePixelRatio);
+chart.render(device, target);
+```
+
+A line of a million points draws the extremes of each pixel column, so every peak stays visible; the pyramid behind it
+builds in a worker when the data lies in a `SharedArrayBuffer`. Besides `LineSeries` there are `ScatterSeries`,
+`AreaSeries`, `StackedAreaSeries`, `BandSeries` and `BarSeries`. The complete example is in `examples/basic`.
 
 ## Packages
 

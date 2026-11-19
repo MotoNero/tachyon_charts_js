@@ -4,10 +4,30 @@
     <meta charset="utf-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1" />
     <title>Tachyon Charts – basic example</title>
+    <style>
+      body {
+        margin: 0;
+        background: #181c24;
+        color: #c8d0dc;
+        font-family: sans-serif;
+      }
+      canvas {
+        display: block;
+        width: 100vw;
+        height: 100vh;
+      }
+      p {
+        position: absolute;
+        top: 8px;
+        left: 12px;
+        margin: 0;
+        font-size: 12px;
+      }
+    </style>
   </head>
   <body>
-    <h1>Tachyon Charts</h1>
-    <p>Version <span id="version">unknown</span></p>
+    <canvas></canvas>
+    <p id="status"></p>
     <script type="module" src="./src/main.ts"></script>
   </body>
 </html>

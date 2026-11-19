@@ -1,0 +1,372 @@
+// A line through the points of a data source (LineSeries and SnapshotLinePath of the .NET version).
+import type { Axis } from '../axes/axis';
+import { DateTimeAxis } from '../axes/date-time-axis';
+import { emptySnapshot, type DataSnapshot, type PointSource } from '../data/source';
+import { DoubleRange } from '../numerics/range';
+import type { CommandList, PolylineStyle } from '../render/commands';
+import type { RenderDevice } from '../render/device';
+import type { GpuBuffer } from '../render/resources';
+import { BufferUsage, type Rgba8 } from '../render/types';
+import { SeriesResampler, type ResamplingMode } from '../resampling/series-resampler';
+import { ChartSeries, type SeriesFrame } from '../pipeline/chart-series';
+import { expandDashes } from './dash-expander';
+import { smoothRuns, Vertices } from './vertices';
+
+const f = Math.fround;
+
+/** The value zero of an axis in the units of the data: time axes count from their origin. */
+export function originOf(axis: Axis): number {
+  return axis instanceof DateTimeAxis ? Number(axis.origin) : 0;
+}
+
+/** The ranges of a source along its axes, relative to the origin of a time axis; kept until the source changes. */
+export class DataRanges {
+  private metadataSeen: unknown;
+  private originSeen = Number.NaN;
+  private x: DoubleRange | undefined;
+  private y: DoubleRange | undefined;
+
+  constructor(private readonly source: PointSource) {}
+
+  of(axis: 'x' | 'y', xAxis: Axis): DoubleRange | undefined {
+    const metadata = this.source.metadata;
+    const origin = originOf(xAxis);
+    if (metadata !== this.metadataSeen || origin !== this.originSeen) {
+      this.metadataSeen = metadata;
+      this.originSeen = origin;
+      const range = metadata.xRange;
+      this.x =
+        metadata.count === 0
+          ? undefined
+          : origin === 0 || range.isEmpty
+            ? range
+            : new DoubleRange(range.min - origin, range.max - origin);
+      this.y = metadata.count === 0 ? undefined : metadata.yRange;
+    }
+    return axis === 'x' ? this.x : this.y;
+  }
+}
+
+/** Keeps a vertex buffer on the GPU that grows when needed. */
+export class VertexBuffer {
+  buffer: GpuBuffer | undefined;
+
+  ensure(device: RenderDevice, byteCount: number): GpuBuffer {
+    if (!this.buffer || this.buffer.sizeInBytes < byteCount) {
+      this.buffer?.dispose();
+      this.buffer = device.createBuffer({ sizeInBytes: Math.max(byteCount, 4096), usage: BufferUsage.vertex });
+    }
+    return this.buffer;
+  }
+
+  dispose(): void {
+    this.buffer?.dispose();
+    this.buffer = undefined;
+  }
+}
+
+/**
+ * A line through the points of a data source. NaN and ±∞ interrupt it. Dense data is reduced to the extremes per
+ * pixel column, so every peak stays visible. Dispose the series when it is no longer drawn.
+ */
+export class LineSeries extends ChartSeries {
+  private lineColor: Rgba8 = { r: 80, g: 170, b: 240, a: 255 };
+  private lineThickness = 1.5;
+  private dashes: readonly number[] | undefined;
+  private step = false;
+  private spline = false;
+  private mode: ResamplingMode = 'auto';
+  private glow: number | undefined;
+  private intensity = 0.6;
+  private appearance = 0;
+  private readonly resampler: SeriesResampler;
+  private readonly ranges: DataRanges;
+  private readonly view: DataSnapshot = emptySnapshot();
+  private readonly line = new Vertices();
+  private readonly other = new Vertices();
+  private result: Vertices = this.line;
+  private minima = new Float64Array(0);
+  private maxima = new Float64Array(0);
+  private indices = new Int32Array(0);
+  private builtData = -1;
+  private builtOptions = -1;
+  private builtFrame: SeriesFrame | undefined;
+  private uploadPending = false;
+  private readonly gpu = new VertexBuffer();
+  private style: PolylineStyle | undefined;
+
+  constructor(
+    readonly source: PointSource,
+    xAxis: Axis,
+    yAxis: Axis,
+  ) {
+    super(xAxis, yAxis);
+    this.resampler = new SeriesResampler(source);
+    this.ranges = new DataRanges(source);
+  }
+
+  /** The color of the line. */
+  get color(): Rgba8 {
+    return this.lineColor;
+  }
+
+  set color(value: Rgba8) {
+    this.lineColor = value;
+    this.changed();
+  }
+
+  /** The thickness in device-independent units. */
+  get thickness(): number {
+    return this.lineThickness;
+  }
+
+  set thickness(value: number) {
+    if (!Number.isFinite(value) || value <= 0) {
+      throw new RangeError(`The thickness must be positive and finite, not ${String(value)}.`);
+    }
+    this.lineThickness = value;
+    this.changed();
+  }
+
+  /** The lengths of dashes and spaces in turn, in device-independent units; `undefined` for a solid line. */
+  get dashPattern(): readonly number[] | undefined {
+    return this.dashes;
+  }
+
+  set dashPattern(value: readonly number[] | undefined) {
+    if (value?.length === 0 || value?.some((length) => !Number.isFinite(length) || length <= 0)) {
+      throw new RangeError('A pattern needs positive, finite lengths.');
+    }
+    this.dashes = value ? [...value] : undefined;
+    this.changed();
+  }
+
+  /** Whether the line keeps each value until the next point. Columns of a reduced line stay as they are. */
+  get isStep(): boolean {
+    return this.step;
+  }
+
+  set isStep(value: boolean) {
+    this.step = value;
+    this.changed();
+  }
+
+  /** Whether the line runs as a smooth curve through its points; only lines that show all points. */
+  get isSpline(): boolean {
+    return this.spline;
+  }
+
+  set isSpline(value: boolean) {
+    this.spline = value;
+    this.changed();
+  }
+
+  /** How the line reduces its points; `auto` by default. */
+  get resampling(): ResamplingMode {
+    return this.mode;
+  }
+
+  set resampling(value: ResamplingMode) {
+    this.mode = value;
+    this.changed();
+  }
+
+  /** The reach of a glow in device-independent units; no glow when left out. */
+  get glowRadius(): number | undefined {
+    return this.glow;
+  }
+
+  set glowRadius(value: number | undefined) {
+    this.glow = value;
+    this.changed();
+  }
+
+  /** The strength of the glow, 0..1. */
+  get glowIntensity(): number {
+    return this.intensity;
+  }
+
+  set glowIntensity(value: number) {
+    this.intensity = value;
+    this.changed();
+  }
+
+  override get accentColor(): Rgba8 {
+    return this.lineColor;
+  }
+
+  get version(): number {
+    return this.source.version + this.appearance;
+  }
+
+  override get drawnPointCount(): number {
+    return this.result.count;
+  }
+
+  override dataRange(axis: 'x' | 'y'): DoubleRange | undefined {
+    return this.ranges.of(axis, this.xAxis);
+  }
+
+  override prepareData(frame: SeriesFrame): void {
+    const version = this.source.version;
+    if (version === this.builtData && this.appearance === this.builtOptions && frame === this.builtFrame) {
+      return;
+    }
+    this.builtData = version;
+    this.builtOptions = this.appearance;
+    this.builtFrame = frame;
+    this.uploadPending = true;
+    this.build(frame);
+  }
+
+  override prepare(device: RenderDevice, frame: SeriesFrame): void {
+    this.prepareData(frame);
+    if (!this.uploadPending) {
+      return;
+    }
+    this.uploadPending = false;
+    const line = this.result;
+    if (line.count > 0) {
+      this.gpu.ensure(device, line.count * 8).write(0, line.data.subarray(0, line.count * 2));
+    }
+    const glow = this.glow;
+    this.style = {
+      widthInPixels: f(this.lineThickness * frame.dpiScale),
+      color: this.lineColor,
+      clip: frame.bounds,
+      ...(glow === undefined ? {} : { glowRadius: f(glow * frame.dpiScale), glowIntensity: f(this.intensity) }),
+    };
+  }
+
+  override releaseResources(): void {
+    this.dispose();
+  }
+
+  /** Frees the buffer on the GPU; the next frame makes it again. */
+  dispose(): void {
+    this.gpu.dispose();
+    this.builtData = -1;
+  }
+
+  draw(commands: CommandList): void {
+    const buffer = this.gpu.buffer;
+    if (this.result.count >= 2 && buffer && this.style) {
+      commands.drawPolyline(buffer, 0, this.result.count, this.style);
+    }
+  }
+
+  private changed(): void {
+    this.appearance++;
+  }
+
+  // The vertices in pixels, without the GPU.
+  private build(frame: SeriesFrame): void {
+    const line = this.line;
+    line.clear();
+    this.result = line;
+    const columns = Math.max(Math.ceil(frame.bounds.width), 1);
+    if (this.minima.length !== columns) {
+      this.minima = new Float64Array(columns);
+      this.maxima = new Float64Array(columns);
+      this.indices = new Int32Array(columns * 2);
+    }
+    const origin = originOf(this.xAxis);
+    const range = this.xAxis.visibleRange;
+    const visible = origin === 0 ? range : new DoubleRange(range.min + origin, range.max + origin);
+    const result = this.resampler.resample(visible, this.mode, this.minima, this.maxima, this.indices);
+    // Taken after resampling: its indices are valid here, the source only grows behind them.
+    const snapshot = this.source.snapshotInto(this.view);
+    const mode = result.mode;
+    if (mode === 'minMax') {
+      this.addColumns(frame);
+    } else if (mode === 'lttb') {
+      for (let i = 0; i < result.selectedCount; i++) {
+        const index = this.indices[i] as number;
+        const previous = i > 0 ? (this.indices[i - 1] as number) : index;
+        this.addPoint(snapshot, index, previous, origin, frame);
+      }
+    } else {
+      // One point more on each side, so that the line leaves the plot area instead of ending inside.
+      const first = Math.max(result.start - 1, 0);
+      const last = Math.min(Math.min(result.end, snapshot.count) + 1, snapshot.count);
+      for (let i = first; i < last; i++) {
+        this.addPoint(snapshot, i, i > first ? i - 1 : i, origin, frame);
+      }
+    }
+    line.endRun();
+    if (mode === 'none' && this.spline && !this.step) {
+      smoothRuns(line, this.other);
+      this.result = this.other;
+    }
+    if (this.dashes && mode !== 'minMax') {
+      const source = this.result;
+      const target = source === this.line ? this.other : this.line;
+      expandDashes(source, this.dashes, frame.dpiScale, frame.bounds, target);
+      this.result = target;
+    }
+  }
+
+  private addPoint(
+    snapshot: DataSnapshot,
+    index: number,
+    previousIndex: number,
+    origin: number,
+    frame: SeriesFrame,
+  ): void {
+    const line = this.line;
+    const value = snapshot.y[index] as number;
+    const pixelX = f(frame.x.toPixel((snapshot.x[index] as number) - origin));
+    const pixelY = f(frame.y.toPixel(value));
+    // A value without a place on a logarithmic axis is a gap as well, and so is one beyond float in pixels, which
+    // would reach the GPU as infinity (the .NET version checks it only in double).
+    if (!Number.isFinite(value) || !Number.isFinite(pixelY) || !Number.isFinite(pixelX)) {
+      line.addGap();
+      return;
+    }
+    const previous = snapshot.y[previousIndex] as number;
+    if (this.step && this.runLength(line) && Number.isFinite(previous) && Number.isFinite(frame.y.toPixel(previous))) {
+      line.add(pixelX, f(frame.y.toPixel(previous)));
+    }
+    line.add(pixelX, pixelY);
+  }
+
+  private runLength(line: Vertices): boolean {
+    return line.count > 0 && !line.isGap(line.count - 1);
+  }
+
+  // Each pixel column holds its lowest and highest value. The extreme nearer to where the line comes from goes first,
+  // and both spread over the width of the column: a steady edge stays one slanted line.
+  private addColumns(frame: SeriesFrame): void {
+    const line = this.line;
+    let isOpen = false;
+    let last = 0;
+    for (let column = 0; column < this.minima.length; column++) {
+      const minimum = this.minima[column] as number;
+      const maximum = this.maxima[column] as number;
+      if (minimum > maximum) {
+        line.addGap();
+        isOpen = false;
+        continue;
+      }
+      const x = f(f(frame.bounds.x + column) + 0.5);
+      const top = frame.y.toPixel(maximum);
+      const bottom = frame.y.toPixel(minimum);
+      if (!Number.isFinite(top)) {
+        line.addGap();
+        isOpen = false;
+        continue;
+      }
+      const high = f(top);
+      const low = f(Number.isFinite(bottom) ? bottom : frame.bounds.y + frame.bounds.height);
+      const [first, second] = isOpen && Math.abs(f(last - high)) < Math.abs(f(last - low)) ? [high, low] : [low, high];
+      if (first === second) {
+        line.add(x, first);
+      } else {
+        line.add(f(x - 0.5), first);
+        line.add(f(x + 0.5), second);
+      }
+      last = second;
+      isOpen = true;
+    }
+  }
+}

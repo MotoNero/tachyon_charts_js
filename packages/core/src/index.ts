@@ -10,3 +10,4 @@ export * from './axes';
 export * from './layout';
 export * from './resampling';
 export * from './pipeline';
+export * from './series';

@@ -53,6 +53,9 @@ importers:
       '@tachyon-charts/core':
         specifier: workspace:*
         version: link:../../packages/core
+      '@tachyon-charts/render-webgpu':
+        specifier: workspace:*
+        version: link:../../packages/render-webgpu
 
   packages/3d:
     dependencies:
