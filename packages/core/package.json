@@ -4,11 +4,17 @@
   "description": "Tachyon Charts: Charts, axes, data, interaction, layout and themes; the rendering interface.",
   "license": "Apache-2.0",
   "type": "module",
-  "sideEffects": false,
+  "sideEffects": [
+    "./dist/resampling/pyramid-worker-entry.js"
+  ],
   "exports": {
     ".": {
       "types": "./dist/index.d.ts",
       "import": "./dist/index.js"
+    },
+    "./pyramid-worker": {
+      "types": "./dist/resampling/pyramid-worker-entry.d.ts",
+      "import": "./dist/resampling/pyramid-worker-entry.js"
     }
   },
   "files": [
