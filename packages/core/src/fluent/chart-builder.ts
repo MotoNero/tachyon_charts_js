@@ -15,6 +15,7 @@ import type { Rgba8 } from '../render/types';
 import { LineSeries } from '../series/line-series';
 import { ScatterSeries } from '../series/scatter-series';
 import type { TextEngine, TextFont } from '../text/engine';
+import type { ThemeDocument } from '../themes/theme-document';
 
 /** The kinds of axes a description can ask for. */
 export type AxisKind = 'numeric' | 'dateTime' | 'log' | 'category';
@@ -143,6 +144,8 @@ export class ChartDefinition {
     readonly titleFont?: TextFont,
     /** The font of the axis labels and titles. */
     readonly axisFont?: TextFont,
+    /** The theme; the colors of a chart without a theme when left out. */
+    readonly theme?: ThemeDocument,
   ) {}
 
   /**
@@ -156,6 +159,7 @@ export class ChartDefinition {
     surface.title = this.title;
     surface.titleFont = this.titleFont;
     surface.axisFont = this.axisFont;
+    surface.theme = this.theme;
     for (const description of this.series) {
       const x = find(xAxes, description.xAxisId, 'X');
       const y = find(yAxes, description.yAxisId, 'Y');
@@ -535,10 +539,17 @@ export class ChartBuilder {
   private titleText: string | undefined;
   private titleTextFont: TextFont | undefined;
   private axisTextFont: TextFont | undefined;
+  private themeDocument: ThemeDocument | undefined;
 
   /** Sets the chart title. */
   title(title: string): this {
     this.titleText = title;
+    return this;
+  }
+
+  /** Sets the theme, such as `findBuiltInTheme('light')` or a theme of its own with a base. */
+  theme(theme: ThemeDocument): this {
+    this.themeDocument = theme;
     return this;
   }
 
@@ -613,6 +624,7 @@ export class ChartBuilder {
       [...this.seriesList],
       this.titleTextFont,
       this.axisTextFont,
+      this.themeDocument,
     );
   }
 

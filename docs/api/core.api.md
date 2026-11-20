@@ -250,6 +250,7 @@ export class ChartBuilder {
     addSeries(factory: (xAxis: Axis, yAxis: Axis) => ChartSeries, xAxis?: string, yAxis?: string): this;
     axisFont(font: TextFont): this;
     build(textEngine: TextEngine): BuiltChart;
+    theme(theme: ThemeDocument): this;
     title(title: string): this;
     titleFont(font: TextFont): this;
     toDefinition(): ChartDefinition;
@@ -265,10 +266,12 @@ export class ChartDefinition {
     yAxes: readonly AxisDefinition[],
     series: readonly SeriesDefinition[],
     titleFont?: TextFont | undefined,
-    axisFont?: TextFont | undefined);
+    axisFont?: TextFont | undefined,
+    theme?: ThemeDocument | undefined);
     readonly axisFont?: TextFont | undefined;
     build(textEngine: TextEngine): BuiltChart;
     readonly series: readonly SeriesDefinition[];
+    readonly theme?: ThemeDocument | undefined;
     readonly title: string | undefined;
     readonly titleFont?: TextFont | undefined;
     readonly xAxes: readonly AxisDefinition[];

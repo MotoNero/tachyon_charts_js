@@ -1,0 +1,111 @@
+// The showroom: a page for every finished feature, as in the showroom of the .NET version. The pages are in pages.ts;
+// this file builds the navigation, shows the chosen page in one <tachyon-chart> and switches theme and language.
+import { builtInThemes, ChartBuilder, chartText, type ChartLanguage } from '@tachyon-charts/core';
+import { defineTachyonChart, type TachyonChartElement } from '@tachyon-charts/element';
+import logo from '../../../shared/logo/tachyon-charts-lockup-dark-transparent.svg?url';
+import icon from '../../../shared/logo/tachyon-charts-avatar-dark-32.png?url';
+import { pages, type Page } from './pages';
+
+defineTachyonChart();
+
+const chart = document.querySelector<TachyonChartElement>('#chart');
+const navigation = document.querySelector<HTMLElement>('#navigation');
+const title = document.querySelector<HTMLElement>('#title');
+const hint = document.querySelector<HTMLElement>('#hint');
+const themeChoice = document.querySelector<HTMLSelectElement>('#theme');
+const languageChoice = document.querySelector<HTMLSelectElement>('#language');
+const tip = document.querySelector<HTMLElement>('#tip');
+document.querySelector<HTMLImageElement>('#logo')?.setAttribute('src', logo);
+document.querySelector<HTMLLinkElement>('#icon')?.setAttribute('href', icon);
+
+// The navigation, grouped as the pages say.
+const links = new Map<string, HTMLAnchorElement>();
+let group = '';
+for (const page of pages) {
+  if (page.group !== group) {
+    group = page.group;
+    const heading = document.createElement('h2');
+    heading.textContent = group;
+    navigation?.append(heading);
+  }
+  const link = document.createElement('a');
+  link.href = `#${page.id}`;
+  link.textContent = page.name;
+  links.set(page.id, link);
+  navigation?.append(link);
+}
+
+function show(page: Page): void {
+  if (!chart) {
+    return;
+  }
+  const builder = new ChartBuilder();
+  page.configure(builder);
+  chart.chart = builder;
+  if (title) {
+    title.textContent = page.name;
+  }
+  if (hint) {
+    hint.textContent = page.hint;
+  }
+  for (const [id, link] of links) {
+    if (id === page.id) {
+      link.setAttribute('aria-current', 'page');
+    } else {
+      link.removeAttribute('aria-current');
+    }
+  }
+  document.title = `${page.name} – Tachyon Charts`;
+}
+
+function route(): void {
+  const id = location.hash.slice(1);
+  show(pages.find((page) => page.id === id) ?? (pages[0] as Page));
+}
+window.addEventListener('hashchange', route);
+route();
+
+// The theme: the one of the page, light or dark after the system, or a built-in one for every page.
+if (themeChoice) {
+  const options: [string, string][] = [
+    ['', 'Of the page'],
+    ['auto', 'Light or dark, as the system'],
+    ...builtInThemes.map((theme): [string, string] => [theme.name, theme.name]),
+  ];
+  for (const [value, label] of options) {
+    themeChoice.append(new Option(label, value));
+  }
+  themeChoice.addEventListener('change', () => {
+    if (themeChoice.value === '') {
+      chart?.removeAttribute('theme');
+    } else {
+      chart?.setAttribute('theme', themeChoice.value);
+    }
+    chart?.surface?.invalidate();
+    // The element takes the theme of the page again only with its chart.
+    route();
+  });
+}
+
+languageChoice?.addEventListener('change', () => {
+  chartText.language = languageChoice.value as ChartLanguage;
+});
+
+// The point under the pointer, as the element reports it.
+chart?.addEventListener('tachyon-tooltip', (event) => {
+  const data = (
+    event as CustomEvent<
+      { seriesName?: string; xText: string; yText: string; position: { x: number; y: number } } | undefined
+    >
+  ).detail;
+  if (!tip) {
+    return;
+  }
+  tip.hidden = !data;
+  if (data) {
+    const bounds = chart.getBoundingClientRect();
+    tip.textContent = `${data.seriesName ?? ''}  x ${data.xText}  y ${data.yText}`;
+    tip.style.left = `${String(bounds.left + data.position.x + 14)}px`;
+    tip.style.top = `${String(bounds.top + data.position.y + 14)}px`;
+  }
+});

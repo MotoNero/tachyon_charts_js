@@ -1,0 +1,9 @@
+{
+  "name": "@tachyon-charts/example-showroom",
+  "private": true,
+  "type": "module",
+  "dependencies": {
+    "@tachyon-charts/core": "workspace:*",
+    "@tachyon-charts/element": "workspace:*"
+  }
+}

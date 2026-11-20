@@ -42,8 +42,9 @@ p { position: absolute; inset: 0; margin: 0; display: flex; align-items: center;
 
 /**
  * The element `<tachyon-chart>`. Give it a chart with {@link TachyonChartElement.chart}: a `ChartBuilder`, its
- * definition, or a `ChartSurface`. Attributes: `theme` (`auto` follows light and dark of the system and is the default,
- * a built-in name such as `light` or `neon`, or `none`), `interactive` (`false` switches zoom, pan, crosshair and keys
+ * definition, or a `ChartSurface`. Attributes: `theme` (`auto` follows light and dark of the system, `chart` keeps the
+ * theme the chart was described with, a built-in name such as `light` or `neon`, or `none`; without the attribute the
+ * theme of the chart, or `auto` for a chart without one), `interactive` (`false` switches zoom, pan, crosshair and keys
  * off). Events: `tachyon-ready` after the first frame, `tachyon-tooltip` with the point under the pointer as detail,
  * `tachyon-error` when the browser cannot draw.
  */
@@ -232,6 +233,7 @@ export class TachyonChartElement extends HTMLElement {
     } else {
       this.chartSurface = undefined;
     }
+    this.ownTheme = this.chartSurface?.theme;
     this.applyTheme();
     this.applyInteraction();
   }
@@ -266,7 +268,8 @@ export class TachyonChartElement extends HTMLElement {
 
   private applyTheme(): void {
     const surface = this.chartSurface;
-    const name = this.getAttribute('theme') ?? 'auto';
+    // Without the attribute a chart keeps the theme it was described with, otherwise it follows the system.
+    const name = this.getAttribute('theme') ?? (this.ownTheme ? 'chart' : 'auto');
     const index = this.cleanups.indexOf(this.stopWatching);
     if (index >= 0) {
       this.cleanups.splice(index, 1);
@@ -275,7 +278,9 @@ export class TachyonChartElement extends HTMLElement {
     if (!surface) {
       return;
     }
-    if (name === 'auto') {
+    if (name === 'chart') {
+      this.setTheme(this.ownTheme);
+    } else if (name === 'auto') {
       this.stopWatching = watchPreferredTheme((theme) => {
         this.setTheme(theme);
       });
@@ -286,6 +291,7 @@ export class TachyonChartElement extends HTMLElement {
   }
 
   private stopWatching: () => void = () => undefined;
+  private ownTheme: ThemeDocument | undefined;
 
   private setTheme(theme: ThemeDocument | undefined): void {
     if (this.chartSurface) {

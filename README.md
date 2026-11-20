@@ -110,6 +110,17 @@ watchPreferredTheme((theme) => (chart.theme = theme));
 chart.theme = themeFromCss(container); // --tachyon-background, --tachyon-grid-major, --tachyon-palette …
 ```
 
+A chart described with the fluent API brings its own theme with `.theme(findBuiltInTheme('instrument'))`;
+`<tachyon-chart>` uses it unless its `theme` attribute names another one.
+
+## Showroom
+
+![The showroom: a navigation of all chart types at the left, a sine line in the theme Instrument at the right](docs/images/showroom.png)
+
+`examples/showroom` shows every finished feature on a page of its own: lines, splines, step lines, a million points,
+scatter, areas, bands, bars, logarithmic, category and time axes, axes in the origin and the themes. A theme and the
+language of the axes can be chosen at the top for all pages. Every new feature brings its page.
+
 ## Packages
 
 | Package | Content |

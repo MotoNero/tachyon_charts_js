@@ -63,6 +63,15 @@ importers:
         specifier: workspace:*
         version: link:../../packages/render-webgpu
 
+  examples/showroom:
+    dependencies:
+      '@tachyon-charts/core':
+        specifier: workspace:*
+        version: link:../../packages/core
+      '@tachyon-charts/element':
+        specifier: workspace:*
+        version: link:../../packages/element
+
   examples/web-component:
     dependencies:
       '@tachyon-charts/core':
