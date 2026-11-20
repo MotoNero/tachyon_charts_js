@@ -12,7 +12,8 @@
     }
   },
   "files": [
-    "dist"
+    "dist",
+    "fonts"
   ],
   "dependencies": {
     "@tachyon-charts/core": "workspace:*",

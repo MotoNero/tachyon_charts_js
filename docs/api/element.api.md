@@ -4,13 +4,19 @@
 
 ```ts
 
+import { ChartBuilder } from '@tachyon-charts/core';
+import { ChartDefinition } from '@tachyon-charts/core';
 import { ChartKey } from '@tachyon-charts/core';
+import { ChartSurface } from '@tachyon-charts/core';
 import { ModifierPipeline } from '@tachyon-charts/core';
 import { Point } from '@tachyon-charts/core';
 import { ThemeDocument } from '@tachyon-charts/core';
 
 // @public
 export function bindChartInput(element: HTMLElement, pipeline: ModifierPipeline, options?: InputBindingOptions): () => void;
+
+// @public
+export type ChartContent = ChartBuilder | ChartDefinition | ChartSurface;
 
 // @public
 export function chartKeyOf(key: string): ChartKey | undefined;
@@ -39,6 +45,9 @@ export const cssThemeProperties: {
 };
 
 // @public
+export function defineTachyonChart(name?: string): void;
+
+// @public
 export interface InputBindingOptions {
     readonly doubleClickDistance?: number;
     readonly doubleClickTime?: number;
@@ -54,6 +63,22 @@ export function modifiersOf(event: {
 
 // @public
 export function preferredTheme(): ThemeDocument;
+
+// @public
+export class TachyonChartElement extends HTMLElement {
+    constructor();
+    attributeChangedCallback(name: string): void;
+    get chart(): ChartContent | undefined;
+    set chart(value: ChartContent | undefined);
+    connectedCallback(): void;
+    disconnectedCallback(): void;
+    static fontUrl: string | URL;
+    get frameCount(): number;
+    static readonly observedAttributes: string[];
+    get pipeline(): ModifierPipeline;
+    readonly ready: Promise<void>;
+    get surface(): ChartSurface | undefined;
+}
 
 // @public
 export function themeFromCss(element: Element, base?: ThemeDocument): ThemeDocument;

@@ -1,0 +1,46 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <title>Tachyon Charts – without a bundler</title>
+    <style>
+      body {
+        margin: 0;
+        font-family: sans-serif;
+      }
+      tachyon-chart {
+        height: 100vh;
+      }
+    </style>
+    <!-- The built packages, as they come from npm, without a bundler. Served from the root of the repository; a page of
+         your own points these entries at node_modules or a CDN. -->
+    <script type="importmap">
+      {
+        "imports": {
+          "@tachyon-charts/core": "../../packages/core/dist/index.js",
+          "@tachyon-charts/render-webgpu": "../../packages/render-webgpu/dist/index.js",
+          "@tachyon-charts/element": "../../packages/element/dist/index.js"
+        }
+      }
+    </script>
+  </head>
+  <body>
+    <tachyon-chart id="chart"></tachyon-chart>
+    <script type="module">
+      import { ChartBuilder, DataSource } from '@tachyon-charts/core';
+      import { defineTachyonChart } from '@tachyon-charts/element';
+
+      defineTachyonChart();
+      const data = new DataSource();
+      for (let i = 0; i <= 200; i++) {
+        data.append(i / 20, Math.sin(i / 20));
+      }
+      document.querySelector('#chart').chart = new ChartBuilder()
+        .title('Without a bundler')
+        .xAxis((a) => a.autoRange())
+        .yAxis((a) => a.autoRange())
+        .addLine(data);
+    </script>
+  </body>
+</html>

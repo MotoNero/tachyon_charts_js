@@ -1,0 +1,44 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <title>Tachyon Charts – web component</title>
+    <style>
+      body {
+        margin: 0;
+        font-family: sans-serif;
+        background: #181c24;
+        color: #c8d0dc;
+      }
+      main {
+        display: grid;
+        grid-template-columns: repeat(auto-fit, minmax(320px, 1fr));
+        gap: 12px;
+        padding: 12px;
+      }
+      tachyon-chart {
+        height: 360px;
+        border-radius: 6px;
+        overflow: hidden;
+      }
+      #tip {
+        position: fixed;
+        padding: 4px 8px;
+        background: #2a3140;
+        border: 1px solid #50aaf0;
+        border-radius: 4px;
+        font-size: 12px;
+        pointer-events: none;
+      }
+    </style>
+  </head>
+  <body>
+    <main>
+      <tachyon-chart id="waves"></tachyon-chart>
+      <tachyon-chart id="bars" theme="light"></tachyon-chart>
+    </main>
+    <div id="tip" hidden></div>
+    <script type="module" src="./src/main.ts"></script>
+  </body>
+</html>

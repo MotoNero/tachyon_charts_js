@@ -51,6 +51,31 @@ const { surface } = new ChartBuilder()
 Axes are numeric, logarithmic, categories or time in any time zone, with daylight saving and labels in English or
 German. The public API of every package is listed in `docs/api`.
 
+## Web component
+
+![Two charts as web components, a line chart in the dark theme and stacked bars in the light theme](docs/images/web-component.png)
+
+`<tachyon-chart>` works in every web application, with any framework or none. It follows its size and the pixel ratio
+of the screen, takes zoom, pan, crosshair and keys, follows light and dark of the system, and frees its GPU resources
+when it leaves the page:
+
+```html
+<tachyon-chart id="chart" style="height: 400px"></tachyon-chart>
+<script type="module">
+  import { ChartBuilder, DataSource } from '@tachyon-charts/core';
+  import { defineTachyonChart } from '@tachyon-charts/element';
+
+  defineTachyonChart();
+  const data = new DataSource();
+  data.append([0, 1, 2, 3], [1, 3, 2, 4]);
+  document.querySelector('#chart').chart = new ChartBuilder().xAxis().yAxis((a) => a.autoRange()).addLine(data);
+</script>
+```
+
+Attributes: `theme` (`auto`, a built-in name such as `light` or `neon`, or `none`) and `interactive="false"`. Events:
+`tachyon-ready`, `tachyon-tooltip` with the point under the pointer, `tachyon-error`. Examples: `examples/web-component`
+(a Vite application) and `examples/no-bundler` (an import map, no build step).
+
 ## Interaction
 
 ![A crosshair with the values of two lines beside it and the values of both axes at its lines](docs/images/crosshair-values.png)
