@@ -9,6 +9,7 @@ import { ChartDefinition } from '@tachyon-charts/core';
 import { ChartKey } from '@tachyon-charts/core';
 import { ChartSurface } from '@tachyon-charts/core';
 import { ModifierPipeline } from '@tachyon-charts/core';
+import { PixelSize } from '@tachyon-charts/core';
 import { Point } from '@tachyon-charts/core';
 import { ThemeDocument } from '@tachyon-charts/core';
 
@@ -72,11 +73,14 @@ export class TachyonChartElement extends HTMLElement {
     set chart(value: ChartContent | undefined);
     connectedCallback(): void;
     disconnectedCallback(): void;
+    get drawingSize(): PixelSize;
     static fontUrl: string | URL;
     get frameCount(): number;
     static readonly observedAttributes: string[];
     get pipeline(): ModifierPipeline;
     readonly ready: Promise<void>;
+    static renderInWorker: boolean;
+    get renderThread(): 'worker' | 'main' | undefined;
     get surface(): ChartSurface | undefined;
 }
 

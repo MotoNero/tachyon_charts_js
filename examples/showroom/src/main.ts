@@ -1,7 +1,7 @@
 // The showroom: a page for every finished feature, as in the showroom of the .NET version. The pages are in pages.ts;
 // this file builds the navigation, shows the chosen page in one <tachyon-chart> and switches theme and language.
 import { builtInThemes, ChartBuilder, chartText, findBuiltInTheme, type ChartLanguage } from '@tachyon-charts/core';
-import { defineTachyonChart, preferredTheme, type TachyonChartElement } from '@tachyon-charts/element';
+import { defineTachyonChart, preferredTheme, TachyonChartElement } from '@tachyon-charts/element';
 import logo from '../../../shared/logo/tachyon-charts-lockup-dark-transparent.svg?url';
 import icon from '../../../shared/logo/tachyon-charts-avatar-dark-32.png?url';
 import { pages, type Page } from './pages';
@@ -10,6 +10,8 @@ import type { ThemeDocument } from '@tachyon-charts/core';
 
 const instrumentTheme = findBuiltInTheme('instrument') as ThemeDocument;
 
+// ?render=main draws on the main thread instead of the render worker, to compare both.
+TachyonChartElement.renderInWorker = new URLSearchParams(location.search).get('render') !== 'main';
 defineTachyonChart();
 
 const chart = document.querySelector<TachyonChartElement>('#chart');
@@ -53,6 +55,10 @@ function translate(): void {
   }
   for (const label of document.querySelectorAll<HTMLElement>('[data-text]')) {
     label.textContent = t(label.dataset.text ?? '');
+  }
+  const thread = document.querySelector<HTMLElement>('#thread');
+  if (thread && chart?.renderThread) {
+    thread.textContent = t(chart.renderThread === 'worker' ? 'Drawn in the render worker' : 'Drawn on the main thread');
   }
   for (const option of themeChoice?.options ?? []) {
     if (option.dataset.text) {
@@ -134,6 +140,7 @@ languageChoice?.addEventListener('change', () => {
 
 translate();
 route();
+void chart?.ready.then(translate);
 
 // The point under the pointer, as the element reports it.
 chart?.addEventListener('tachyon-tooltip', (event) => {

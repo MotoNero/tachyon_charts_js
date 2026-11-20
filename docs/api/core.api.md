@@ -471,6 +471,9 @@ export function computeBarEnds(rows: readonly ArrayLike<number>[], layout: BarLa
 };
 
 // @public
+export function connectRenderWorker(endpoint: RenderEndpoint, onDispose?: () => void): Promise<RemoteRenderDevice | undefined>;
+
+// @public
 export class CrosshairModifier extends ChartModifier {
     constructor();
     protected onAttached(interaction: ChartInteraction): void;
@@ -1231,6 +1234,33 @@ export interface RasterStyle {
 }
 
 // @public
+export class RemoteRenderDevice implements RenderDevice {
+    constructor(endpoint: RenderEndpoint, capabilities: DeviceCapabilities, onDispose?: (() => void) | undefined);
+    beginFrame(target: RenderTarget): CommandList;
+    readonly capabilities: DeviceCapabilities;
+    createBuffer(desc: BufferDesc): GpuBuffer;
+    createOffscreenTarget(size: PixelSize, dpiScale: number): OffscreenRenderTarget;
+    createSurfaceTarget(surface: SurfaceHandle, size: PixelSize, dpiScale: number): SurfaceRenderTarget;
+    createTexture(desc: TextureDesc): GpuTexture;
+    dispose(): void;
+    get drawCallCount(): number;
+    ensureUsable(): void;
+    flush(): void;
+    get isLost(): boolean;
+    get lastFrameMilliseconds(): number;
+    get lostReason(): string | undefined;
+    onError(listener: (message: string) => void): () => void;
+    onLost(listener: (reason: string) => void): () => void;
+    get pendingFrames(): number;
+    receive(message: ServerMessage): void;
+    request(op: number, target?: number): Promise<Uint8Array | undefined>;
+    schedule(): void;
+    simulateLoss(): void;
+    get uploadedByteCount(): number;
+    whenIdle(): Promise<void>;
+}
+
+// @public
 export interface RenderDevice extends Disposable {
     beginFrame(target: RenderTarget): CommandList;
     readonly capabilities: DeviceCapabilities;
@@ -1245,6 +1275,15 @@ export interface RenderDevice extends Disposable {
     simulateLoss(): void;
     readonly uploadedByteCount: number;
     whenIdle(): Promise<void>;
+}
+
+// @public
+export interface RenderEndpoint {
+    addEventListener(type: 'message', listener: (event: {
+        readonly data: unknown;
+    }) => void): void;
+    postMessage(message: unknown, transfer: readonly object[]): void;
+    start?(): void;
 }
 
 // @public
@@ -1433,6 +1472,37 @@ export class SeriesResampler {
 
 // @public
 export function servePyramidRequests(endpoint: MessageEndpoint): void;
+
+// @public
+export function serveRenderRequests(endpoint: RenderEndpoint, createDevice: () => Promise<RenderDevice | undefined>): void;
+
+// @public
+export type ServerMessage = {
+    readonly type: 'ready';
+    readonly capabilities: DeviceCapabilities;
+} | {
+    readonly type: 'unavailable';
+    readonly reason: string;
+} | {
+    readonly type: 'done';
+    readonly frames: number;
+    readonly drawCalls: number;
+    readonly uploadedBytes: number;
+    readonly milliseconds: number;
+} | {
+    readonly type: 'pixels';
+    readonly request: number;
+    readonly pixels: Uint8Array;
+} | {
+    readonly type: 'idle';
+    readonly request: number;
+} | {
+    readonly type: 'lost';
+    readonly reason: string;
+} | {
+    readonly type: 'error';
+    readonly message: string;
+};
 
 // @public
 export type SharedArrayType = 'Float64Array' | 'Float32Array' | 'Int32Array' | 'Uint32Array' | 'Int16Array' | 'Uint16Array' | 'Int8Array' | 'Uint8Array';

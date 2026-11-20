@@ -35,6 +35,8 @@ const german: Readonly<Record<string, string>> = {
   'Wheel: zoom | Drag: pan, the axes stay at zero or at the nearest edge | Double click: all':
     'Rad: Zoom | Ziehen: Pan, die Achsen bleiben bei null oder am nächsten Rand | Doppelklick: alles',
   'Choose a theme at the top | Pointer: values': 'Oben ein Theme wählen | Zeiger: Werte',
+  'Drawn in the render worker': 'Gezeichnet im Render-Worker',
+  'Drawn on the main thread': 'Gezeichnet im Hauptthread',
   Sine: 'Sinus',
   'Noisy wave': 'Verrauschte Welle',
   Temperature: 'Temperatur',

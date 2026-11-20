@@ -2,3 +2,4 @@
 export const version = '0.1.0-dev';
 
 export { createWebGpuDevice, WebGpuDevice, type WebGpuDeviceOptions } from './device';
+export { canRenderInWorker, createWebGpuWorkerDevice, type WebGpuWorkerDeviceOptions } from './worker-device';

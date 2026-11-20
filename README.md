@@ -76,6 +76,13 @@ Attributes: `theme` (`auto`, a built-in name such as `light` or `neon`, or `none
 `tachyon-ready`, `tachyon-tooltip` with the point under the pointer, `tachyon-error`. Examples: `examples/web-component`
 (a Vite application) and `examples/no-bundler` (an import map, no build step).
 
+Charts draw in a render worker: the element hands its canvas to the worker as `OffscreenCanvas`, and the WebGPU
+device there uploads the data, encodes and presents the frames, while the page keeps the chart, its layout and the
+input. Where a browser cannot hand a canvas to a worker, charts draw on the main thread; both look the same to the
+pixel. `TachyonChartElement.renderInWorker = false` before the first chart chooses the main thread, and
+`chart.renderThread` tells where a chart draws. Without the element, `createWebGpuWorkerDevice()` of
+`@tachyon-charts/render-webgpu` gives the same device to a chart of your own.
+
 ## Interaction
 
 ![A crosshair with the values of two lines beside it and the values of both axes at its lines](docs/images/crosshair-values.png)

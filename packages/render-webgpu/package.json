@@ -4,11 +4,17 @@
   "description": "Tachyon Charts: WebGPU backend.",
   "license": "Apache-2.0",
   "type": "module",
-  "sideEffects": false,
+  "sideEffects": [
+    "./dist/render-worker-entry.js"
+  ],
   "exports": {
     ".": {
       "types": "./dist/index.d.ts",
       "import": "./dist/index.js"
+    },
+    "./render-worker": {
+      "types": "./dist/render-worker-entry.d.ts",
+      "import": "./dist/render-worker-entry.js"
     }
   },
   "files": [

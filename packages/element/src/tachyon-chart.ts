@@ -10,16 +10,18 @@ import {
   findBuiltInTheme,
   KeyboardNavigationModifier,
   ModifierPipeline,
+  RemoteRenderDevice,
   RubberBandZoomModifier,
   TextEngine,
   TooltipModifier,
   ZoomPanModifier,
+  type PixelSize,
   type RenderDevice,
   type SurfaceRenderTarget,
   type ThemeDocument,
   type TooltipData,
 } from '@tachyon-charts/core';
-import { createWebGpuDevice } from '@tachyon-charts/render-webgpu';
+import { createWebGpuDevice, createWebGpuWorkerDevice } from '@tachyon-charts/render-webgpu';
 import { bindChartInput } from './input-binding';
 import { watchPreferredTheme } from './css-theme';
 
@@ -33,6 +35,17 @@ interface Shared {
 
 // All charts of a page share one device and one text engine with its glyph atlas.
 const shared: Shared = { device: undefined, engine: undefined };
+
+// The device of the page: WebGPU in a render worker where the browser can hand a canvas to one, else on this thread.
+async function createDevice(): Promise<RenderDevice | undefined> {
+  if (TachyonChartElement.renderInWorker) {
+    const remote = await createWebGpuWorkerDevice();
+    if (remote) {
+      return remote;
+    }
+  }
+  return createWebGpuDevice();
+}
 
 const style = `
 :host { display: block; position: relative; min-height: 150px; contain: strict; }
@@ -54,8 +67,14 @@ export class TachyonChartElement extends HTMLElement {
   static readonly observedAttributes = ['theme', 'interactive'];
   /** Where the default font comes from; set it before the first chart connects to serve the font elsewhere. */
   static fontUrl: string | URL = new URL('../fonts/Roboto-Regular.ttf', import.meta.url);
+  /**
+   * Whether charts draw in a render worker, which keeps the main thread free; where the browser cannot, they draw on
+   * the main thread. Set it before the first chart connects.
+   */
+  static renderInWorker = true;
 
-  private readonly canvas: HTMLCanvasElement;
+  private canvas: HTMLCanvasElement;
+  private canvasTransferred = false;
   private readonly message: HTMLParagraphElement;
   private content: ChartContent | undefined;
   private chartSurface: ChartSurface | undefined;
@@ -107,6 +126,19 @@ export class TachyonChartElement extends HTMLElement {
     return this.modifiers;
   }
 
+  /** Where the chart draws: `worker` in the render worker, `main` on the main thread, `undefined` before it starts. */
+  get renderThread(): 'worker' | 'main' | undefined {
+    if (!this.device) {
+      return undefined;
+    }
+    return this.device instanceof RemoteRenderDevice ? 'worker' : 'main';
+  }
+
+  /** The size the chart is drawn in, in device pixels. */
+  get drawingSize(): PixelSize {
+    return this.target?.size ?? { width: 0, height: 0 };
+  }
+
   /** The number of frames drawn, for whoever waits for one. */
   get frameCount(): number {
     return this.framesDrawn;
@@ -144,7 +176,7 @@ export class TachyonChartElement extends HTMLElement {
   }
 
   private async start(): Promise<void> {
-    shared.device ??= createWebGpuDevice();
+    shared.device ??= createDevice();
     shared.engine ??= fetch(TachyonChartElement.fontUrl)
       .then((response) => response.arrayBuffer())
       .then((font) => new TextEngine(font));
@@ -161,7 +193,18 @@ export class TachyonChartElement extends HTMLElement {
     this.device = device;
     this.engine = engine;
     this.measure();
-    this.target = device.createSurfaceTarget({ kind: 'canvas', canvas: this.canvas }, this.pixelSize, devicePixelRatio);
+    this.target = device.createSurfaceTarget(
+      { kind: 'canvas', canvas: this.surfaceCanvas(device) },
+      this.pixelSize,
+      devicePixelRatio,
+    );
+    if (device instanceof RemoteRenderDevice) {
+      this.cleanups.push(
+        device.onError((message) => {
+          this.dispatchEvent(new CustomEvent('tachyon-error', { detail: message }));
+        }),
+      );
+    }
     this.observer = new ResizeObserver((entries) => {
       this.measure(entries[0]);
     });
@@ -175,6 +218,21 @@ export class TachyonChartElement extends HTMLElement {
     this.build();
     this.applyTheme();
     this.frame = requestAnimationFrame(this.draw);
+  }
+
+  // The canvas as the device takes it. A worker gets it as OffscreenCanvas, which a canvas can give only once, so a
+  // chart that returns to the page gets a new canvas.
+  private surfaceCanvas(device: RenderDevice): HTMLCanvasElement | OffscreenCanvas {
+    if (!(device instanceof RemoteRenderDevice)) {
+      return this.canvas;
+    }
+    if (this.canvasTransferred) {
+      const canvas = document.createElement('canvas');
+      this.canvas.replaceWith(canvas);
+      this.canvas = canvas;
+    }
+    this.canvasTransferred = true;
+    return this.canvas.transferControlToOffscreen();
   }
 
   // The size of the canvas in device pixels, exact where the browser reports it.
@@ -195,6 +253,10 @@ export class TachyonChartElement extends HTMLElement {
     const surface = this.chartSurface;
     const device = this.device;
     if (!target || !surface || !device) {
+      return;
+    }
+    // A worker that has not drawn the last two frames yet gets no third; the changes wait for the next frame.
+    if (device instanceof RemoteRenderDevice && device.pendingFrames > 1) {
       return;
     }
     // A new pixel ratio, such as on another screen, does not always reach the observer.

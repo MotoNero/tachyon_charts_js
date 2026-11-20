@@ -11,6 +11,7 @@ import { GpuBuffer } from '@tachyon-charts/core';
 import { GpuTexture } from '@tachyon-charts/core';
 import { OffscreenRenderTarget } from '@tachyon-charts/core';
 import { PixelSize } from '@tachyon-charts/core';
+import { RemoteRenderDevice } from '@tachyon-charts/core';
 import { RenderDevice } from '@tachyon-charts/core';
 import { RenderTarget } from '@tachyon-charts/core';
 import { SurfaceHandle } from '@tachyon-charts/core';
@@ -18,7 +19,13 @@ import { SurfaceRenderTarget } from '@tachyon-charts/core';
 import { TextureDesc } from '@tachyon-charts/core';
 
 // @public
+export function canRenderInWorker(): boolean;
+
+// @public
 export function createWebGpuDevice(options?: WebGpuDeviceOptions): Promise<WebGpuDevice | undefined>;
+
+// @public
+export function createWebGpuWorkerDevice(options?: WebGpuWorkerDeviceOptions): Promise<RemoteRenderDevice | undefined>;
 
 // @public
 export const version = "0.1.0-dev";
@@ -54,6 +61,12 @@ export class WebGpuDevice implements RenderDevice {
 export interface WebGpuDeviceOptions {
     readonly gpu?: GPU;
     readonly powerPreference?: GPUPowerPreference;
+}
+
+// @public
+export interface WebGpuWorkerDeviceOptions {
+    readonly timeoutMilliseconds?: number;
+    readonly worker?: Worker;
 }
 
 // (No @packageDocumentation comment for this package)

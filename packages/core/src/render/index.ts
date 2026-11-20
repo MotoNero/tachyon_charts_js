@@ -14,3 +14,6 @@ export type {
   TextureFormat,
 } from './types';
 export { BufferUsage, packRgba8, parseColor, rgba, wordsOf } from './types';
+export { connectRenderWorker, RemoteRenderDevice } from './remote-device';
+export { serveRenderRequests } from './render-server';
+export type { RenderEndpoint, ServerMessage } from './remote-protocol';
