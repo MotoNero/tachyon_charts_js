@@ -38,6 +38,7 @@ const style = `
 :host { display: block; position: relative; min-height: 150px; contain: strict; }
 canvas { position: absolute; inset: 0; width: 100%; height: 100%; display: block; outline: none; touch-action: none; }
 p { position: absolute; inset: 0; margin: 0; display: flex; align-items: center; justify-content: center; font: 13px sans-serif; color: #888; }
+p[hidden] { display: none; }
 `;
 
 /**

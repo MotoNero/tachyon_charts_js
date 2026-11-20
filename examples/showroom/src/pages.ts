@@ -6,18 +6,24 @@ import {
   BarSeries,
   DataSource,
   findBuiltInTheme,
+  parseThemeColor,
+  resolveTheme,
   StackedAreaSeries,
   type ChartBuilder,
   type ThemeDocument,
 } from '@tachyon-charts/core';
+import { t } from './texts';
 
-/** A page: its name in the navigation, its group, the hint for the input and the chart. */
+/**
+ * A page: its name in the navigation, its group, the hint for the input and the chart. Names, groups and hints are the
+ * English keys of texts.ts; `configure` gets the theme the chart is shown in.
+ */
 export interface Page {
   readonly id: string;
   readonly name: string;
   readonly group: string;
   readonly hint: string;
-  configure(builder: ChartBuilder): void;
+  configure(builder: ChartBuilder, theme: ThemeDocument): void;
 }
 
 const plain = 'Wheel: zoom | Drag: pan | Ctrl+drag: zoom into a rectangle | Double click: all';
@@ -82,7 +88,7 @@ export const pages: readonly Page[] = [
     name: 'Line',
     group: 'Lines',
     hint: points,
-    configure: (c) => numeric(c, 0, 10, -1.5, 1.5).addLine(sample(Math.sin), (s) => s.name('Sine').thickness(2)),
+    configure: (c) => numeric(c, 0, 10, -1.5, 1.5).addLine(sample(Math.sin), (s) => s.name(t('Sine')).thickness(2)),
   },
   {
     id: 'spline',
@@ -117,7 +123,7 @@ export const pages: readonly Page[] = [
         y[i] = Math.sin((i / 100_000) * 1.3) + 0.15 * Math.sin(i / 7) + (i === 654_321 ? 1.5 : 0);
       }
       data.append(x, y);
-      numeric(c, 0, 10, -1.5, 2.5).addLine(data, (s) => s.name('Noisy wave'));
+      numeric(c, 0, 10, -1.5, 2.5).addLine(data, (s) => s.name(t('Noisy wave')));
     },
   },
   {
@@ -232,7 +238,7 @@ export const pages: readonly Page[] = [
       c
         .theme(instrument)
         .xAxis((a) =>
-          a.category(['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun', 'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec'], 'x'),
+          a.category(['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun', 'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec'].map(t), 'x'),
         )
         .yAxis((a) => a.numeric('y').range(0, 10))
         .addSeries((x, y) => new BarSeries([[3, 4, 5, 6, 7, 8, 9, 8, 7, 6, 5, 4]], x, y)),
@@ -245,10 +251,10 @@ export const pages: readonly Page[] = [
     configure: (c) =>
       c
         .theme(instrument)
-        .title('Temperature in Berlin, over the change to summer time')
+        .title(t('Temperature in Berlin, over the change to summer time'))
         .xAxis((a) => a.dateTime('time').title('Europe/Berlin'))
         .yAxis((a) => a.numeric('y').title('°C').autoRange())
-        .addLine(temperatures(), (s) => s.name('Temperature').thickness(2)),
+        .addLine(temperatures(), (s) => s.name(t('Temperature')).thickness(2)),
   },
   {
     id: 'axes-in-the-origin',
@@ -267,18 +273,26 @@ export const pages: readonly Page[] = [
     name: 'Themes',
     group: 'Look',
     hint: 'Choose a theme at the top | Pointer: values',
-    configure: (c) =>
-      c
-        .title('Theme preview')
-        .xAxis((a) => a.numeric('x').range(0, 10).title('Time'))
-        .yAxis((a) => a.numeric('y').range(-1.5, 1.5).title('Signal'))
+    // As the theme scene of the .NET gallery: the line and the markers in the first two colors of the palette.
+    configure: (c, theme) => {
+      const resolved = resolveTheme(theme);
+      const [first = '#50AAF0', second = '#F0825A'] = resolved.palette ?? [];
+      c.title(t('Theme preview'))
+        .xAxis((a) => a.numeric('x').range(0, 10).title(t('Time')))
+        .yAxis((a) => a.numeric('y').range(-1.5, 1.5).title(t('Signal')))
         .addLine(
-          sample((t) => Math.sin(t * 1.4) * 0.9, 180),
-          (s) => s.name('Line').thickness(2.5),
+          sample((x) => Math.sin(x * 1.4) * 0.9, 180),
+          (s) => s.name(t('Line')).stroke(parseThemeColor(first)).thickness(2.5),
         )
         .addScatter(
-          sample((t) => Math.cos(t * 1.4) * 0.75, 18),
-          (s) => s.name('Markers').size(9),
-        ),
+          sample((x) => Math.cos(x * 1.4) * 0.75, 18),
+          (s) =>
+            s
+              .name(t('Markers'))
+              .fill(parseThemeColor(second))
+              .border(parseThemeColor(resolved.surface?.background ?? '#000000'), 1.5)
+              .size(9),
+        );
+    },
   },
 ];

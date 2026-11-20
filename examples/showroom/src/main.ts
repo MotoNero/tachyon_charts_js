@@ -1,10 +1,14 @@
 // The showroom: a page for every finished feature, as in the showroom of the .NET version. The pages are in pages.ts;
 // this file builds the navigation, shows the chosen page in one <tachyon-chart> and switches theme and language.
-import { builtInThemes, ChartBuilder, chartText, type ChartLanguage } from '@tachyon-charts/core';
-import { defineTachyonChart, type TachyonChartElement } from '@tachyon-charts/element';
+import { builtInThemes, ChartBuilder, chartText, findBuiltInTheme, type ChartLanguage } from '@tachyon-charts/core';
+import { defineTachyonChart, preferredTheme, type TachyonChartElement } from '@tachyon-charts/element';
 import logo from '../../../shared/logo/tachyon-charts-lockup-dark-transparent.svg?url';
 import icon from '../../../shared/logo/tachyon-charts-avatar-dark-32.png?url';
 import { pages, type Page } from './pages';
+import { t } from './texts';
+import type { ThemeDocument } from '@tachyon-charts/core';
+
+const instrumentTheme = findBuiltInTheme('instrument') as ThemeDocument;
 
 defineTachyonChart();
 
@@ -20,19 +24,50 @@ document.querySelector<HTMLLinkElement>('#icon')?.setAttribute('href', icon);
 
 // The navigation, grouped as the pages say.
 const links = new Map<string, HTMLAnchorElement>();
+const headings: [HTMLElement, string][] = [];
 let group = '';
 for (const page of pages) {
   if (page.group !== group) {
     group = page.group;
     const heading = document.createElement('h2');
-    heading.textContent = group;
+    headings.push([heading, group]);
     navigation?.append(heading);
   }
   const link = document.createElement('a');
   link.href = `#${page.id}`;
-  link.textContent = page.name;
   links.set(page.id, link);
   navigation?.append(link);
+}
+
+// The texts of the page in the language of the charts.
+function translate(): void {
+  document.documentElement.lang = chartText.language === 'german' ? 'de' : 'en';
+  for (const [heading, key] of headings) {
+    heading.textContent = t(key);
+  }
+  for (const page of pages) {
+    const link = links.get(page.id);
+    if (link) {
+      link.textContent = t(page.name);
+    }
+  }
+  for (const label of document.querySelectorAll<HTMLElement>('[data-text]')) {
+    label.textContent = t(label.dataset.text ?? '');
+  }
+  for (const option of themeChoice?.options ?? []) {
+    if (option.dataset.text) {
+      option.textContent = t(option.dataset.text);
+    }
+  }
+}
+
+// The theme the chart is shown in: the chosen one, the page's own (Instrument) or light or dark after the system.
+function effectiveTheme(): ThemeDocument {
+  const chosen = themeChoice?.value ?? '';
+  if (chosen === '') {
+    return instrumentTheme;
+  }
+  return (chosen === 'auto' ? undefined : findBuiltInTheme(chosen)) ?? preferredTheme();
 }
 
 function show(page: Page): void {
@@ -40,13 +75,13 @@ function show(page: Page): void {
     return;
   }
   const builder = new ChartBuilder();
-  page.configure(builder);
+  page.configure(builder, effectiveTheme());
   chart.chart = builder;
   if (title) {
-    title.textContent = page.name;
+    title.textContent = t(page.name);
   }
   if (hint) {
-    hint.textContent = page.hint;
+    hint.textContent = t(page.hint);
   }
   for (const [id, link] of links) {
     if (id === page.id) {
@@ -55,7 +90,7 @@ function show(page: Page): void {
       link.removeAttribute('aria-current');
     }
   }
-  document.title = `${page.name} – Tachyon Charts`;
+  document.title = `${t(page.name)} – Tachyon Charts`;
 }
 
 function route(): void {
@@ -63,7 +98,6 @@ function route(): void {
   show(pages.find((page) => page.id === id) ?? (pages[0] as Page));
 }
 window.addEventListener('hashchange', route);
-route();
 
 // The theme: the one of the page, light or dark after the system, or a built-in one for every page.
 if (themeChoice) {
@@ -73,7 +107,11 @@ if (themeChoice) {
     ...builtInThemes.map((theme): [string, string] => [theme.name, theme.name]),
   ];
   for (const [value, label] of options) {
-    themeChoice.append(new Option(label, value));
+    const option = new Option(label, value);
+    if (value === '' || value === 'auto') {
+      option.dataset.text = label;
+    }
+    themeChoice.append(option);
   }
   themeChoice.addEventListener('change', () => {
     if (themeChoice.value === '') {
@@ -87,9 +125,15 @@ if (themeChoice) {
   });
 }
 
+// The language of the charts and of the page; the pages are built anew for their titles and names.
 languageChoice?.addEventListener('change', () => {
   chartText.language = languageChoice.value as ChartLanguage;
+  translate();
+  route();
 });
+
+translate();
+route();
 
 // The point under the pointer, as the element reports it.
 chart?.addEventListener('tachyon-tooltip', (event) => {
