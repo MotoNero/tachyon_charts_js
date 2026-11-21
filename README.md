@@ -83,6 +83,16 @@ pixel. `TachyonChartElement.renderInWorker = false` before the first chart choos
 `chart.renderThread` tells where a chart draws. Without the element, `createWebGpuWorkerDevice()` of
 `@tachyon-charts/render-webgpu` gives the same device to a chart of your own.
 
+## Many charts
+
+![A grid of charts in the showroom, each streaming its own signal](docs/images/many-charts.png)
+
+All charts of a page share one GPU device, one text engine and one animation frame loop. Each frame, every chart that
+changed draws, and in the render worker all their frames go as one message. Charts scrolled out of view pause and draw
+what they missed when they return. 50 charts on 1920 × 1080, each streaming 100 000 points per second into a ring of
+100 000 points, draw at 60 FPS each. Rings keep the newest points in one piece and summarize their metadata in blocks,
+so a frame reads them without a copy.
+
 ## Data from workers
 
 ![A noisy signal of millions of points that a worker streams into the chart through shared memory](docs/images/data-from-a-worker.png)

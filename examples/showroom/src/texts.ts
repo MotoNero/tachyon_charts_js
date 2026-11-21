@@ -8,6 +8,9 @@ const german: Readonly<Record<string, string>> = {
   'Step line': 'Stufenlinie',
   'A million points': 'Eine Million Punkte',
   'Data from a worker': 'Daten aus einem Worker',
+  'Many charts': 'Viele Diagramme',
+  'Every chart streams 100 000 points per second | Wheel: zoom | Drag: pan | Double click: all':
+    'Jedes Diagramm streamt 100 000 Punkte je Sekunde | Rad: Zoom | Ziehen: Pan | Doppelklick: alles',
   'Shared memory': 'Geteilter Speicher',
   'Transferred blocks': 'Übertragene Blöcke',
   'Points and areas': 'Punkte und Flächen',

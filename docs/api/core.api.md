@@ -1320,16 +1320,20 @@ export class RemoteRenderDevice implements RenderDevice {
     get drawCallCount(): number;
     ensureUsable(): void;
     flush(): void;
+    hold(): void;
     get isLost(): boolean;
     get lastFrameMilliseconds(): number;
     get lostReason(): string | undefined;
     onError(listener: (message: string) => void): () => void;
     onLost(listener: (reason: string) => void): () => void;
+    get pendingBatches(): number;
     get pendingFrames(): number;
     receive(message: ServerMessage): void;
+    release(): void;
     request(op: number, target?: number): Promise<Uint8Array | undefined>;
     schedule(): void;
     simulateLoss(): void;
+    submitted(): void;
     get uploadedByteCount(): number;
     whenIdle(): Promise<void>;
 }

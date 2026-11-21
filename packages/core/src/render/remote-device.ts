@@ -128,6 +128,8 @@ export class RemoteRenderDevice implements RenderDevice {
   private drawCalls = 0;
   private uploaded = 0;
   private outstandingFrames = 0;
+  private outstandingBatches = 0;
+  private holding = 0;
   private frameTime = 0;
 
   /**
@@ -166,9 +168,37 @@ export class RemoteRenderDevice implements RenderDevice {
     return this.uploaded;
   }
 
-  /** Frames sent that the worker has not drawn yet; a chart waits while two are on their way. */
+  /** Frames sent that the worker has not drawn yet. */
   get pendingFrames(): number {
     return this.outstandingFrames;
+  }
+
+  /** Batches with frames sent that the worker has not drawn yet; charts wait while two are on their way. */
+  get pendingBatches(): number {
+    return this.outstandingBatches;
+  }
+
+  /**
+   * Keeps the frames submitted until {@link RemoteRenderDevice.release} in one batch, such as all charts of a page in
+   * one animation frame: one message for all of them.
+   */
+  hold(): void {
+    this.holding++;
+  }
+
+  /** Ends a {@link RemoteRenderDevice.hold} and sends the frames recorded meanwhile. */
+  release(): void {
+    this.holding = Math.max(this.holding - 1, 0);
+    if (this.holding === 0) {
+      this.flush();
+    }
+  }
+
+  /** Called by a frame when it is submitted: sends it unless frames are held. */
+  submitted(): void {
+    if (this.holding === 0) {
+      this.flush();
+    }
   }
 
   /** How long the worker took for the last batch of frames, in milliseconds. */
@@ -274,7 +304,13 @@ export class RemoteRenderDevice implements RenderDevice {
   receive(message: ServerMessage): void {
     switch (message.type) {
       case 'done':
-        this.outstandingFrames -= this.batchFrames.shift() ?? 0;
+        {
+          const frames = this.batchFrames.shift() ?? 0;
+          this.outstandingFrames -= frames;
+          if (frames > 0) {
+            this.outstandingBatches--;
+          }
+        }
         this.drawCalls = message.drawCalls;
         this.uploaded = message.uploadedBytes;
         if (message.frames > 0) {
@@ -313,6 +349,9 @@ export class RemoteRenderDevice implements RenderDevice {
     const { message, transfer } = this.writer.take();
     this.batchFrames.push(frames);
     this.outstandingFrames += frames;
+    if (frames > 0) {
+      this.outstandingBatches++;
+    }
     this.endpoint.postMessage(message, transfer);
   }
 
@@ -566,7 +605,7 @@ class RemoteFrame implements CommandList {
   submit(): void {
     this.writer.op(Op.submit, this.id);
     this.writer.frames++;
-    this.device.flush();
+    this.device.submitted();
   }
 
   dispose(): void {

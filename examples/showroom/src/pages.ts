@@ -5,12 +5,13 @@ import {
   BandSeries,
   BarSeries,
   DataSource,
+  FifoDataSource,
+  ChartBuilder,
   findBuiltInTheme,
   linkDataSource,
   parseThemeColor,
   resolveTheme,
   StackedAreaSeries,
-  type ChartBuilder,
   type ThemeDocument,
 } from '@tachyon-charts/core';
 import { t } from './texts';
@@ -92,6 +93,73 @@ function curve(): DataSource {
 
 // A worker writes four million points while the chart draws: through shared memory on cross-origin isolated pages,
 // else in transferred blocks.
+// 24 charts in a grid, each streaming 100 000 points per second into its own ring: they share one device and one
+// frame loop, and their frames go to the render worker together.
+function manyCharts(): Page {
+  return {
+    id: 'many-charts',
+    name: 'Many charts',
+    group: 'Lines',
+    hint: 'Every chart streams 100 000 points per second | Wheel: zoom | Drag: pan | Double click: all',
+    configure: (c) => {
+      c.theme(instrument).xAxis().yAxis();
+    },
+    start: () => {
+      const main = document.querySelector<HTMLElement>('#chart');
+      const theme = main?.getAttribute('theme');
+      const grid = document.createElement('div');
+      grid.className = 'grid';
+      const sources: FifoDataSource[] = [];
+      for (let i = 0; i < 24; i++) {
+        const chart = document.createElement('tachyon-chart');
+        if (theme) {
+          chart.setAttribute('theme', theme);
+        }
+        const data = new FifoDataSource(100_000);
+        sources.push(data);
+        chart.chart = new ChartBuilder()
+          .theme(instrument)
+          .xAxis((a) => a.numeric('x').autoRange())
+          .yAxis((a) => a.numeric('y').range(-1.6, 1.6))
+          .addLine(data, (s) => s.name(`${t('Signal')} ${String(i + 1)}`));
+        grid.append(chart);
+      }
+      main?.after(grid);
+      if (main) {
+        main.hidden = true;
+      }
+      const x = new Float64Array(4000);
+      const y = new Float64Array(4000);
+      let written = 0;
+      let last = performance.now();
+      let frame = requestAnimationFrame(function feed(now) {
+        const n = Math.min(4000, Math.round(((now - last) / 1000) * 100_000));
+        last = now;
+        for (let s = 0; s < sources.length; s++) {
+          for (let i = 0; i < n; i++) {
+            const time = (written + i) / 100_000;
+            x[i] = time;
+            y[i] =
+              Math.sin(time * (1 + s * 0.15) + s) + 0.25 * Math.sin(time * 41 + s * 3) + (Math.random() - 0.5) * 0.2;
+          }
+          sources[s]?.append(x.subarray(0, n), y.subarray(0, n));
+        }
+        written += n;
+        frame = requestAnimationFrame(feed);
+      });
+      return {
+        dispose: () => {
+          cancelAnimationFrame(frame);
+          grid.remove();
+          if (main) {
+            main.hidden = false;
+          }
+        },
+      };
+    },
+  };
+}
+
 function dataFromAWorker(): Page {
   let data = new DataSource();
   return {
@@ -165,6 +233,7 @@ export const pages: readonly Page[] = [
     },
   },
   dataFromAWorker(),
+  manyCharts(),
   {
     id: 'scatter',
     name: 'Scatter',

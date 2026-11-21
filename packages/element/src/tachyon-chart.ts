@@ -25,6 +25,7 @@ import {
   type TooltipData,
 } from '@tachyon-charts/core';
 import { createWebGpuDevice, createWebGpuWorkerDevice } from '@tachyon-charts/render-webgpu';
+import { joinFrameLoop, leaveFrameLoop, type LoopMember } from './frame-loop';
 import { bindChartInput } from './input-binding';
 import { watchPreferredTheme } from './css-theme';
 
@@ -103,7 +104,14 @@ export class TachyonChartElement extends HTMLElement {
   private target: SurfaceRenderTarget | undefined;
   private device: RenderDevice | undefined;
   private engine: TextEngine | undefined;
-  private frame = 0;
+  private readonly member: LoopMember = {
+    draw: () => {
+      this.draw();
+    },
+    device: () => this.device,
+  };
+  private visible = true;
+  private visibility: IntersectionObserver | undefined;
   private framesDrawn = 0;
   private pixelSize = { width: 1, height: 1 };
   private measuredRatio = 0;
@@ -172,8 +180,9 @@ export class TachyonChartElement extends HTMLElement {
 
   /** Frees the GPU resources and stops drawing when the element leaves the page; it starts again when it returns. */
   disconnectedCallback(): void {
-    cancelAnimationFrame(this.frame);
-    this.frame = 0;
+    leaveFrameLoop(this.member);
+    this.visibility?.disconnect();
+    this.visibility = undefined;
     this.observer?.disconnect();
     this.observer = undefined;
     for (const cleanup of this.cleanups.splice(0)) {
@@ -239,7 +248,13 @@ export class TachyonChartElement extends HTMLElement {
     this.cleanups.push(bindChartInput(this.canvas, this.modifiers));
     this.build();
     this.applyTheme();
-    this.frame = requestAnimationFrame(this.draw);
+    // A chart out of view keeps its changes until it shows again; its first frame it draws anyway.
+    this.visibility = new IntersectionObserver((entries) => {
+      const entry = entries[entries.length - 1];
+      this.visible = entry?.isIntersecting ?? true;
+    });
+    this.visibility.observe(this);
+    joinFrameLoop(this.member);
   }
 
   // The canvas as the device takes it. A worker gets it as OffscreenCanvas, which a canvas can give only once, so a
@@ -269,16 +284,12 @@ export class TachyonChartElement extends HTMLElement {
     this.measuredRatio = devicePixelRatio;
   }
 
-  private readonly draw = (): void => {
-    this.frame = requestAnimationFrame(this.draw);
+  // One frame of the loop of the page (frame-loop.ts), which also holds back charts of a worker that is behind.
+  private draw(): void {
     const target = this.target;
     const surface = this.chartSurface;
     const device = this.device;
-    if (!target || !surface || !device) {
-      return;
-    }
-    // A worker that has not drawn the last two frames yet gets no third; the changes wait for the next frame.
-    if (device instanceof RemoteRenderDevice && device.pendingFrames > 1) {
+    if (!target || !surface || !device || (!this.visible && this.framesDrawn > 0)) {
       return;
     }
     // A new pixel ratio, such as on another screen, does not always reach the observer.
@@ -298,7 +309,7 @@ export class TachyonChartElement extends HTMLElement {
         this.dispatchEvent(new CustomEvent('tachyon-ready'));
       }
     }
-  };
+  }
 
   private build(): void {
     const content = this.content;
