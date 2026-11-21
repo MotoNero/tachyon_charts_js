@@ -9,6 +9,13 @@ const german: Readonly<Record<string, string>> = {
   'A million points': 'Eine Million Punkte',
   'Data from a worker': 'Daten aus einem Worker',
   'Many charts': 'Viele Diagramme',
+  'Line from a large file': 'Linie aus einer großen Datei',
+  'The first visit writes a test file of 1 GB': 'Der erste Besuch schreibt eine Testdatei von 1 GB',
+  '250 million values, five spikes among them': '250 Millionen Werte, fünf Ausreißer darunter',
+  Pyramid: 'Pyramide',
+  'kept from before': 'von früher aufbewahrt',
+  Refining: 'Wird verfeinert',
+  'Time in s': 'Zeit in s',
   'Every chart streams 100 000 points per second | Wheel: zoom | Drag: pan | Double click: all':
     'Jedes Diagramm streamt 100 000 Punkte je Sekunde | Rad: Zoom | Ziehen: Pan | Doppelklick: alles',
   'Shared memory': 'Geteilter Speicher',

@@ -71,6 +71,9 @@ importers:
       '@tachyon-charts/element':
         specifier: workspace:*
         version: link:../../packages/element
+      '@tachyon-charts/large-data':
+        specifier: workspace:*
+        version: link:../../packages/large-data
 
   examples/web-component:
     dependencies:

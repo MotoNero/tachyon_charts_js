@@ -8,6 +8,7 @@ coverage/
 test-results/
 playwright-report/
 blob-report/
+.bench-profile/
 
 # IDE and OS
 .vscode/*

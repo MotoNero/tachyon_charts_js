@@ -4,11 +4,17 @@
   "description": "Tachyon Charts: Column files, pyramids, OPFS, HTTP range requests and workers.",
   "license": "Apache-2.0",
   "type": "module",
-  "sideEffects": false,
+  "sideEffects": [
+    "./dist/column-worker-entry.js"
+  ],
   "exports": {
     ".": {
       "types": "./dist/index.d.ts",
       "import": "./dist/index.js"
+    },
+    "./column-worker": {
+      "types": "./dist/column-worker-entry.d.ts",
+      "import": "./dist/column-worker-entry.js"
     }
   },
   "files": [

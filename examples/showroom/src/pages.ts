@@ -14,6 +14,7 @@ import {
   StackedAreaSeries,
   type ThemeDocument,
 } from '@tachyon-charts/core';
+import { ColumnFile, ColumnLineSeries, LargeColumn, opfsSource } from '@tachyon-charts/large-data';
 import { t } from './texts';
 
 /**
@@ -95,6 +96,102 @@ function curve(): DataSource {
 // else in transferred blocks.
 // 24 charts in a grid, each streaming 100 000 points per second into its own ring: they share one device and one
 // frame loop, and their frames go to the render worker together.
+// 250 million values (1 GB) from the origin private file system: the first visit writes the file in a worker, the
+// pyramid gives a coarse picture at once and refines; five spikes are never lost, however far out the view.
+const largeFile = { path: 'showroom/line-250m.tcol', count: 250_000_000 };
+
+async function hasLargeFile(): Promise<boolean> {
+  try {
+    const file = await ColumnFile.open(await opfsSource(largeFile.path));
+    return file.rows === largeFile.count;
+  } catch {
+    return false;
+  }
+}
+
+function lineFromALargeFile(): Page {
+  const hint = 'Wheel: zoom | Drag: pan | Ctrl+drag: zoom into a rectangle | Double click: all';
+  return {
+    id: 'line-from-a-large-file',
+    name: 'Line from a large file',
+    group: 'Lines',
+    hint,
+    configure: (c) => {
+      c.theme(instrument)
+        .xAxis((a) => a.numeric('x'))
+        .yAxis((a) => a.numeric('y'));
+    },
+    start: () => {
+      // Asked through a function, so that the checks after each await see a stop that came meanwhile.
+      const run = { stopped: false };
+      const stopped = (): boolean => run.stopped;
+      let column: LargeColumn | undefined;
+      let worker: Worker | undefined;
+      const chart = document.querySelector<HTMLElement & { chart: unknown }>('#chart');
+      const say = (text: string): void => {
+        const element = document.querySelector('#hint');
+        if (element) {
+          element.textContent = `${t(hint)} | ${text}`;
+        }
+      };
+      const percent = (share: number): string => `${String(Math.floor(share * 100))} %`;
+      void (async () => {
+        if (!(await hasLargeFile())) {
+          worker = new Worker(new URL('./large-file-worker.ts', import.meta.url), { type: 'module' });
+          const writing = worker;
+          await new Promise<void>((resolve) => {
+            writing.addEventListener('message', (event: MessageEvent<{ progress?: number; done?: boolean }>) => {
+              if (event.data.done) {
+                resolve();
+              } else {
+                say(`${t('The first visit writes a test file of 1 GB')} ${percent(event.data.progress ?? 0)}`);
+              }
+            });
+            writing.postMessage(largeFile);
+          });
+          writing.terminate();
+        }
+        if (stopped()) {
+          return;
+        }
+        const opened = await LargeColumn.open({ opfs: largeFile.path });
+        if (stopped()) {
+          opened.dispose();
+          return;
+        }
+        column = opened;
+        const status = (): void => {
+          say(
+            opened.isComplete
+              ? `${t('250 million values, five spikes among them')} | ${t('Pyramid')} ${String(Math.round(opened.buildMilliseconds))} ms${opened.isFromCache ? ` (${t('kept from before')})` : ''}`
+              : `${t('Refining')} ${percent(opened.progress)}`,
+          );
+        };
+        opened.onChange(status);
+        status();
+        if (chart) {
+          chart.chart = new ChartBuilder()
+            .theme(instrument)
+            .xAxis((a) => a.numeric('x').title(t('Time in s')).autoRange())
+            .yAxis((a) => a.numeric('y').autoRange())
+            .addSeries((x, y) => {
+              const series = new ColumnLineSeries(opened, x, y);
+              series.name = t('Signal');
+              return series;
+            });
+        }
+      })();
+      return {
+        dispose: () => {
+          run.stopped = true;
+          worker?.terminate();
+          column?.dispose();
+        },
+      };
+    },
+  };
+}
+
 function manyCharts(): Page {
   return {
     id: 'many-charts',
@@ -234,6 +331,7 @@ export const pages: readonly Page[] = [
   },
   dataFromAWorker(),
   manyCharts(),
+  lineFromALargeFile(),
   {
     id: 'scatter',
     name: 'Scatter',

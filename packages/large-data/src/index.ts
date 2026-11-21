@@ -31,3 +31,28 @@ export {
   type ByteSink,
   type ColumnFileWriterOptions,
 } from './column-file-writer';
+export {
+  blockExtremes,
+  ColumnPyramid,
+  Fnv1a64,
+  pyramidBlockSize,
+  pyramidFactor,
+  pyramidHeaderSize,
+  pyramidLevelSizes,
+  pyramidPieceSize,
+  readPyramidFile,
+  writePyramidFile,
+  type Extremes,
+  type PyramidLevel,
+} from './column-pyramid';
+export {
+  columnFingerprint,
+  pieceOrder,
+  serveColumn,
+  type ColumnEndpoint,
+  type ColumnLocation,
+  type ColumnReply,
+  type ColumnRequest,
+} from './column-worker';
+export { LargeColumn, type LargeColumnOptions } from './large-column';
+export { ColumnLineSeries } from './column-line-series';

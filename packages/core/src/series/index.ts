@@ -1,4 +1,5 @@
 export { LineSeries } from './line-series';
+export { PixelLine } from './pixel-line';
 export { ScatterSeries } from './scatter-series';
 export {
   AreaSeries,

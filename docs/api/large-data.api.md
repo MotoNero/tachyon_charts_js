@@ -4,8 +4,19 @@
 
 ```ts
 
+import { Axis } from '@tachyon-charts/core';
+import { ChartSeries } from '@tachyon-charts/core';
+import { CommandList } from '@tachyon-charts/core';
+import { DoubleRange as DoubleRange_2 } from '@tachyon-charts/core';
+import { RenderDevice } from '@tachyon-charts/core';
+import { Rgba8 } from '@tachyon-charts/core';
+import { SeriesFrame } from '@tachyon-charts/core';
+
 // @public
 export function blobSource(blob: Blob): ByteSource;
+
+// @public
+export function blockExtremes(values: ArrayLike<number>, type: Exclude<ColumnType, 'bit'>, min: Float64Array, max: Float64Array): void;
 
 // @public
 export interface ByteSink {
@@ -19,6 +30,14 @@ export interface ByteSource {
     read(offset: number, length: number): Promise<Uint8Array>;
     readSync?(offset: number, length: number): Uint8Array;
     readonly size: number;
+}
+
+// @public
+export interface ColumnEndpoint {
+    addEventListener(type: 'message', listener: (event: {
+        readonly data: unknown;
+    }) => void): void;
+    postMessage(message: unknown, transfer: Transferable[]): void;
 }
 
 // @public
@@ -61,6 +80,9 @@ export interface ColumnFileWriterOptions {
 }
 
 // @public
+export function columnFingerprint(file: ColumnFile, column: number): Promise<bigint>;
+
+// @public
 export interface ColumnHeader {
     readonly blockRows: number;
     readonly columns: number;
@@ -74,6 +96,114 @@ export interface ColumnHeader {
 export const columnHeaderSize = 64;
 
 // @public
+export class ColumnLineSeries extends ChartSeries {
+    constructor(
+    column: LargeColumn, xAxis: Axis, yAxis: Axis);
+    get accentColor(): Rgba8;
+    get color(): Rgba8;
+    set color(value: Rgba8);
+    readonly column: LargeColumn;
+    dataRange(axis: 'x' | 'y'): DoubleRange_2 | undefined;
+    draw(commands: CommandList): void;
+    get drawing(): {
+        readonly mode: 'pyramid' | 'edges' | 'values';
+        readonly isExact: boolean;
+    };
+    get drawnPointCount(): number;
+    prepare(device: RenderDevice, frame: SeriesFrame): void;
+    prepareData(frame: SeriesFrame): void;
+    releaseResources(): void;
+    get thickness(): number;
+    set thickness(value: number);
+    get version(): number;
+}
+
+// @public
+export type ColumnLocation = {
+    readonly opfs: string;
+} | {
+    readonly file: Blob;
+} | {
+    readonly url: string;
+    readonly headers?: Record<string, string>;
+};
+
+// @public
+export class ColumnPyramid {
+    constructor(
+    count: number,
+    type: Exclude<ColumnType, 'bit'>);
+    addPiece(piece: number, min: Float64Array, max: Float64Array): void;
+    readonly count: number;
+    hasPiece(piece: number): boolean;
+    get isComplete(): boolean;
+    isEmpty(extremes: Extremes): boolean;
+    readonly levels: readonly PyramidLevel[];
+    get pieceCount(): number;
+    get progress(): number;
+    queryBlocks(firstBlock: number, endBlock: number, into: Extremes): Extremes;
+    setLevels(levels: readonly PyramidLevel[]): void;
+    total(into: Extremes): Extremes;
+    readonly type: Exclude<ColumnType, 'bit'>;
+    get version(): number;
+}
+
+// @public
+export type ColumnReply = {
+    readonly kind: 'opened';
+    readonly type: ColumnType;
+    readonly columns: number;
+    readonly rows: number;
+    readonly xStart: number;
+    readonly xStep: number;
+} | {
+    readonly kind: 'levels';
+    readonly min: Float64Array[];
+    readonly max: Float64Array[];
+} | {
+    readonly kind: 'piece';
+    readonly piece: number;
+    readonly min: Float64Array;
+    readonly max: Float64Array;
+} | {
+    readonly kind: 'complete';
+    readonly milliseconds: number;
+    readonly fromCache: boolean;
+} | {
+    readonly kind: 'blockValues';
+    readonly request: number;
+    readonly blocks: number[];
+    readonly values: Float64Array;
+} | {
+    readonly kind: 'rowValues';
+    readonly request: number;
+    readonly start: number;
+    readonly values: Float64Array;
+} | {
+    readonly kind: 'error';
+    readonly message: string;
+};
+
+// @public
+export type ColumnRequest = {
+    readonly kind: 'open';
+    readonly location: ColumnLocation;
+    readonly column: number;
+    readonly cache: boolean;
+} | {
+    readonly kind: 'blocks';
+    readonly request: number;
+    readonly blocks: readonly number[];
+} | {
+    readonly kind: 'rows';
+    readonly request: number;
+    readonly start: number;
+    readonly count: number;
+} | {
+    readonly kind: 'close';
+};
+
+// @public
 export type ColumnType = 'float64' | 'float32' | 'int16' | 'int32' | 'bit';
 
 // @public
@@ -81,6 +211,12 @@ export type ColumnValues = Float64Array | Float32Array | Int16Array | Int32Array
 
 // @public
 export function columnValueSize(type: ColumnType): number;
+
+// @public
+export interface Extremes {
+    max: number;
+    min: number;
+}
 
 // @public
 export class FileColumn {
@@ -96,12 +232,48 @@ export class FileColumn {
 }
 
 // @public
+export class Fnv1a64 {
+    add(bytes: Uint8Array): void;
+    get value(): bigint;
+}
+
+// @public
 export function httpSource(url: string | URL, options?: HttpSourceOptions): Promise<ByteSource>;
 
 // @public
 export interface HttpSourceOptions {
     readonly fetch?: typeof fetch;
     readonly headers?: Record<string, string>;
+}
+
+// @public
+export class LargeColumn {
+    block(index: number): Float64Array | undefined;
+    get buildMilliseconds(): number;
+    dispose(): void;
+    get error(): string | undefined;
+    hasRows(start: number, end: number): boolean;
+    get isComplete(): boolean;
+    get isFromCache(): boolean;
+    onChange(listener: () => void): () => void;
+    static open(location: ColumnLocation, options?: LargeColumnOptions): Promise<LargeColumn>;
+    get progress(): number;
+    readonly pyramid: ColumnPyramid;
+    readonly rows: number;
+    readonly type: Exclude<ColumnType, 'bit'>;
+    value(row: number): number | undefined;
+    get version(): number;
+    wantBlock(index: number): void;
+    wantRows(start: number, end: number): void;
+    readonly xStart: number;
+    readonly xStep: number;
+}
+
+// @public
+export interface LargeColumnOptions {
+    readonly cache?: boolean;
+    readonly column?: number;
+    readonly worker?: Worker;
 }
 
 // @public
@@ -118,7 +290,37 @@ export function opfsFile(path: string, create?: boolean): Promise<FileSystemFile
 export function opfsSource(path: string): Promise<ByteSource>;
 
 // @public
+export function pieceOrder(count: number): number[];
+
+// @public
+export const pyramidBlockSize = 256;
+
+// @public
+export const pyramidFactor = 4;
+
+// @public
+export const pyramidHeaderSize = 64;
+
+// @public
+export interface PyramidLevel {
+    readonly max: Float64Array;
+    readonly min: Float64Array;
+}
+
+// @public
+export function pyramidLevelSizes(count: number): number[];
+
+// @public
+export const pyramidPieceSize: number;
+
+// @public
 export function readColumnHeader(bytes: Uint8Array): ColumnHeader;
+
+// @public
+export function readPyramidFile(bytes: Uint8Array, type: Exclude<ColumnType, 'bit'>, count: number, fingerprint: bigint): PyramidLevel[] | undefined;
+
+// @public
+export function serveColumn(endpoint: ColumnEndpoint): void;
 
 // @public
 export interface SyncAccessHandle {
@@ -148,6 +350,9 @@ export function writableSink(stream: FileSystemWritableFileStream): ByteSink;
 
 // @public
 export function writeColumnHeader(header: ColumnHeader): Uint8Array;
+
+// @public
+export function writePyramidFile(pyramid: ColumnPyramid, fingerprint: bigint): Uint8Array;
 
 // (No @packageDocumentation comment for this package)
 

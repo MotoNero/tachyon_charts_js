@@ -1196,6 +1196,22 @@ export function parseThemeColor(text: string): Rgba8;
 export function parseThemeGradient(text: string): ThemeGradient;
 
 // @public
+export class PixelLine {
+    addColumns(frame: SeriesFrame): void;
+    addPoint(x: number, y: number): void;
+    clear(): void;
+    columns(width: number): {
+        readonly minima: Float64Array;
+        readonly maxima: Float64Array;
+    };
+    get count(): number;
+    dispose(): void;
+    draw(commands: CommandList): void;
+    end(): void;
+    prepare(device: RenderDevice, frame: SeriesFrame, color: Rgba8, thickness: number): void;
+}
+
+// @public
 export interface PixelRect {
     readonly height: number;
     readonly width: number;

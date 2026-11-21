@@ -1,5 +1,8 @@
 // A growing list of points in pixels, x and y as float32 pairs, as the line shader takes them.
 import { lineGap } from '../render/commands';
+import type { RenderDevice } from '../render/device';
+import type { GpuBuffer } from '../render/resources';
+import { BufferUsage } from '../render/types';
 
 const f = Math.fround;
 
@@ -113,5 +116,23 @@ function addSpline(line: Vertices, start: number, end: number, curve: Vertices):
       const d = f(f(f(cube - square) * width) * endSlope);
       curve.add(f(startX + f(t * width)), f(f(f(a + b) + c) + d));
     }
+  }
+}
+
+/** Keeps a vertex buffer on the GPU that grows when needed. */
+export class VertexBuffer {
+  buffer: GpuBuffer | undefined;
+
+  ensure(device: RenderDevice, byteCount: number): GpuBuffer {
+    if (!this.buffer || this.buffer.sizeInBytes < byteCount) {
+      this.buffer?.dispose();
+      this.buffer = device.createBuffer({ sizeInBytes: Math.max(byteCount, 4096), usage: BufferUsage.vertex });
+    }
+    return this.buffer;
+  }
+
+  dispose(): void {
+    this.buffer?.dispose();
+    this.buffer = undefined;
   }
 }

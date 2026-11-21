@@ -6,12 +6,14 @@ import { emptySnapshot, type DataSnapshot, type PointSource } from '../data/sour
 import { DoubleRange } from '../numerics/range';
 import type { CommandList, PolylineStyle } from '../render/commands';
 import type { RenderDevice } from '../render/device';
-import type { GpuBuffer } from '../render/resources';
-import { BufferUsage, type Rgba8 } from '../render/types';
+import type { Rgba8 } from '../render/types';
 import { SeriesResampler, type ResampleResult, type ResamplingMode } from '../resampling/series-resampler';
 import { ChartSeries, type SeriesFrame } from '../pipeline/chart-series';
 import { expandDashes } from './dash-expander';
-import { smoothRuns, Vertices } from './vertices';
+import { addMinMaxColumns } from './pixel-line';
+import { smoothRuns, VertexBuffer, Vertices } from './vertices';
+
+export { VertexBuffer } from './vertices';
 
 const f = Math.fround;
 
@@ -41,24 +43,6 @@ export class DataRanges {
       this.y = metadata.count === 0 ? undefined : metadata.yRange;
     }
     return axis === 'x' ? this.x : this.y;
-  }
-}
-
-/** Keeps a vertex buffer on the GPU that grows when needed. */
-export class VertexBuffer {
-  buffer: GpuBuffer | undefined;
-
-  ensure(device: RenderDevice, byteCount: number): GpuBuffer {
-    if (!this.buffer || this.buffer.sizeInBytes < byteCount) {
-      this.buffer?.dispose();
-      this.buffer = device.createBuffer({ sizeInBytes: Math.max(byteCount, 4096), usage: BufferUsage.vertex });
-    }
-    return this.buffer;
-  }
-
-  dispose(): void {
-    this.buffer?.dispose();
-    this.buffer = undefined;
   }
 }
 
@@ -366,39 +350,6 @@ export class LineSeries extends ChartSeries {
   // Each pixel column holds its lowest and highest value. The extreme nearer to where the line comes from goes first,
   // and both spread over the width of the column: a steady edge stays one slanted line.
   private addColumns(frame: SeriesFrame): void {
-    const line = this.line;
-    let isOpen = false;
-    let last = 0;
-    for (let column = 0; column < this.minima.length; column++) {
-      const minimum = this.minima[column] as number;
-      const maximum = this.maxima[column] as number;
-      if (minimum > maximum) {
-        line.addGap();
-        isOpen = false;
-        continue;
-      }
-      const x = f(f(frame.bounds.x + column) + 0.5);
-      const top = frame.y.toPixel(maximum);
-      const bottom = frame.y.toPixel(minimum);
-      if (!Number.isFinite(top)) {
-        line.addGap();
-        isOpen = false;
-        continue;
-      }
-      const high = f(top);
-      const low = f(Number.isFinite(bottom) ? bottom : frame.bounds.y + frame.bounds.height);
-      // The end nearer to the last column first; two variables, since an array here would cost one per column.
-      const highFirst = isOpen && Math.abs(f(last - high)) < Math.abs(f(last - low));
-      const first = highFirst ? high : low;
-      const second = highFirst ? low : high;
-      if (first === second) {
-        line.add(x, first);
-      } else {
-        line.add(f(x - 0.5), first);
-        line.add(f(x + 0.5), second);
-      }
-      last = second;
-      isOpen = true;
-    }
+    addMinMaxColumns(this.line, this.minima, this.maxima, frame);
   }
 }

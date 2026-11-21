@@ -152,7 +152,29 @@ await writer.append(rows); // x0, y0, x1, y1, …
 await writer.close();
 ```
 
-Charts draw such files with the pyramid of the next version.
+### A line from a file larger than memory
+
+![A line of 250 million values from a file in the browser, with five single spikes clearly visible](docs/images/line-from-a-large-file.png)
+
+`LargeColumn` opens a column in a worker and builds its pyramid of extremes there, in pieces spread over the whole
+file, so the first picture comes at once and refines while the rest is read. `ColumnLineSeries` draws it: from the
+pyramid while a pixel column holds many values (a single spike is never lost), exactly from the file when zoomed in,
+and from the values themselves at the end, reading ahead to both sides. The finished pyramid is kept in the origin
+private file system, so the file opens at once the next time.
+
+```ts
+import { ColumnLineSeries, LargeColumn } from '@tachyon-charts/large-data';
+
+const column = await LargeColumn.open({ opfs: 'recordings/run.tcol' }); // or { file } or { url }
+chart.chart = new ChartBuilder()
+  .xAxis((a) => a.autoRange())
+  .yAxis((a) => a.autoRange())
+  .addSeries((x, y) => new ColumnLineSeries(column, x, y));
+```
+
+A billion float32 values (4 GB) from the origin private file system: first picture after 0.44–0.49 s, the pyramid
+complete after 5.5–6.4 s, zoom and pan at 60 FPS, the spike among them kept. The showroom writes a test file of 1 GB
+on the page "Line from a large file".
 
 ## Interaction
 
