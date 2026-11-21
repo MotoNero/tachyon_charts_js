@@ -11,7 +11,9 @@ export {
   type PyramidRequest,
 } from './pyramid-worker';
 export {
+  getResamplingWorker,
   SeriesResampler,
+  setResamplingWorker,
   type ResampleResult,
   type ResamplerOptions,
   type ResamplingMode,

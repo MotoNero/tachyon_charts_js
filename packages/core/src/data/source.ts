@@ -100,6 +100,35 @@ export class MetadataScanner {
     }
   }
 
+  /** The number of values {@link MetadataScanner.saveTo} writes. */
+  static readonly stateLength = 9;
+
+  /** Writes the state into `state`, such as shared memory a worker continues from. */
+  saveTo(state: Float64Array): void {
+    state[0] = this.lastX;
+    state[1] = this.hasPoints ? 1 : 0;
+    state[2] = this.isUnsorted ? 1 : 0;
+    state[3] = this.isNotUniform ? 1 : 0;
+    state[4] = this.step;
+    state[5] = this.minX;
+    state[6] = this.maxX;
+    state[7] = this.minY;
+    state[8] = this.maxY;
+  }
+
+  /** Continues from a state {@link MetadataScanner.saveTo} wrote. */
+  loadFrom(state: Float64Array): void {
+    this.lastX = state[0] ?? 0;
+    this.hasPoints = state[1] === 1;
+    this.isUnsorted = state[2] === 1;
+    this.isNotUniform = state[3] === 1;
+    this.step = state[4] ?? 0;
+    this.minX = state[5] ?? Number.POSITIVE_INFINITY;
+    this.maxX = state[6] ?? Number.NEGATIVE_INFINITY;
+    this.minY = state[7] ?? Number.POSITIVE_INFINITY;
+    this.maxY = state[8] ?? Number.NEGATIVE_INFINITY;
+  }
+
   /** The metadata of the values seen so far, for a source of `count` points. */
   toMetadata(count: number): DataMetadata {
     return {

@@ -2,16 +2,19 @@
 // element, draws a chart when it changes, takes the input of the user and frees its GPU resources when removed.
 import {
   AxisDragModifier,
+  canShareMemory,
   ChartBuilder,
   ChartDefinition,
   ChartInteraction,
   ChartSurface,
   CrosshairModifier,
   findBuiltInTheme,
+  getResamplingWorker,
   KeyboardNavigationModifier,
   ModifierPipeline,
   RemoteRenderDevice,
   RubberBandZoomModifier,
+  setResamplingWorker,
   TextEngine,
   TooltipModifier,
   ZoomPanModifier,
@@ -35,6 +38,19 @@ interface Shared {
 
 // All charts of a page share one device and one text engine with its glyph atlas.
 const shared: Shared = { device: undefined, engine: undefined };
+
+// The data worker of the page builds the pyramids of all series from shared memory, where the page has it.
+function startDataWorker(): void {
+  if (!TachyonChartElement.dataWorker || !canShareMemory() || getResamplingWorker() || typeof Worker !== 'function') {
+    return;
+  }
+  try {
+    const worker = new Worker(new URL('./data-worker-entry.js', import.meta.url), { type: 'module' });
+    setResamplingWorker(worker);
+  } catch {
+    // Without the worker the pyramids grow on this thread in slices.
+  }
+}
 
 // The device of the page: WebGPU in a render worker where the browser can hand a canvas to one, else on this thread.
 async function createDevice(): Promise<RenderDevice | undefined> {
@@ -72,6 +88,11 @@ export class TachyonChartElement extends HTMLElement {
    * the main thread. Set it before the first chart connects.
    */
   static renderInWorker = true;
+  /**
+   * Whether a data worker builds the pyramids of the series on cross-origin isolated pages, where the values live in
+   * shared memory. Set it before the first chart connects.
+   */
+  static dataWorker = true;
 
   private canvas: HTMLCanvasElement;
   private canvasTransferred = false;
@@ -176,6 +197,7 @@ export class TachyonChartElement extends HTMLElement {
   }
 
   private async start(): Promise<void> {
+    startDataWorker();
     shared.device ??= createDevice();
     shared.engine ??= fetch(TachyonChartElement.fontUrl)
       .then((response) => response.arrayBuffer())

@@ -5,6 +5,9 @@
 ```ts
 
 // @public
+export function acceptDataLink(endpoint: DataEndpoint, stream?: string): Promise<DataAppender>;
+
+// @public
 export function accumulate(values: NumberArray, start: number, end: number, extremes: Extremes): void;
 
 // @public
@@ -14,6 +17,11 @@ export function alignToStep(range: DoubleRange, step: number): DoubleRange;
 export interface AnimationTokens {
     readonly durationMs?: number;
     readonly easing?: string;
+}
+
+// @public
+export interface AppendTarget {
+    append(x: ArrayLike<number>, y: ArrayLike<number>): void;
 }
 
 // @public
@@ -231,6 +239,9 @@ export interface BuiltChart {
 
 // @public
 export const builtInThemes: readonly ThemeDocument[];
+
+// @public
+export function canShareMemory(): boolean;
 
 // @public
 export class CategoryAxis extends Axis {
@@ -523,6 +534,52 @@ export interface CustomSeriesDefinition extends SeriesDefinitionBase {
 }
 
 // @public
+export interface DataAppender {
+    append(x: number | ArrayLike<number>, y: number | ArrayLike<number>): void;
+    flush(): void;
+    readonly path: 'shared' | 'transferred';
+}
+
+// @public
+export interface DataBlockMessage {
+    readonly kind: 'tachyon-data-block';
+    readonly stream: string;
+    readonly x: Float64Array;
+    readonly y: Float64Array;
+}
+
+// @public
+export class DataBlockSender implements DataAppender {
+    constructor(endpoint: DataEndpoint, stream?: string, blockSize?: number);
+    append(x: number | ArrayLike<number>, y: number | ArrayLike<number>): void;
+    flush(): void;
+    readonly path = "transferred";
+}
+
+// @public
+export interface DataEndpoint {
+    addEventListener(type: 'message', listener: (event: {
+        readonly data: unknown;
+    }) => void): void;
+    postMessage(message: unknown, transfer: ArrayBuffer[]): void;
+    start?(): void;
+}
+
+// @public
+export interface DataLinkMessage {
+    readonly handle: SharedDataHandle | undefined;
+    readonly kind: 'tachyon-data-link';
+    readonly stream: string;
+}
+
+// @public
+export interface DataLinkOptions {
+    readonly capacity?: number;
+    readonly share?: boolean;
+    readonly stream?: string;
+}
+
+// @public
 export interface DataMetadata {
     readonly count: number;
     readonly isSortedX: boolean;
@@ -542,17 +599,25 @@ export interface DataSnapshot {
 }
 
 // @public
-export class DataSource implements PointSource {
-    constructor(capacity?: number);
+export class DataSource implements PointSource, ShareableSource {
+    constructor(capacity?: number, options?: DataSourceOptions);
     append(x: number, y: number): void;
     append(x: ArrayLike<number>, y: ArrayLike<number>): void;
     beginWrite(count: number): DataWriter;
     clear(): void;
+    get isShared(): boolean;
+    get isWrittenByWorker(): boolean;
     latest(): number | undefined;
     get metadata(): DataMetadata;
+    shareWithWorker(capacity: number): SharedDataHandle;
     snapshot(): DataSnapshot;
     snapshotInto(target: DataSnapshot): DataSnapshot;
     get version(): number;
+}
+
+// @public
+export interface DataSourceOptions {
+    readonly shared?: boolean;
 }
 
 // @public
@@ -762,6 +827,9 @@ export interface GestureInputEvent {
 }
 
 // @public
+export function getResamplingWorker(): MessageEndpoint | undefined;
+
+// @public
 export interface GlowTokens {
     readonly enabled?: boolean;
     readonly intensity?: number;
@@ -933,6 +1001,9 @@ export class LineSeries extends ChartSeries {
 }
 
 // @public
+export function linkDataSource(source: AppendTarget | ShareableSource, endpoint: DataEndpoint, options?: DataLinkOptions): 'shared' | 'transferred';
+
+// @public
 export class LodPyramid {
     constructor(
     factor?: number);
@@ -1012,6 +1083,9 @@ export interface MessageEndpoint {
 // @public
 export class MetadataScanner {
     add(x: ArrayLike<number>, y: ArrayLike<number>, start?: number, end?: number): void;
+    loadFrom(state: Float64Array): void;
+    saveTo(state: Float64Array): void;
+    static readonly stateLength = 9;
     toMetadata(count: number): DataMetadata;
 }
 
@@ -1505,7 +1579,34 @@ export type ServerMessage = {
 };
 
 // @public
+export function setResamplingWorker(worker: MessageEndpoint | undefined): void;
+
+// @public
+export interface ShareableSource extends AppendTarget {
+    shareWithWorker(capacity: number): SharedDataHandle;
+}
+
+// @public
 export type SharedArrayType = 'Float64Array' | 'Float32Array' | 'Int32Array' | 'Uint32Array' | 'Int16Array' | 'Uint16Array' | 'Int8Array' | 'Uint8Array';
+
+// @public
+export interface SharedDataHandle {
+    readonly control: SharedArrayBuffer;
+    readonly kind: 'tachyon-shared-data';
+    readonly metadata: SharedArrayBuffer;
+    readonly x: SharedArrayBuffer;
+    readonly y: SharedArrayBuffer;
+}
+
+// @public
+export class SharedDataWriter implements DataAppender {
+    constructor(handle: SharedDataHandle);
+    append(x: number | ArrayLike<number>, y: number | ArrayLike<number>): void;
+    get capacity(): number;
+    get count(): number;
+    flush(): void;
+    readonly path = "shared";
+}
 
 // @public
 export function sharedTypeOf(values: NumberArray): SharedArrayType | undefined;

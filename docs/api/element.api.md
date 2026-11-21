@@ -72,6 +72,7 @@ export class TachyonChartElement extends HTMLElement {
     get chart(): ChartContent | undefined;
     set chart(value: ChartContent | undefined);
     connectedCallback(): void;
+    static dataWorker: boolean;
     disconnectedCallback(): void;
     get drawingSize(): PixelSize;
     static fontUrl: string | URL;

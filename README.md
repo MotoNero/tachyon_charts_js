@@ -83,6 +83,31 @@ pixel. `TachyonChartElement.renderInWorker = false` before the first chart choos
 `chart.renderThread` tells where a chart draws. Without the element, `createWebGpuWorkerDevice()` of
 `@tachyon-charts/render-webgpu` gives the same device to a chart of your own.
 
+## Data from workers
+
+![A noisy signal of millions of points that a worker streams into the chart through shared memory](docs/images/data-from-a-worker.png)
+
+A worker can write straight into a chart. On cross-origin isolated pages (`Cross-Origin-Opener-Policy: same-origin`,
+`Cross-Origin-Embedder-Policy: require-corp`) a `DataSource` keeps its values in shared memory: the worker writes them
+in place and publishes count and metadata with `Atomics`, and a data worker of the page builds the pyramid for
+resampling, so the main thread does neither. Elsewhere the worker sends blocks of transferred buffers. Both ways look
+the same to the worker:
+
+```ts
+// Main thread
+const data = new DataSource();
+chart.chart = new ChartBuilder().xAxis((a) => a.autoRange()).yAxis((a) => a.autoRange()).addLine(data);
+linkDataSource(data, worker, { capacity: 4_000_000 }); // 'shared' or 'transferred'
+
+// Worker
+const writer = await acceptDataLink(self);
+writer.append(xs, ys);
+```
+
+20 million points from a worker through shared memory keep the main thread busy for about 150 ms in all, against about
+450 ms when the same points are appended on the main thread. The showroom streams four million points on the page
+"Data from a worker".
+
 ## Interaction
 
 ![A crosshair with the values of two lines beside it and the values of both axes at its lines](docs/images/crosshair-values.png)

@@ -4,7 +4,7 @@ import { builtInThemes, ChartBuilder, chartText, findBuiltInTheme, type ChartLan
 import { defineTachyonChart, preferredTheme, TachyonChartElement } from '@tachyon-charts/element';
 import logo from '../../../shared/logo/tachyon-charts-lockup-dark-transparent.svg?url';
 import icon from '../../../shared/logo/tachyon-charts-avatar-dark-32.png?url';
-import { pages, type Page } from './pages';
+import { pages, type Page, type PageRun } from './pages';
 import { t } from './texts';
 import type { ThemeDocument } from '@tachyon-charts/core';
 
@@ -76,18 +76,22 @@ function effectiveTheme(): ThemeDocument {
   return (chosen === 'auto' ? undefined : findBuiltInTheme(chosen)) ?? preferredTheme();
 }
 
+let running: PageRun | undefined;
+
 function show(page: Page): void {
   if (!chart) {
     return;
   }
   const builder = new ChartBuilder();
+  running?.dispose();
   page.configure(builder, effectiveTheme());
+  running = page.start?.();
   chart.chart = builder;
   if (title) {
     title.textContent = t(page.name);
   }
   if (hint) {
-    hint.textContent = t(page.hint);
+    hint.textContent = running?.status ? `${t(page.hint)} | ${t(running.status)}` : t(page.hint);
   }
   for (const [id, link] of links) {
     if (id === page.id) {

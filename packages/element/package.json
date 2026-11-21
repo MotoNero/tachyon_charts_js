@@ -4,11 +4,17 @@
   "description": "Tachyon Charts: The <tachyon-chart> web component.",
   "license": "Apache-2.0",
   "type": "module",
-  "sideEffects": false,
+  "sideEffects": [
+    "./dist/data-worker-entry.js"
+  ],
   "exports": {
     ".": {
       "types": "./dist/index.d.ts",
       "import": "./dist/index.js"
+    },
+    "./data-worker": {
+      "types": "./dist/data-worker-entry.d.ts",
+      "import": "./dist/data-worker-entry.js"
     }
   },
   "files": [

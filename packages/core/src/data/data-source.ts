@@ -1,5 +1,29 @@
 // A growing data source, as DataSource of the .NET version.
 import { checkLengths, MetadataScanner, type DataMetadata, type DataSnapshot, type PointSource } from './source';
+import {
+  allocateValues,
+  canShareMemory,
+  countIndex,
+  sequenceIndex,
+  type ShareableSource,
+  type SharedDataHandle,
+} from './worker-data';
+
+/** Options of a {@link DataSource}. */
+export interface DataSourceOptions {
+  /**
+   * Whether the values live in shared memory, which workers read and write without a copy. By default they do where
+   * the page is cross-origin isolated.
+   */
+  readonly shared?: boolean;
+}
+
+// The shared memory a worker publishes count and metadata in.
+interface WorkerLink {
+  readonly control: Int32Array;
+  readonly state: Float64Array;
+  sequence: number;
+}
 
 const minimumCapacity = 16;
 // The largest typed array that every browser allows.
@@ -24,7 +48,7 @@ export interface DataWriter {
  * A growing data source with separate X and Y arrays. New points are complete before they are published, and
  * published points never change; to grow or to clear, the source takes new arrays, so a snapshot stays valid.
  */
-export class DataSource implements PointSource {
+export class DataSource implements PointSource, ShareableSource {
   private x: Float64Array;
   private y: Float64Array;
   private count = 0;
@@ -33,31 +57,47 @@ export class DataSource implements PointSource {
   private scanner = new MetadataScanner();
   private current: DataMetadata;
   private writing = false;
+  private readonly shared: boolean;
+  private link: WorkerLink | undefined;
 
   /**
    * @param capacity - The points to make room for at once; the source grows beyond.
    */
-  constructor(capacity = 0) {
+  constructor(capacity = 0, options: DataSourceOptions = {}) {
     if (!Number.isInteger(capacity) || capacity < 0 || capacity > maximumCapacity) {
       throw new RangeError(`The capacity must be from 0 to ${String(maximumCapacity)}, not ${String(capacity)}.`);
     }
-    this.x = new Float64Array(capacity);
-    this.y = new Float64Array(capacity);
+    this.shared = options.shared ?? canShareMemory();
+    this.x = allocateValues(capacity, this.shared);
+    this.y = allocateValues(capacity, this.shared);
     this.current = this.scanner.toMetadata(0);
+  }
+
+  /** Whether the values live in shared memory. */
+  get isShared(): boolean {
+    return this.shared || this.link !== undefined;
+  }
+
+  /** Whether a worker writes this source (after {@link DataSource.shareWithWorker}). */
+  get isWrittenByWorker(): boolean {
+    return this.link !== undefined;
   }
 
   /** {@inheritDoc PointSource.version} */
   get version(): number {
+    this.follow();
     return this.changes;
   }
 
   /** {@inheritDoc PointSource.metadata} */
   get metadata(): DataMetadata {
+    this.follow();
     return this.current;
   }
 
   /** {@inheritDoc PointSource.snapshot} */
   snapshot(): DataSnapshot {
+    this.follow();
     return {
       x: this.x,
       y: this.y,
@@ -70,6 +110,7 @@ export class DataSource implements PointSource {
 
   /** {@inheritDoc PointSource.snapshotInto} */
   snapshotInto(target: DataSnapshot): DataSnapshot {
+    this.follow();
     target.x = this.x;
     target.y = this.y;
     target.count = this.count;
@@ -81,6 +122,7 @@ export class DataSource implements PointSource {
 
   /** {@inheritDoc PointSource.latest} */
   latest(): number | undefined {
+    this.follow();
     return this.count > 0 ? this.y[this.count - 1] : undefined;
   }
 
@@ -141,8 +183,8 @@ export class DataSource implements PointSource {
   /** Removes all points. Snapshots keep theirs: the source takes new arrays. */
   clear(): void {
     this.ensureNotWriting();
-    this.x = new Float64Array(0);
-    this.y = new Float64Array(0);
+    this.x = allocateValues(0, this.shared);
+    this.y = allocateValues(0, this.shared);
     this.count = 0;
     this.epoch++;
     this.scanner = new MetadataScanner();
@@ -167,15 +209,77 @@ export class DataSource implements PointSource {
       throw new RangeError('The data source cannot hold that many points.');
     }
     const capacity = Math.min(Math.max(required, this.x.length * 2, minimumCapacity), maximumCapacity);
-    const x = new Float64Array(capacity);
-    const y = new Float64Array(capacity);
+    const x = allocateValues(capacity, this.shared);
+    const y = allocateValues(capacity, this.shared);
     x.set(this.x.subarray(0, this.count));
     y.set(this.y.subarray(0, this.count));
     this.x = x;
     this.y = y;
   }
 
+  /**
+   * Hands writing over to a worker through shared memory: the source takes arrays for `capacity` points in shared
+   * memory (with the points it holds) and from then on shows what the worker publishes. Post the handle to the worker
+   * and write with `SharedDataWriter`, or use `linkDataSource`. Afterwards this thread can no longer append or clear.
+   * @throws Error when the page cannot share memory or a worker already writes the source.
+   * @throws RangeError when the source holds more than `capacity` points.
+   */
+  shareWithWorker(capacity: number): SharedDataHandle {
+    this.ensureNotWriting();
+    if (typeof SharedArrayBuffer !== 'function') {
+      throw new Error('This page cannot share memory with workers.');
+    }
+    if (!Number.isInteger(capacity) || capacity < this.count || capacity > maximumCapacity) {
+      throw new RangeError(`The capacity must hold the ${String(this.count)} points, not ${String(capacity)}.`);
+    }
+    const x = allocateValues(capacity, true);
+    const y = allocateValues(capacity, true);
+    x.set(this.x.subarray(0, this.count));
+    y.set(this.y.subarray(0, this.count));
+    this.x = x;
+    this.y = y;
+    const control = new SharedArrayBuffer(8);
+    const metadata = new SharedArrayBuffer(MetadataScanner.stateLength * 8);
+    const link: WorkerLink = { control: new Int32Array(control), state: new Float64Array(metadata), sequence: 0 };
+    Atomics.store(link.control, countIndex, this.count);
+    this.scanner.saveTo(link.state);
+    this.link = link;
+    return {
+      kind: 'tachyon-shared-data',
+      x: x.buffer as SharedArrayBuffer,
+      y: y.buffer as SharedArrayBuffer,
+      control,
+      metadata,
+    };
+  }
+
+  // Takes what the worker published since the last look; the sequence lock gives count and metadata of one moment.
+  private follow(): void {
+    const link = this.link;
+    if (!link) {
+      return;
+    }
+    const sequence = Atomics.load(link.control, sequenceIndex);
+    if (sequence === link.sequence || (sequence & 1) === 1) {
+      return;
+    }
+    const count = Atomics.load(link.control, countIndex);
+    this.scanner.loadFrom(link.state);
+    if (Atomics.load(link.control, sequenceIndex) !== sequence) {
+      return;
+    }
+    link.sequence = sequence;
+    if (count !== this.count) {
+      this.count = count;
+      this.current = this.scanner.toMetadata(count);
+      this.changes++;
+    }
+  }
+
   private ensureNotWriting(): void {
+    if (this.link) {
+      throw new Error('A worker writes this data source.');
+    }
     if (this.writing) {
       throw new Error('A writer of this data source is still open.');
     }

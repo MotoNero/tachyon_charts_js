@@ -57,6 +57,56 @@ const nextTask: Scheduler = (job) => {
 
 let nextRequestId = 1;
 
+// Routes the replies of a pyramid worker to the resampler that asked, with one listener per worker; a resampler that
+// is gone leaves nothing behind once its last request is answered.
+class PyramidClient {
+  private readonly waiting = new Map<number, (reply: PyramidReply) => void>();
+
+  constructor(private readonly endpoint: MessageEndpoint) {
+    endpoint.addEventListener('message', (event) => {
+      const reply = event.data as Partial<PyramidReply>;
+      if (reply.kind !== 'tachyon-pyramid' || reply.id === undefined || !reply.min || !reply.max) {
+        return;
+      }
+      const answer = this.waiting.get(reply.id);
+      this.waiting.delete(reply.id);
+      answer?.(reply as PyramidReply);
+    });
+    endpoint.start?.();
+  }
+
+  request(request: PyramidRequest, answer: (reply: PyramidReply) => void): void {
+    this.waiting.set(request.id, answer);
+    this.endpoint.postMessage(request, []);
+  }
+}
+
+const clients = new WeakMap<MessageEndpoint, PyramidClient>();
+let defaultWorker: MessageEndpoint | undefined;
+
+function clientOf(endpoint: MessageEndpoint): PyramidClient {
+  let client = clients.get(endpoint);
+  if (!client) {
+    client = new PyramidClient(endpoint);
+    clients.set(endpoint, client);
+  }
+  return client;
+}
+
+/**
+ * Sets the worker that builds the pyramids of all series without a worker of their own, such as one running
+ * `@tachyon-charts/core/pyramid-worker`; `undefined` builds them on this thread again. The worker reads values in shared
+ * memory only, so it helps on cross-origin isolated pages. `<tachyon-chart>` sets one there.
+ */
+export function setResamplingWorker(worker: MessageEndpoint | undefined): void {
+  defaultWorker = worker;
+}
+
+/** The worker of {@link setResamplingWorker}. */
+export function getResamplingWorker(): MessageEndpoint | undefined {
+  return defaultWorker;
+}
+
 /**
  * Resamples a data source. Append-only sources get a pyramid of extremes, built in a worker when one is given and the
  * values lie in shared memory, otherwise on this thread in slices between frames. A {@link FifoDataSource} overwrites
@@ -85,10 +135,6 @@ export class SeriesResampler {
     this.scheduler = options.scheduler ?? nextTask;
     this.sliceBlocks = Math.max(Math.trunc((options.sliceValues ?? 262_144) / baseBlockSize), 1);
     this.worker = options.worker;
-    this.worker?.addEventListener('message', (event) => {
-      this.receive(event.data);
-    });
-    this.worker?.start?.();
   }
 
   /** The memory of the pyramid in bytes. */
@@ -180,8 +226,9 @@ export class SeriesResampler {
       return;
     }
     this.pending = true;
-    const type = this.worker ? sharedTypeOf(snapshot.y) : undefined;
-    if (this.worker && type) {
+    const worker = this.worker ?? defaultWorker;
+    const type = worker ? sharedTypeOf(snapshot.y) : undefined;
+    if (worker && type) {
       this.requestId = nextRequestId++;
       const y = snapshot.y;
       const request: PyramidRequest = {
@@ -193,7 +240,7 @@ export class SeriesResampler {
         firstBlock,
         lastBlock,
       };
-      this.worker.postMessage(request, []);
+      clientOf(worker).request(request, this.answer);
     } else {
       this.scheduler(() => {
         this.slice();
@@ -211,9 +258,8 @@ export class SeriesResampler {
     }
   }
 
-  private receive(data: unknown): void {
-    const reply = data as Partial<PyramidReply>;
-    if (reply.kind !== 'tachyon-pyramid' || reply.id !== this.requestId || !reply.min || !reply.max) {
+  private readonly answer = (reply: PyramidReply): void => {
+    if (reply.id !== this.requestId) {
       return;
     }
     this.pending = false;
@@ -222,5 +268,5 @@ export class SeriesResampler {
     }
     // Points appended while the worker was busy follow at once.
     this.scheduleUpdate(this.source.snapshotInto(this.view));
-  }
+  };
 }

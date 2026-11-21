@@ -6,6 +6,7 @@ import {
   BarSeries,
   DataSource,
   findBuiltInTheme,
+  linkDataSource,
   parseThemeColor,
   resolveTheme,
   StackedAreaSeries,
@@ -18,12 +19,20 @@ import { t } from './texts';
  * A page: its name in the navigation, its group, the hint for the input and the chart. Names, groups and hints are the
  * English keys of texts.ts; `configure` gets the theme the chart is shown in.
  */
+/** What a running page keeps: a worker or a timer to stop when the next page shows, and a line for the hint. */
+export interface PageRun {
+  dispose(): void;
+  readonly status?: string;
+}
+
 export interface Page {
   readonly id: string;
   readonly name: string;
   readonly group: string;
   readonly hint: string;
   configure(builder: ChartBuilder, theme: ThemeDocument): void;
+  /** Starts what the page runs beside its chart, after `configure`. */
+  start?(): PageRun;
 }
 
 const plain = 'Wheel: zoom | Drag: pan | Ctrl+drag: zoom into a rectangle | Double click: all';
@@ -81,6 +90,35 @@ function curve(): DataSource {
   return data;
 }
 
+// A worker writes four million points while the chart draws: through shared memory on cross-origin isolated pages,
+// else in transferred blocks.
+function dataFromAWorker(): Page {
+  let data = new DataSource();
+  return {
+    id: 'data-from-a-worker',
+    name: 'Data from a worker',
+    group: 'Lines',
+    hint: points,
+    configure: (c) => {
+      data = new DataSource();
+      c.theme(instrument)
+        .xAxis((a) => a.numeric('x').autoRange())
+        .yAxis((a) => a.numeric('y').autoRange())
+        .addLine(data, (s) => s.name(t('Signal')));
+    },
+    start: () => {
+      const worker = new Worker(new URL('./stream-worker.ts', import.meta.url), { type: 'module' });
+      const path = linkDataSource(data, worker, { capacity: 4_000_000 });
+      return {
+        dispose: () => {
+          worker.terminate();
+        },
+        status: path === 'shared' ? 'Shared memory' : 'Transferred blocks',
+      };
+    },
+  };
+}
+
 /** All pages, in the order of the navigation. */
 export const pages: readonly Page[] = [
   {
@@ -126,6 +164,7 @@ export const pages: readonly Page[] = [
       numeric(c, 0, 10, -1.5, 2.5).addLine(data, (s) => s.name(t('Noisy wave')));
     },
   },
+  dataFromAWorker(),
   {
     id: 'scatter',
     name: 'Scatter',
