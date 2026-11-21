@@ -25,7 +25,7 @@ import {
   type TooltipData,
 } from '@tachyon-charts/core';
 import { createWebGpuDevice, createWebGpuWorkerDevice } from '@tachyon-charts/render-webgpu';
-import { joinFrameLoop, leaveFrameLoop, type LoopMember } from './frame-loop';
+import { joinFrameLoop, leaveFrameLoop, wakeFrameLoop, type LoopMember } from './frame-loop';
 import { bindChartInput } from './input-binding';
 import { watchPreferredTheme } from './css-theme';
 
@@ -105,9 +105,7 @@ export class TachyonChartElement extends HTMLElement {
   private device: RenderDevice | undefined;
   private engine: TextEngine | undefined;
   private readonly member: LoopMember = {
-    draw: () => {
-      this.draw();
-    },
+    draw: () => this.draw(),
     device: () => this.device,
   };
   private visible = true;
@@ -143,6 +141,7 @@ export class TachyonChartElement extends HTMLElement {
   set chart(value: ChartContent | undefined) {
     this.content = value;
     this.build();
+    wakeFrameLoop();
   }
 
   /** The chart as it is drawn, once the element has its text engine; `undefined` before. */
@@ -198,6 +197,7 @@ export class TachyonChartElement extends HTMLElement {
 
   /** Follows a change of `theme` or `interactive`. */
   attributeChangedCallback(name: string): void {
+    wakeFrameLoop();
     if (name === 'theme') {
       this.applyTheme();
     } else if (this.chartSurface) {
@@ -238,6 +238,7 @@ export class TachyonChartElement extends HTMLElement {
     }
     this.observer = new ResizeObserver((entries) => {
       this.measure(entries[0]);
+      wakeFrameLoop();
     });
     try {
       this.observer.observe(this.canvas, { box: 'device-pixel-content-box' });
@@ -246,12 +247,17 @@ export class TachyonChartElement extends HTMLElement {
       this.observer.observe(this.canvas);
     }
     this.cleanups.push(bindChartInput(this.canvas, this.modifiers));
+    // Input changes the chart at once; the loop must not wait for its next look.
+    for (const type of ['pointerdown', 'pointermove', 'wheel', 'keydown', 'touchstart'] as const) {
+      this.canvas.addEventListener(type, wakeFrameLoop, { passive: true });
+    }
     this.build();
     this.applyTheme();
     // A chart out of view keeps its changes until it shows again; its first frame it draws anyway.
     this.visibility = new IntersectionObserver((entries) => {
       const entry = entries[entries.length - 1];
       this.visible = entry?.isIntersecting ?? true;
+      wakeFrameLoop();
     });
     this.visibility.observe(this);
     joinFrameLoop(this.member);
@@ -285,12 +291,12 @@ export class TachyonChartElement extends HTMLElement {
   }
 
   // One frame of the loop of the page (frame-loop.ts), which also holds back charts of a worker that is behind.
-  private draw(): void {
+  private draw(): boolean {
     const target = this.target;
     const surface = this.chartSurface;
     const device = this.device;
     if (!target || !surface || !device || (!this.visible && this.framesDrawn > 0)) {
-      return;
+      return false;
     }
     // A new pixel ratio, such as on another screen, does not always reach the observer.
     if (devicePixelRatio !== this.measuredRatio) {
@@ -308,7 +314,9 @@ export class TachyonChartElement extends HTMLElement {
         this.resolveReady();
         this.dispatchEvent(new CustomEvent('tachyon-ready'));
       }
+      return true;
     }
+    return false;
   }
 
   private build(): void {

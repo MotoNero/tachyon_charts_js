@@ -387,7 +387,10 @@ export class LineSeries extends ChartSeries {
       }
       const high = f(top);
       const low = f(Number.isFinite(bottom) ? bottom : frame.bounds.y + frame.bounds.height);
-      const [first, second] = isOpen && Math.abs(f(last - high)) < Math.abs(f(last - low)) ? [high, low] : [low, high];
+      // The end nearer to the last column first; two variables, since an array here would cost one per column.
+      const highFirst = isOpen && Math.abs(f(last - high)) < Math.abs(f(last - low));
+      const first = highFirst ? high : low;
+      const second = highFirst ? low : high;
       if (first === second) {
         line.add(x, first);
       } else {
