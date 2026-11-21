@@ -5,7 +5,149 @@
 ```ts
 
 // @public
+export function blobSource(blob: Blob): ByteSource;
+
+// @public
+export interface ByteSink {
+    close(): void | Promise<void>;
+    write(offset: number, bytes: Uint8Array): void | Promise<void>;
+}
+
+// @public
+export interface ByteSource {
+    close?(): void;
+    read(offset: number, length: number): Promise<Uint8Array>;
+    readSync?(offset: number, length: number): Uint8Array;
+    readonly size: number;
+}
+
+// @public
+export class ColumnFile implements ColumnHeader {
+    readonly blockRows: number;
+    get canReadSync(): boolean;
+    close(): void;
+    column(index?: number): FileColumn;
+    readonly columns: number;
+    static open(source: ByteSource): Promise<ColumnFile>;
+    read(column: number, start: number, maxLength: number): Promise<ColumnValues>;
+    readSync(column: number, start: number, maxLength: number): ColumnValues;
+    readWords(first: number, maxWords: number): Promise<BigUint64Array>;
+    readonly rows: number;
+    readonly type: ColumnType;
+    readonly xStart: number;
+    readonly xStep: number;
+}
+
+// @public
+export function columnFileSize(header: ColumnHeader): number;
+
+// @public
+export class ColumnFileWriter {
+    constructor(sink: ByteSink, options?: ColumnFileWriterOptions);
+    append(values: ArrayLike<number>): Promise<void>;
+    close(): Promise<void>;
+    static readonly defaultBlockRows: number;
+    get rowCount(): number;
+    setX(xStart: number, xStep: number): void;
+}
+
+// @public
+export interface ColumnFileWriterOptions {
+    readonly blockRows?: number;
+    readonly columns?: number;
+    readonly type?: Exclude<ColumnType, 'bit'>;
+    readonly xStart?: number;
+    readonly xStep?: number;
+}
+
+// @public
+export interface ColumnHeader {
+    readonly blockRows: number;
+    readonly columns: number;
+    readonly rows: number;
+    readonly type: ColumnType;
+    readonly xStart: number;
+    readonly xStep: number;
+}
+
+// @public
+export const columnHeaderSize = 64;
+
+// @public
+export type ColumnType = 'float64' | 'float32' | 'int16' | 'int32' | 'bit';
+
+// @public
+export type ColumnValues = Float64Array | Float32Array | Int16Array | Int32Array;
+
+// @public
+export function columnValueSize(type: ColumnType): number;
+
+// @public
+export class FileColumn {
+    // @internal
+    constructor(file: ColumnFile,
+    index: number);
+    get count(): number;
+    readonly index: number;
+    read(start: number, maxLength: number): Promise<ColumnValues>;
+    readonly version = 0;
+    get xStart(): number;
+    get xStep(): number;
+}
+
+// @public
+export function httpSource(url: string | URL, options?: HttpSourceOptions): Promise<ByteSource>;
+
+// @public
+export interface HttpSourceOptions {
+    readonly fetch?: typeof fetch;
+    readonly headers?: Record<string, string>;
+}
+
+// @public
+export class MemorySink implements ByteSink {
+    bytes(): Uint8Array;
+    close(): void;
+    write(offset: number, bytes: Uint8Array): void;
+}
+
+// @public
+export function opfsFile(path: string, create?: boolean): Promise<FileSystemFileHandle>;
+
+// @public
+export function opfsSource(path: string): Promise<ByteSource>;
+
+// @public
+export function readColumnHeader(bytes: Uint8Array): ColumnHeader;
+
+// @public
+export interface SyncAccessHandle {
+    close(): void;
+    flush(): void;
+    getSize(): number;
+    read(buffer: Uint8Array, options: {
+        at: number;
+    }): number;
+    truncate(size: number): void;
+    write(buffer: Uint8Array, options: {
+        at: number;
+    }): number;
+}
+
+// @public
+export function syncHandleSink(handle: SyncAccessHandle): ByteSink;
+
+// @public
+export function syncHandleSource(handle: SyncAccessHandle): ByteSource;
+
+// @public
 export const version = "0.1.0-dev";
+
+// @public
+export function writableSink(stream: FileSystemWritableFileStream): ByteSink;
+
+// @public
+export function writeColumnHeader(header: ColumnHeader): Uint8Array;
 
 // (No @packageDocumentation comment for this package)
 

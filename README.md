@@ -134,6 +134,26 @@ writer.append(xs, ys);
 450 ms when the same points are appended on the main thread. The showroom streams four million points on the page
 "Data from a worker".
 
+## Column files
+
+`@tachyon-charts/large-data` reads and writes column files (TCOL), the format of the .NET version for data larger than
+memory: both versions read each other's files, and write the same bytes. A file opens from a `File` dropped onto the
+page, from the origin private file system (synchronous access in a worker), or from a server with HTTP range requests;
+only the pieces read travel.
+
+```ts
+import { ColumnFile, ColumnFileWriter, httpSource, MemorySink } from '@tachyon-charts/large-data';
+
+const file = await ColumnFile.open(await httpSource('/data/signal.tcol'));
+const values = await file.read(0, 1_000_000, 4096); // column 0, from row 1 000 000, up to 4 096 values
+
+const writer = new ColumnFileWriter(new MemorySink(), { type: 'float32', columns: 2, xStep: 0.001 });
+await writer.append(rows); // x0, y0, x1, y1, …
+await writer.close();
+```
+
+Charts draw such files with the pyramid of the next version.
+
 ## Interaction
 
 ![A crosshair with the values of two lines beside it and the values of both axes at its lines](docs/images/crosshair-values.png)
