@@ -2,6 +2,7 @@
 // (bit-reversed order, as in .NET, so that a coarse picture of all of it comes first), keeps finished pyramids in the
 // origin private file system, and reads blocks and rows for the main thread.
 import { blobSource, httpSource, opfsFile, opfsSource, type ByteSource, type SyncAccessHandle } from './byte-source';
+import { changeBlockSize } from '@tachyon-charts/core';
 import { ColumnFile, type ColumnType } from './column-file';
 import {
   blockExtremes,
@@ -24,6 +25,7 @@ export type ColumnRequest =
   | { readonly kind: 'open'; readonly location: ColumnLocation; readonly column: number; readonly cache: boolean }
   | { readonly kind: 'blocks'; readonly request: number; readonly blocks: readonly number[] }
   | { readonly kind: 'rows'; readonly request: number; readonly start: number; readonly count: number }
+  | { readonly kind: 'bits'; readonly request: number; readonly page: number }
   | { readonly kind: 'close' };
 
 /** The messages of the column worker. */
@@ -41,6 +43,13 @@ export type ColumnReply =
   | { readonly kind: 'complete'; readonly milliseconds: number; readonly fromCache: boolean }
   | { readonly kind: 'blockValues'; readonly request: number; readonly blocks: number[]; readonly values: Float64Array }
   | { readonly kind: 'rowValues'; readonly request: number; readonly start: number; readonly values: Float64Array }
+  | {
+      readonly kind: 'bitPiece';
+      readonly piece: number;
+      readonly changes: Uint8Array;
+      readonly starts: Uint8Array;
+    }
+  | { readonly kind: 'bitValues'; readonly request: number; readonly page: number; readonly words: Uint32Array }
   | { readonly kind: 'error'; readonly message: string };
 
 /** Where messages go and come from: the global scope of the worker, or a port in tests. */
@@ -141,6 +150,9 @@ async function readBlocks(file: ColumnFile, column: number, blocks: readonly num
   return values;
 }
 
+/** Points per page of bits a column worker reads at once. */
+export const bitPageRows = 1 << 16;
+
 const cacheFolder = 'tachyon-pyramids';
 
 async function loadCached(name: string): Promise<Uint8Array | undefined> {
@@ -215,6 +227,47 @@ export function serveColumn(endpoint: ColumnEndpoint): void {
     }
   };
 
+  // The index of changes of a bit column, piece by piece over the whole column: per block of 4096 points whether a
+  // point differs from the one before it, and the level of its first point.
+  const buildChanges = async (): Promise<void> => {
+    const opened = file as ColumnFile;
+    const start = performance.now();
+    const pieces = Math.ceil(opened.rows / pyramidPieceSize);
+    for (const piece of pieceOrder(pieces)) {
+      if (closed) {
+        return;
+      }
+      const first = piece * pyramidPieceSize;
+      const points = Math.min(pyramidPieceSize, opened.rows - first);
+      // One word more in front: the point before the piece.
+      const lead = first > 0 ? 1 : 0;
+      const words = await opened.readWords32(first / 32 - lead, Math.ceil(points / 32) + lead);
+      const blocks = Math.ceil(points / changeBlockSize);
+      const changes = new Uint8Array(blocks);
+      const starts = new Uint8Array(blocks);
+      for (let block = 0; block < blocks; block++) {
+        const begin = block * (changeBlockSize / 32);
+        const end = Math.min(begin + changeBlockSize / 32, Math.ceil(points / 32));
+        starts[block] = ((words[begin + lead] as number) & 1) === 1 ? 1 : 0;
+        let previous = begin + lead > 0 ? ((words[begin + lead - 1] as number) >>> 31) & 1 : (words[0] as number) & 1;
+        let any = 0;
+        for (let w = begin; w < end && any === 0; w++) {
+          const word = words[w + lead] as number;
+          let changed = (word ^ ((word << 1) | previous)) >>> 0;
+          const valid = points - w * 32;
+          if (valid < 32) {
+            changed &= (1 << valid) - 1;
+          }
+          any = changed === 0 ? 0 : 1;
+          previous = word >>> 31;
+        }
+        changes[block] = any;
+      }
+      send({ kind: 'bitPiece', piece, changes, starts }, [changes.buffer, starts.buffer]);
+    }
+    send({ kind: 'complete', milliseconds: performance.now() - start, fromCache: false });
+  };
+
   endpoint.addEventListener('message', (event) => {
     const request = event.data as ColumnRequest;
     void (async () => {
@@ -223,9 +276,6 @@ export function serveColumn(endpoint: ColumnEndpoint): void {
           file = await ColumnFile.open(await sourceOf(request.location));
           column = request.column;
           file.column(column);
-          if (file.type === 'bit') {
-            throw new Error('A bit column is drawn as a digital channel, not as a line.');
-          }
           send({
             kind: 'opened',
             type: file.type,
@@ -234,10 +284,14 @@ export function serveColumn(endpoint: ColumnEndpoint): void {
             xStart: file.xStart,
             xStep: file.xStep,
           });
-          await build(request.cache);
+          await (file.type === 'bit' ? buildChanges() : build(request.cache));
         } else if (request.kind === 'blocks' && file) {
           const values = await readBlocks(file, column, request.blocks);
           send({ kind: 'blockValues', request: request.request, blocks: [...request.blocks], values }, [values.buffer]);
+        } else if (request.kind === 'bits' && file) {
+          const words = await file.readWords32((request.page * bitPageRows) / 32, bitPageRows / 32);
+          const copy = words.slice();
+          send({ kind: 'bitValues', request: request.request, page: request.page, words: copy }, [copy.buffer]);
         } else if (request.kind === 'rows' && file) {
           const count = Math.max(0, Math.min(request.count, file.rows - request.start));
           const values = await readRange(file, column, request.start, count);

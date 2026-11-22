@@ -188,6 +188,25 @@ export class ColumnFile implements ColumnHeader {
     return new BigUint64Array(aligned(bytes, 8).buffer, 0, count);
   }
 
+  /**
+   * Reads the words of a bit column as 32-bit words, two to each 64-bit word of the file and in the same order of bits:
+   * bit i of the column is bit (i % 32) of word i / 32.
+   * @returns At most `maxWords` words from `first` on.
+   */
+  async readWords32(first: number, maxWords: number): Promise<Uint32Array> {
+    if (this.type !== 'bit') {
+      throw new Error('Only a bit column has words.');
+    }
+    const count = Math.max(0, Math.min(maxWords, Math.ceil(this.rows / 64) * 2 - first));
+    if (count === 0) {
+      return new Uint32Array(0);
+    }
+    const bytes = this.source.readSync
+      ? this.source.readSync(columnHeaderSize + first * 4, count * 4)
+      : await this.source.read(columnHeaderSize + first * 4, count * 4);
+    return new Uint32Array(aligned(bytes, 4).buffer, aligned(bytes, 4).byteOffset, count);
+  }
+
   /** Releases the source, such as the lock of an OPFS file. */
   close(): void {
     this.source.close?.();

@@ -5,16 +5,22 @@ import {
   BandSeries,
   BarSeries,
   DataSource,
+  DigitalSeries,
+  DigitalTransitions,
   FifoDataSource,
   ChartBuilder,
+  rgba,
   findBuiltInTheme,
   linkDataSource,
   parseThemeColor,
   resolveTheme,
   StackedAreaSeries,
+  type DigitalSource,
   type ThemeDocument,
 } from '@tachyon-charts/core';
 import {
+  BitColumn,
+  BitFileWriter,
   ColumnFile,
   ColumnLineSeries,
   ColumnRecorder,
@@ -220,6 +226,134 @@ function recording(): Page {
           run.stopped = true;
           cancelAnimationFrame(run.frame);
           recorder?.dispose();
+        },
+      };
+    },
+  };
+}
+
+// 16 digital channels of a billion points each, one point a nanosecond: 15 kept as their changes in memory, the
+// first read from a bit file of 125 MB in OPFS with one pulse of a single nanosecond. Every edge shows, however far out.
+const bitFile = { path: 'showroom/channel.tcol', count: 1_000_000_000, pulse: 612_345_678 };
+
+async function writeBitFile(progress: (share: number) => void): Promise<void> {
+  const handle = await opfsFile(bitFile.path, true);
+  if ((await handle.getFile()).size >= 64 + bitFile.count / 8) {
+    return;
+  }
+  const writer = new BitFileWriter(writableSink(await handle.createWritable()), 0, 1e-9);
+  // A clock that slows down, and the pulse.
+  let level = false;
+  for (let at = 0, period = 2048; at < bitFile.count;) {
+    const run = Math.min(period, bitFile.count - at);
+    if (at <= bitFile.pulse && bitFile.pulse < at + run && !level) {
+      await writer.append(false, bitFile.pulse - at);
+      await writer.append(true, 1);
+      await writer.append(false, at + run - bitFile.pulse - 1);
+    } else {
+      await writer.append(level, run);
+    }
+    at += run;
+    level = !level;
+    period = at < bitFile.count / 2 ? 2048 : 4_000_000;
+    if (at % (1 << 26) < run) {
+      progress(at / bitFile.count);
+    }
+  }
+  await writer.close();
+}
+
+function digitalChannels(): Page {
+  const hint = 'Wheel: zoom | Drag: pan | Double click: all';
+  const colors = [rgba(110, 210, 130), rgba(80, 170, 240), rgba(240, 130, 90), rgba(230, 200, 80)];
+  return {
+    id: 'digital-channels',
+    name: 'Digital channels',
+    group: 'Lines',
+    hint,
+    configure: (c) => {
+      c.theme(instrument)
+        .xAxis((a) => a.numeric('x'))
+        .yAxis((a) => a.numeric('y'));
+    },
+    start: () => {
+      const run = { stopped: false };
+      const stopped = (): boolean => run.stopped;
+      let file: BitColumn | undefined;
+      const chart = document.querySelector<HTMLElement & { chart: unknown }>('#chart');
+      const say = (text: string): void => {
+        const element = document.querySelector('#hint');
+        if (element) {
+          element.textContent = `${t(hint)} | ${text}`;
+        }
+      };
+      void (async () => {
+        await writeBitFile((share) => {
+          say(`${t('The first visit writes a bit file of 125 MB')} ${String(Math.floor(share * 100))} %`);
+        });
+        if (stopped()) {
+          return;
+        }
+        const opened = await BitColumn.open({ opfs: bitFile.path });
+        if (stopped()) {
+          opened.dispose();
+          return;
+        }
+        file = opened;
+        const status = (): void => {
+          say(
+            opened.isComplete
+              ? t('16 channels of a billion points; channel 1 from a file, with one pulse of a nanosecond')
+              : `${t('Refining')} ${String(Math.floor(opened.progress * 100))} %`,
+          );
+        };
+        opened.onChange(status);
+        status();
+        // 15 channels in memory as a bus would carry them: quiet stretches of 20 to 120 ms, then bursts of 5 to 30 ms
+        // whose clock differs from channel to channel.
+        const sources: DigitalSource[] = [opened];
+        for (let channel = 1; channel < 16; channel++) {
+          const transitions = new DigitalTransitions(0, 1e-9);
+          let seed = channel * 7919;
+          const random = (range: number): number => {
+            seed = (Math.imul(seed, 1_664_525) + 1_013_904_223) >>> 0;
+            return seed % range;
+          };
+          const half = 500 * channel;
+          for (let at = 0; at < 1_000_000_000;) {
+            const quiet = Math.min(20_000_000 + random(100_000_000), 1_000_000_000 - at);
+            transitions.append(false, quiet);
+            at += quiet;
+            const end = Math.min(at + 5_000_000 + random(25_000_000), 1_000_000_000);
+            for (let level = true; at < end; level = !level) {
+              const length = Math.min(half + random(half), end - at);
+              transitions.append(level, length);
+              at += length;
+            }
+          }
+          sources.push(transitions);
+        }
+        if (chart) {
+          let builder = new ChartBuilder()
+            .theme(instrument)
+            .xAxis((a) => a.numeric('x').title(t('Time in s')).autoRange())
+            .yAxis((a) => a.numeric('y').range(-0.5, 16));
+          sources.forEach((source, channel) => {
+            builder = builder.addSeries((x, y) => {
+              const series = new DigitalSeries(source, x, y);
+              series.low = 15 - channel;
+              series.high = 15 - channel + 0.7;
+              series.color = colors[channel % colors.length] ?? series.color;
+              return series;
+            });
+          });
+          chart.chart = builder;
+        }
+      })();
+      return {
+        dispose: () => {
+          run.stopped = true;
+          file?.dispose();
         },
       };
     },
@@ -550,6 +684,7 @@ export const pages: readonly Page[] = [
   lineFromALargeFile(),
   lineFromACsvFile(),
   recording(),
+  digitalChannels(),
   {
     id: 'scatter',
     name: 'Scatter',

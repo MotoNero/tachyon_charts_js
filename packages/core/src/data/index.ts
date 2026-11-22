@@ -25,3 +25,4 @@ export {
   type NumberArray,
   type PointSource,
 } from './source';
+export { ChangeIndex, changeBlockSize, DigitalTransitions, PackedBits, type DigitalSource } from './digital';

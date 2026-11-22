@@ -255,6 +255,18 @@ export class CategoryAxis extends Axis {
 }
 
 // @public
+export const changeBlockSize = 4096;
+
+// @public
+export class ChangeIndex {
+    constructor(points: number);
+    firstChangedBlock(first: number, end: number): number;
+    readonly levels: Uint8Array[];
+    setBlocks(first: number, flags: ArrayLike<number>): void;
+    get version(): number;
+}
+
+// @public
 export class ChartBuilder {
     addLine(source: PointSource, configure?: (line: LineBuilder) => unknown): this;
     addScatter(source: PointSource, configure?: (scatter: ScatterBuilder) => unknown): this;
@@ -672,6 +684,54 @@ export interface DeviceCapabilities {
 // @public
 export class DeviceLostError extends Error {
     constructor(message?: string);
+}
+
+// @public
+export class DigitalSeries extends ChartSeries {
+    constructor(
+    source: DigitalSource, xAxis: Axis, yAxis: Axis);
+    get accentColor(): Rgba8;
+    get color(): Rgba8;
+    set color(value: Rgba8);
+    dataRange(axis: 'x' | 'y'): DoubleRange | undefined;
+    draw(commands: CommandList): void;
+    get drawnPointCount(): number;
+    get high(): number;
+    set high(value: number);
+    get low(): number;
+    set low(value: number);
+    prepare(device: RenderDevice, frame: SeriesFrame): void;
+    prepareData(frame: SeriesFrame): void;
+    releaseResources(): void;
+    readonly source: DigitalSource;
+    get thickness(): number;
+    set thickness(value: number);
+    get version(): number;
+}
+
+// @public
+export interface DigitalSource {
+    readonly count: number;
+    levelAt(index: number): boolean;
+    nextChange(from: number, to: number): number;
+    readonly version: number;
+    readonly xStart: number;
+    readonly xStep: number;
+}
+
+// @public
+export class DigitalTransitions implements DigitalSource {
+    constructor(
+    xStart?: number,
+    xStep?: number);
+    append(level: boolean, count?: number): void;
+    get count(): number;
+    levelAt(index: number): boolean;
+    nextChange(from: number, to: number): number;
+    get transitionCount(): number;
+    get version(): number;
+    readonly xStart: number;
+    readonly xStep: number;
 }
 
 // @public
@@ -1172,6 +1232,23 @@ export interface OverlayColors {
     readonly crosshairLabelFill: Rgba8;
     readonly crosshairLabelText: Rgba8;
     readonly text: Rgba8;
+}
+
+// @public
+export class PackedBits implements DigitalSource {
+    constructor(
+    words: Uint32Array,
+    count: number,
+    xStart?: number,
+    xStep?: number);
+    readonly count: number;
+    readonly index: ChangeIndex;
+    levelAt(index: number): boolean;
+    nextChange(from: number, to: number): number;
+    get version(): number;
+    readonly words: Uint32Array;
+    readonly xStart: number;
+    readonly xStep: number;
 }
 
 // @public

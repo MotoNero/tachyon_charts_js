@@ -12,6 +12,10 @@ const german: Readonly<Record<string, string>> = {
   'Line from a large file': 'Linie aus einer großen Datei',
   'Line from a CSV file': 'Linie aus einer CSV-Datei',
   Recording: 'Aufzeichnung',
+  'Digital channels': 'Digitale Kanäle',
+  'The first visit writes a bit file of 125 MB': 'Der erste Besuch schreibt eine Bit-Datei von 125 MB',
+  '16 channels of a billion points; channel 1 from a file, with one pulse of a nanosecond':
+    '16 Kanäle zu einer Milliarde Punkten; Kanal 1 aus einer Datei, mit einem Puls von einer Nanosekunde',
   'Wheel: zoom | Drag: pan | Double click: all, rolling': 'Rad: Zoom | Ziehen: Pan | Doppelklick: alles, rollend',
   'values recorded': 'Werte aufgezeichnet',
   files: 'Dateien',

@@ -176,6 +176,27 @@ A billion float32 values (4 GB) from the origin private file system: first pictu
 complete after 5.5–6.4 s, zoom and pan at 60 FPS, the spike among them kept. The showroom writes a test file of 1 GB
 on the page "Line from a large file".
 
+### Digital channels
+
+![Sixteen digital channels of a billion points each, one of them from a bit file, as levels, edges and bursts](docs/images/digital-channels.png)
+
+`DigitalSeries` draws a digital signal as levels and edges, low and high at two values of the Y axis, so that many
+channels stand one above the other. Each pixel column asks only for its level and whether it changes, so no edge is
+lost, however many points a view holds; narrow views draw every change. Signals come as `DigitalTransitions` (the
+places where the level changes), `PackedBits` in memory, or `BitColumn` from a bit column of a column file, whose
+index of changes a worker builds while the chart already draws. `BitFileWriter` writes such files, the same bytes as
+the .NET version.
+
+```ts
+import { DigitalSeries, DigitalTransitions } from '@tachyon-charts/core';
+import { BitColumn } from '@tachyon-charts/large-data';
+
+const clock = new DigitalTransitions(0, 1e-9);
+clock.append(true, 500); // levels as they come, in runs
+const file = await BitColumn.open({ opfs: 'capture/channel0.tcol' });
+builder.addSeries((x, y) => Object.assign(new DigitalSeries(file, x, y), { low: 1, high: 1.7 }));
+```
+
 ### Recording for hours
 
 ![A live recording of a million values per second into a ring of files, drawn while it grows](docs/images/recording.png)

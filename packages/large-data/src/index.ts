@@ -46,6 +46,7 @@ export {
   type PyramidLevel,
 } from './column-pyramid';
 export {
+  bitPageRows,
   columnFingerprint,
   pieceOrder,
   serveColumn,
@@ -80,3 +81,4 @@ export {
   type RecorderRequest,
   type RecordingSettings,
 } from './recorder-worker';
+export { BitColumn, BitFileWriter } from './bit-column';

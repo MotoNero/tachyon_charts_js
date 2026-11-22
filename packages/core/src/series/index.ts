@@ -14,3 +14,4 @@ export {
   type SeriesFill,
 } from './ribbon-series';
 export { BarSeries, computeBarEnds, type BarLayout } from './bar-series';
+export { DigitalSeries } from './digital-series';

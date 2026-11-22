@@ -5,12 +5,44 @@
 ```ts
 
 import { Axis } from '@tachyon-charts/core';
+import { ChangeIndex } from '@tachyon-charts/core';
 import { ChartSeries } from '@tachyon-charts/core';
 import { CommandList } from '@tachyon-charts/core';
+import { DigitalSource } from '@tachyon-charts/core';
 import { DoubleRange as DoubleRange_2 } from '@tachyon-charts/core';
 import { RenderDevice } from '@tachyon-charts/core';
 import { Rgba8 } from '@tachyon-charts/core';
 import { SeriesFrame } from '@tachyon-charts/core';
+
+// @public
+export class BitColumn implements DigitalSource {
+    readonly count: number;
+    dispose(): void;
+    get error(): string | undefined;
+    readonly index: ChangeIndex;
+    get isComplete(): boolean;
+    levelAt(index: number): boolean;
+    nextChange(from: number, to: number): number;
+    onChange(listener: () => void): () => void;
+    static open(location: ColumnLocation, options?: {
+        worker?: Worker;
+    }): Promise<BitColumn>;
+    get progress(): number;
+    get version(): number;
+    readonly xStart: number;
+    readonly xStep: number;
+}
+
+// @public
+export class BitFileWriter {
+    constructor(sink: ByteSink, xStart?: number, xStep?: number);
+    append(level: boolean, count?: number): Promise<void>;
+    close(): Promise<void>;
+    get count(): number;
+}
+
+// @public
+export const bitPageRows: number;
 
 // @public
 export function blobSource(blob: Blob): ByteSource;
@@ -51,6 +83,7 @@ export class ColumnFile implements ColumnHeader {
     read(column: number, start: number, maxLength: number): Promise<ColumnValues>;
     readSync(column: number, start: number, maxLength: number): ColumnValues;
     readWords(first: number, maxWords: number): Promise<BigUint64Array>;
+    readWords32(first: number, maxWords: number): Promise<Uint32Array>;
     readonly rows: number;
     readonly type: ColumnType;
     readonly xStart: number;
@@ -215,6 +248,16 @@ export type ColumnReply = {
     readonly start: number;
     readonly values: Float64Array;
 } | {
+    readonly kind: 'bitPiece';
+    readonly piece: number;
+    readonly changes: Uint8Array;
+    readonly starts: Uint8Array;
+} | {
+    readonly kind: 'bitValues';
+    readonly request: number;
+    readonly page: number;
+    readonly words: Uint32Array;
+} | {
     readonly kind: 'error';
     readonly message: string;
 };
@@ -234,6 +277,10 @@ export type ColumnRequest = {
     readonly request: number;
     readonly start: number;
     readonly count: number;
+} | {
+    readonly kind: 'bits';
+    readonly request: number;
+    readonly page: number;
 } | {
     readonly kind: 'close';
 };
