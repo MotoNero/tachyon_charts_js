@@ -5,7 +5,8 @@
   "license": "Apache-2.0",
   "type": "module",
   "sideEffects": [
-    "./dist/column-worker-entry.js"
+    "./dist/column-worker-entry.js",
+    "./dist/csv-worker-entry.js"
   ],
   "exports": {
     ".": {
@@ -15,6 +16,10 @@
     "./column-worker": {
       "types": "./dist/column-worker-entry.d.ts",
       "import": "./dist/column-worker-entry.js"
+    },
+    "./csv-worker": {
+      "types": "./dist/csv-worker-entry.d.ts",
+      "import": "./dist/csv-worker-entry.js"
     }
   },
   "files": [

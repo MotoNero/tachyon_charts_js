@@ -213,6 +213,61 @@ export type ColumnValues = Float64Array | Float32Array | Int16Array | Int32Array
 export function columnValueSize(type: ColumnType): number;
 
 // @public
+export interface CsvColumns {
+    readonly columns?: readonly number[];
+    readonly format?: CsvFormat;
+    readonly xColumn?: number;
+    readonly xStart?: number;
+    readonly xStep?: number;
+}
+
+// @public
+export interface CsvConversionOptions extends CsvColumns {
+    readonly createWorker?: () => Worker;
+    readonly onProgress?: (share: number) => void;
+    readonly pieceBytes?: number;
+    readonly signal?: AbortSignal;
+    readonly size?: number;
+    readonly workers?: number;
+}
+
+// @public
+export interface CsvFormat {
+    readonly decimalComma?: boolean;
+    readonly delimiter?: string;
+    readonly hasHeader?: boolean;
+}
+
+// @public
+export interface CsvLayout {
+    readonly decimalComma: boolean;
+    readonly delimiter: number;
+    readonly hasX: boolean;
+    readonly kept: number;
+    readonly slots: readonly number[];
+}
+
+// @public
+export interface CsvPiece {
+    readonly lineOfRow: Int32Array;
+    readonly lines: number;
+    readonly rows: number;
+    readonly values: Float64Array;
+    readonly xs: Float64Array;
+}
+
+// @public
+export interface CsvSummary {
+    readonly names: readonly string[];
+    readonly rows: number;
+    readonly xStart: number;
+    readonly xStep: number;
+}
+
+// @public
+export function csvToColumnFile(input: Blob | ReadableStream<Uint8Array>, sink: ByteSink, options?: CsvConversionOptions): Promise<CsvSummary>;
+
+// @public
 export interface Extremes {
     max: number;
     min: number;
@@ -290,6 +345,15 @@ export function opfsFile(path: string, create?: boolean): Promise<FileSystemFile
 export function opfsSource(path: string): Promise<ByteSource>;
 
 // @public
+export function parseCsvPiece(bytes: Uint8Array, layout: CsvLayout): CsvPiece;
+
+// @public
+export function parseNumberBytes(bytes: Uint8Array, start: number, end: number, decimalComma: boolean): number;
+
+// @public
+export function parseNumberText(text: string, decimalComma: boolean): number;
+
+// @public
 export function pieceOrder(count: number): number[];
 
 // @public
@@ -321,6 +385,9 @@ export function readPyramidFile(bytes: Uint8Array, type: Exclude<ColumnType, 'bi
 
 // @public
 export function serveColumn(endpoint: ColumnEndpoint): void;
+
+// @public
+export function splitCsvLine(line: string, delimiter: string): string[];
 
 // @public
 export interface SyncAccessHandle {

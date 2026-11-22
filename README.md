@@ -176,6 +176,28 @@ A billion float32 values (4 GB) from the origin private file system: first pictu
 complete after 5.5–6.4 s, zoom and pan at 60 FPS, the spike among them kept. The showroom writes a test file of 1 GB
 on the page "Line from a large file".
 
+### CSV into column files
+
+![A line from a CSV file of 200 MB, converted in under a second, with the button to choose a file of one's own](docs/images/line-from-a-csv-file.png)
+
+`csvToColumnFile` converts a CSV file of numbers into a column file once, as the .NET version does and to the same
+values: the file streams in (a `File`, a `Blob` or the body of a fetch), is cut into pieces at line ends and parsed
+in parse workers on all cores, and the rows are written in order. The header names the columns; X comes from a column
+when it steps evenly, else the rows are numbered. Delimiters, a decimal comma, thousands separators, quotes and
+values that are no numbers (they become gaps) are handled.
+
+```ts
+import { csvToColumnFile, opfsFile, writableSink } from '@tachyon-charts/large-data';
+
+const target = await opfsFile('data/run.tcol', true);
+const summary = await csvToColumnFile(file, writableSink(await target.createWritable()), {
+  xColumn: 0,
+  onProgress: (share) => (bar.value = share),
+});
+```
+
+A CSV file of 1 GB converts into the origin private file system in 4.6–4.9 s (about 210 MB/s with 8 workers).
+
 ## Interaction
 
 ![A crosshair with the values of two lines beside it and the values of both axes at its lines](docs/images/crosshair-values.png)

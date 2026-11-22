@@ -14,7 +14,15 @@ import {
   StackedAreaSeries,
   type ThemeDocument,
 } from '@tachyon-charts/core';
-import { ColumnFile, ColumnLineSeries, LargeColumn, opfsSource } from '@tachyon-charts/large-data';
+import {
+  ColumnFile,
+  ColumnLineSeries,
+  csvToColumnFile,
+  LargeColumn,
+  opfsFile,
+  opfsSource,
+  writableSink,
+} from '@tachyon-charts/large-data';
 import { t } from './texts';
 
 /**
@@ -107,6 +115,131 @@ async function hasLargeFile(): Promise<boolean> {
   } catch {
     return false;
   }
+}
+
+// A CSV file converted into a column file in parse workers, then drawn through its pyramid: a sample of 200 MB the
+// first visit writes, or a file of one's own.
+const sampleCsv = { path: 'showroom/sample.csv', size: 200_000_000 };
+
+async function writeSampleCsv(progress: (share: number) => void): Promise<void> {
+  const handle = await opfsFile(sampleCsv.path, true);
+  if ((await handle.getFile()).size >= sampleCsv.size) {
+    return;
+  }
+  const stream = await handle.createWritable();
+  await stream.write('time,value\n');
+  let level = 0;
+  for (let size = 0, row = 0; size < sampleCsv.size;) {
+    let part = '';
+    for (let i = 0; i < 100_000; i++, row++) {
+      level += (Math.random() - 0.5) * 0.01;
+      const value = Math.sin(row / 400_000) + 0.2 * Math.sin(row / 977) + level;
+      part += `${(row / 1000).toFixed(3)},${value.toFixed(5)}\n`;
+    }
+    size += part.length;
+    await stream.write(part);
+    progress(size / sampleCsv.size);
+  }
+  await stream.close();
+}
+
+function lineFromACsvFile(): Page {
+  const hint = 'Wheel: zoom | Drag: pan | Ctrl+drag: zoom into a rectangle | Double click: all';
+  return {
+    id: 'line-from-a-csv-file',
+    name: 'Line from a CSV file',
+    group: 'Lines',
+    hint,
+    configure: (c) => {
+      c.theme(instrument)
+        .xAxis((a) => a.numeric('x'))
+        .yAxis((a) => a.numeric('y'));
+    },
+    start: () => {
+      const run = { stopped: false, conversion: 0 };
+      const stopped = (): boolean => run.stopped;
+      let column: LargeColumn | undefined;
+      const chart = document.querySelector<HTMLElement & { chart: unknown }>('#chart');
+      const say = (text: string): void => {
+        const element = document.querySelector('#hint');
+        if (element) {
+          element.textContent = `${t(hint)} | ${text}`;
+        }
+      };
+      const percent = (share: number): string => `${String(Math.floor(share * 100))} %`;
+      // A file of one's own: the first column is X, the second the line.
+      const picker = document.createElement('label');
+      picker.className = 'picker';
+      picker.textContent = `${t('CSV file of your own')} `;
+      const input = document.createElement('input');
+      input.type = 'file';
+      input.accept = '.csv,text/csv';
+      picker.append(input);
+      chart?.after(picker);
+
+      const show = async (csv: Blob, conversion: number): Promise<void> => {
+        column?.dispose();
+        column = undefined;
+        const handle = await opfsFile('showroom/converted.tcol', true);
+        const started = performance.now();
+        const summary = await csvToColumnFile(csv, writableSink(await handle.createWritable()), {
+          xColumn: 0,
+          columns: [1],
+          onProgress: (share) => {
+            say(`${t('Converting')} ${percent(share)}`);
+          },
+        });
+        if (stopped() || conversion !== run.conversion) {
+          return;
+        }
+        const seconds = (performance.now() - started) / 1000;
+        const converted = `${summary.rows.toLocaleString()} ${t('rows converted in')} ${seconds.toFixed(1)} s (${(csv.size / 1e6 / seconds).toFixed(0)} MB/s)`;
+        const opened = await LargeColumn.open({ opfs: 'showroom/converted.tcol' }, { cache: false });
+        if (stopped() || conversion !== run.conversion) {
+          opened.dispose();
+          return;
+        }
+        column = opened;
+        say(converted);
+        if (chart) {
+          chart.chart = new ChartBuilder()
+            .theme(instrument)
+            .xAxis((a) => a.numeric('x').title(t('Time in s')).autoRange())
+            .yAxis((a) =>
+              a
+                .numeric('y')
+                .title(summary.names[0] ?? '')
+                .autoRange(),
+            )
+            .addSeries((x, y) => new ColumnLineSeries(opened, x, y));
+        }
+      };
+      input.addEventListener('change', () => {
+        const file = input.files?.[0];
+        if (file) {
+          run.conversion++;
+          void show(file, run.conversion).catch((error: unknown) => {
+            say(error instanceof Error ? error.message : String(error));
+          });
+        }
+      });
+      void (async () => {
+        await writeSampleCsv((share) => {
+          say(`${t('The first visit writes a sample CSV of 200 MB')} ${percent(share)}`);
+        });
+        if (!stopped() && run.conversion === 0) {
+          await show(await (await opfsFile(sampleCsv.path)).getFile(), 0);
+        }
+      })();
+      return {
+        dispose: () => {
+          run.stopped = true;
+          picker.remove();
+          column?.dispose();
+        },
+      };
+    },
+  };
 }
 
 function lineFromALargeFile(): Page {
@@ -332,6 +465,7 @@ export const pages: readonly Page[] = [
   dataFromAWorker(),
   manyCharts(),
   lineFromALargeFile(),
+  lineFromACsvFile(),
   {
     id: 'scatter',
     name: 'Scatter',

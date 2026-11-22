@@ -56,3 +56,18 @@ export {
 } from './column-worker';
 export { LargeColumn, type LargeColumnOptions } from './large-column';
 export { ColumnLineSeries } from './column-line-series';
+export {
+  parseCsvPiece,
+  parseNumberBytes,
+  parseNumberText,
+  splitCsvLine,
+  type CsvLayout,
+  type CsvPiece,
+} from './csv-parse';
+export {
+  csvToColumnFile,
+  type CsvColumns,
+  type CsvConversionOptions,
+  type CsvFormat,
+  type CsvSummary,
+} from './csv-convert';
