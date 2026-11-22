@@ -4,6 +4,10 @@ import {
   AreaSeries,
   BandSeries,
   BarSeries,
+  BoxPlotSeries,
+  computeHistogram,
+  SolidFill,
+  ViolinSeries,
   Colormap,
   DoubleRange,
   RasterSeries,
@@ -781,6 +785,47 @@ export const pages: readonly Page[] = [
         series.isHorizontal = true;
         return series;
       }),
+  },
+  {
+    id: 'histogram',
+    name: 'Histogram',
+    group: 'Statistics',
+    hint: plain,
+    configure: (c) => {
+      // 5000 waiting times, binned after Freedman and Diaconis.
+      const values = Float64Array.from({ length: 5000 }, (_, i) => -Math.log(1 - ((i * 0.618_034) % 1)) * 2);
+      return numeric(c, 0, 12, 0, 1200).addSeries((x, y) =>
+        BarSeries.fromHistogram(computeHistogram(values, 'freedmanDiaconis'), x, y),
+      );
+    },
+  },
+  {
+    id: 'box-and-violin',
+    name: 'Box and violin',
+    group: 'Statistics',
+    hint: plain,
+    configure: (c) => {
+      const wave = (i: number, k: number): number => (Math.sin(i * k) + 1) / 2;
+      const samples = [
+        Array.from({ length: 300 }, (_, i) => (wave(i, 1.7) + wave(i, 2.9) + wave(i, 4.3)) * 2),
+        Array.from({ length: 300 }, (_, i) => -Math.log(1 - wave(i, 7.1) * 0.999) + 1),
+        Array.from({ length: 300 }, (_, i) => (i % 2 === 0 ? 2 : 5) + wave(i, 3.7)),
+      ];
+      return c
+        .theme(instrument)
+        .xAxis((a) => a.category([t('Normal'), t('Skewed'), t('Two peaks')], 'x'))
+        .yAxis((a) => a.numeric('boxes').range(0, 8).pane(0))
+        .yAxis((a) => a.numeric('violins').range(0, 8).pane(1))
+        .addSeries((x, y) => new BoxPlotSeries(samples, x, y), 'x', 'boxes')
+        .addSeries(
+          (x, y) =>
+            Object.assign(new ViolinSeries(samples, x, y), {
+              fill: new SolidFill({ r: 247, g: 37, b: 133, a: 64 }),
+            }),
+          'x',
+          'violins',
+        );
+    },
   },
   {
     id: 'logarithmic-axis',

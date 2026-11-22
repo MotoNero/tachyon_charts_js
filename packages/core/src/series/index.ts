@@ -16,3 +16,4 @@ export {
 export { BarSeries, computeBarEnds, type BarLayout } from './bar-series';
 export { DigitalSeries } from './digital-series';
 export { Colormap, RasterSeries, type RasterExtent } from './raster-series';
+export { BoxPlotSeries, SampleSeries, ViolinSeries } from './sample-series';

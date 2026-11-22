@@ -1,6 +1,7 @@
 // Bars or columns (BarSeries and MeshShapes of the .NET version).
 import type { Axis } from '../axes/axis';
 import { DoubleRange } from '../numerics/range';
+import type { Histogram } from '../numerics/statistics';
 import type { LinearAxisTransform } from '../numerics/transform';
 import type { CommandList } from '../render/commands';
 import { packRgba8, type PixelRect, type Rgba8 } from '../render/types';
@@ -90,6 +91,18 @@ export class BarSeries extends ChartSeries {
   private endsVersion = -1;
   private ends: { lower: Float64Array[]; upper: Float64Array[] } = { lower: [], upper: [] };
   private ranges: { x: DoubleRange | undefined; y: DoubleRange | undefined } = { x: undefined, y: undefined };
+
+  /** Bars of a histogram: one per bin, at the middle of the bin and as wide as it. */
+  static fromHistogram(histogram: Histogram, xAxis: Axis, yAxis: Axis): BarSeries {
+    const positions = new Float64Array(histogram.counts.length);
+    for (let i = 0; i < positions.length; i++) {
+      positions[i] = ((histogram.edges[i] as number) + (histogram.edges[i + 1] as number)) / 2;
+    }
+    const series = new BarSeries([histogram.counts], xAxis, yAxis);
+    series.positions = positions;
+    series.barWidth = 1;
+    return series;
+  }
 
   /** @throws RangeError without rows or with rows of different lengths. */
   constructor(rows: readonly ArrayLike<number>[], xAxis: Axis, yAxis: Axis) {

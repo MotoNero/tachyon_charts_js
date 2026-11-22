@@ -179,6 +179,24 @@ writer.append(xs, ys);
 450 ms when the same points are appended on the main thread. The showroom streams four million points on the page
 "Data from a worker".
 
+## Statistics
+
+![Three samples as box plots with outliers and as violins](docs/images/box-and-violin.png)
+
+Histograms, box plots and violins as in the .NET version. `computeHistogram` bins values with the rules of NumPy
+(a fixed count or width, Sturges, Freedman-Diaconis), and `BarSeries.fromHistogram` draws the bins. `BoxPlotSeries`
+shows quartiles, whiskers within 1.5 interquartile ranges and the outliers; `ViolinSeries` the mirrored density of
+each sample, a kernel density estimate with the bandwidth of Scott, with a line at the median. Samples stand at the
+places of a category axis.
+
+```ts
+import { BarSeries, BoxPlotSeries, computeHistogram, ViolinSeries } from '@tachyon-charts/core';
+
+builder.addSeries((x, y) => BarSeries.fromHistogram(computeHistogram(values, 'freedmanDiaconis'), x, y));
+builder.addSeries((x, y) => new BoxPlotSeries([first, second, third], x, y));
+builder.addSeries((x, y) => new ViolinSeries([first, second, third], x, y));
+```
+
 ## Rasters and colormaps
 
 ![A field of 400 x 300 cells with two peaks and a valley in the colormap Inferno](docs/images/raster.png)

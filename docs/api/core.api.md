@@ -201,6 +201,7 @@ export class BarSeries extends ChartSeries {
     get drawnPointCount(): number;
     get fills(): readonly SeriesFill[];
     set fills(value: readonly SeriesFill[]);
+    static fromHistogram(histogram: Histogram, xAxis: Axis, yAxis: Axis): BarSeries;
     get isHorizontal(): boolean;
     set isHorizontal(value: boolean);
     get layout(): BarLayout;
@@ -218,6 +219,24 @@ export class BarSeries extends ChartSeries {
 
 // @public
 export const baseBlockSize = 16;
+
+// @public
+export type BinningRule = 'fixedCount' | 'fixedWidth' | 'sturges' | 'freedmanDiaconis';
+
+// @public
+export class BoxPlotSeries extends SampleSeries {
+    protected build(frame: SeriesFrame): void;
+}
+
+// @public
+export interface BoxStatistics {
+    readonly firstQuartile: number;
+    readonly lowerWhisker: number;
+    readonly median: number;
+    readonly outliers: readonly number[];
+    readonly thirdQuartile: number;
+    readonly upperWhisker: number;
+}
 
 // @public
 export interface BufferDesc {
@@ -507,6 +526,12 @@ export function computeBarEnds(rows: readonly ArrayLike<number>[], layout: BarLa
 };
 
 // @public
+export function computeBoxStatistics(values: Values): BoxStatistics | undefined;
+
+// @public
+export function computeHistogram(values: Values, rule: BinningRule, parameter?: number): Histogram;
+
+// @public
 export function connectRenderWorker(endpoint: RenderEndpoint, onDispose?: () => void): Promise<RemoteRenderDevice | undefined>;
 
 // @public
@@ -686,6 +711,9 @@ export function decimateMinMax(x: NumberArray, y: NumberArray, count: number, py
 export const defaultSurfaceStyle: ChartSurfaceStyle;
 
 // @public
+export function densityBandwidth(values: Values): number;
+
+// @public
 export interface DeviceCapabilities {
     readonly backendName: string;
     readonly maxBufferSize: number;
@@ -810,6 +838,9 @@ export function emptySnapshot(): DataSnapshot;
 export const emptyTicks: TickSet;
 
 // @public
+export function estimateDensity(values: Values, bandwidth: number, position: number): number;
+
+// @public
 export class ExternalDataSource implements PointSource {
     constructor(
     x: NumberArray,
@@ -866,6 +897,9 @@ export function findBuiltInTheme(name: string): ThemeDocument | undefined;
 
 // @public
 export function findNearest(source: PointSource, origin: number, frame: SeriesFrame, pixelX: number, pixelY: number, maximumDistance: number, mode: HitTestMode): FoundPoint | undefined;
+
+// @public
+export function finiteSorted(values: Values): Float64Array;
 
 // @public
 export function formatFixed(value: number, decimals: number, culture: Culture): string;
@@ -932,6 +966,12 @@ export interface GridTokens {
     readonly band?: string;
     readonly major?: string;
     readonly minor?: string;
+}
+
+// @public
+export interface Histogram {
+    readonly counts: Float64Array;
+    readonly edges: Float64Array;
 }
 
 // @public
@@ -1394,6 +1434,9 @@ export interface PyramidRequest {
 }
 
 // @public
+export function quantile(sorted: ArrayLike<number>, share: number): number;
+
+// @public
 export interface RasterExtent {
     readonly bottom: number;
     readonly left: number;
@@ -1574,6 +1617,26 @@ export class RubberBandZoomModifier extends ChartModifier {
     onCaptureLost(): void;
     onKey(input: KeyInputEvent): ModifierResult;
     onPointer(input: PointerInputEvent): ModifierResult;
+}
+
+// @public
+export abstract class SampleSeries extends ChartSeries {
+    constructor(samples: readonly ArrayLike<number>[], xAxis: Axis, yAxis: Axis);
+    protected addBox(rect: PixelRect, fill: SeriesFill, value: number, frame: SeriesFrame): void;
+    protected addCorner(x: number, y: number, color: number): void;
+    protected addLine(frame: SeriesFrame, left: number, right: number, top: number, bottom: number): void;
+    protected abstract build(frame: SeriesFrame): void;
+    dataRange(axis: 'x' | 'y'): DoubleRange | undefined;
+    draw(commands: CommandList, frame: SeriesFrame): void;
+    get fill(): SeriesFill;
+    set fill(value: SeriesFill);
+    get lineColor(): Rgba8;
+    set lineColor(value: Rgba8);
+    prepare(_device: unknown, frame: SeriesFrame): void;
+    get samples(): readonly (readonly number[])[];
+    get version(): number;
+    get width(): number;
+    set width(value: number);
 }
 
 // @public
@@ -1939,7 +2002,15 @@ export function toSurfaceStyle(theme: ThemeDocument): ChartSurfaceStyle;
 export function upperBound(x: NumberArray, count: number, value: number): number;
 
 // @public
+export type Values = ArrayLike<number> & Iterable<number>;
+
+// @public
 export const version = "0.1.0-dev";
+
+// @public
+export class ViolinSeries extends SampleSeries {
+    protected build(frame: SeriesFrame): void;
+}
 
 // @public
 export interface WheelInputEvent {

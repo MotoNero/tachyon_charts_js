@@ -45,6 +45,11 @@ export class SeededRandom {
     }
   }
 
+  /** A number from 0 to 1, exclusive, as NextDouble(). */
+  nextDouble(): number {
+    return this.sample() * (1 / intMax);
+  }
+
   /** A whole number from 0 to `maxValue`, exclusive, as Next(maxValue). */
   nextInt(maxValue: number): number {
     return Math.trunc(this.sample() * (1 / intMax) * maxValue);
