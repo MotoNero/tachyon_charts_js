@@ -85,6 +85,18 @@ pixel. `TachyonChartElement.renderInWorker = false` before the first chart choos
 `chart.renderThread` tells where a chart draws. Without the element, `createWebGpuWorkerDevice()` of
 `@tachyon-charts/render-webgpu` gives the same device to a chart of your own.
 
+## WebGL 2 fallback
+
+![The showroom drawn with WebGL 2 in the render worker](docs/images/webgl2-fallback.png)
+
+Where a browser has no WebGPU, charts draw with WebGL 2: the same commands and shaders derived line by line from the
+WGSL shaders. Every scene of the image tests matches the .NET reference with WebGL 2 within the tolerance of WebGPU,
+most of them to the pixel. All charts of a page share one WebGL context, its buffers and the glyph atlas; a frame
+for a chart goes to its canvas as an image bitmap, without a copy, in the render worker or on the main thread. `TachyonChartElement.renderer` chooses
+before the first chart: `auto` (WebGPU, else WebGL 2), `webgpu` or `webgl2`; `chart.rendererName` tells which one
+draws. Without the element, `createWebGl2Device()` and `createWebGl2WorkerDevice()` of `@tachyon-charts/render-webgl`
+give a device of your own. The showroom draws with WebGL 2 on `index.html?renderer=webgl2`.
+
 ## Performance
 
 Measured with WebGPU in Edge on a laptop GPU, 1920 × 1080, charts drawing in the render worker:
@@ -96,10 +108,22 @@ Measured with WebGPU in Edge on a laptop GPU, 1920 × 1080, charts drawing in th
 | Streaming, 10 series × 100 000 points per second | ≥ 60 FPS, no frame > 33 ms | 60 FPS, longest frame 18 ms |
 | 50 charts on a page, all streaming | ≥ 45 FPS each | 53 FPS each |
 | An idle chart | no frames, < 1 % CPU | no frames, 0.13 % CPU |
-| JavaScript of core, render-webgpu and element | < 250 KB compressed | 68 KB gzip |
+| JavaScript of core, render-webgpu, render-webgl and element | < 250 KB compressed | 95 KB gzip |
 | First frame after loading the page | < 300 ms | 273 ms |
 
-None of these scenarios has a main-thread task of 50 ms or more. `pnpm bench` measures them again.
+With WebGL 2 on the same machine, against the targets of the fallback:
+
+| Scenario | Target | Measured |
+|---|---|---|
+| Line, 10 million points, zoom and pan | ≥ 30 FPS | 60 FPS |
+| Line, a billion values from a column file | first frame < 0.5 s, ≥ 30 FPS | 308 ms, 60 FPS |
+| Scatter, 10 million points, a color per point | ≥ 20 FPS | 52 FPS |
+| Streaming, 10 series × 100 000 points per second | ≥ 30 FPS | 60 FPS |
+| 50 charts on a page, all streaming | ≥ 20 FPS each | 54 FPS each |
+| An idle chart | no frames, < 1 % CPU | no frames, 0.12 % CPU |
+
+None of these scenarios has a main-thread task of 50 ms or more. `pnpm bench` measures them again, with WebGPU and
+with WebGL 2.
 
 ## Many charts
 
@@ -355,7 +379,7 @@ language of the axes can be chosen at the top for all pages. Every new feature b
 |---|---|
 | `@tachyon-charts/core` | Charts, axes, data, interaction, layout and themes |
 | `@tachyon-charts/render-webgpu` | WebGPU backend |
-| `@tachyon-charts/render-webgl` | WebGL 2 fallback |
+| `@tachyon-charts/render-webgl` | WebGL 2 fallback, the same images as WebGPU |
 | `@tachyon-charts/render-canvas` | Canvas 2D fallback and export |
 | `@tachyon-charts/element` | The web component `<tachyon-chart>` |
 | `@tachyon-charts/large-data` | Column files, pyramids, OPFS, HTTP range requests, workers |

@@ -18,6 +18,11 @@ const instrumentTheme = findBuiltInTheme('instrument') as ThemeDocument;
 
 // ?render=main draws on the main thread instead of the render worker, to compare both.
 TachyonChartElement.renderInWorker = new URLSearchParams(location.search).get('render') !== 'main';
+// ?renderer=webgl2 draws with the fallback WebGL 2 instead of WebGPU, ?renderer=webgpu only with WebGPU.
+const renderer = new URLSearchParams(location.search).get('renderer');
+if (renderer === 'webgl2' || renderer === 'webgpu') {
+  TachyonChartElement.renderer = renderer;
+}
 defineTachyonChart();
 
 const chart = document.querySelector<TachyonChartElement>('#chart');
@@ -64,7 +69,8 @@ function translate(): void {
   }
   const thread = document.querySelector<HTMLElement>('#thread');
   if (thread && chart?.renderThread) {
-    thread.textContent = t(chart.renderThread === 'worker' ? 'Drawn in the render worker' : 'Drawn on the main thread');
+    const place = t(chart.renderThread === 'worker' ? 'Drawn in the render worker' : 'Drawn on the main thread');
+    thread.textContent = chart.rendererName?.startsWith('WebGL') ? `${place} (WebGL 2)` : place;
   }
   for (const option of themeChoice?.options ?? []) {
     if (option.dataset.text) {

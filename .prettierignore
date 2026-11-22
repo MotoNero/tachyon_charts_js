@@ -10,6 +10,7 @@ bin/
 obj/
 shared/
 packages/render-webgpu/src/generated/
+packages/render-webgl/src/generated/
 tests/golden/
 docs/api/
 packages/core/src/generated/

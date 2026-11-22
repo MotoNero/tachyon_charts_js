@@ -24,6 +24,7 @@ import {
   type ThemeDocument,
   type TooltipData,
 } from '@tachyon-charts/core';
+import { createWebGl2Device, createWebGl2WorkerDevice } from '@tachyon-charts/render-webgl';
 import { createWebGpuDevice, createWebGpuWorkerDevice } from '@tachyon-charts/render-webgpu';
 import { joinFrameLoop, leaveFrameLoop, wakeFrameLoop, type LoopMember } from './frame-loop';
 import { bindChartInput } from './input-binding';
@@ -53,8 +54,26 @@ function startDataWorker(): void {
   }
 }
 
-// The device of the page: WebGPU in a render worker where the browser can hand a canvas to one, else on this thread.
+// The device of the page: WebGPU, else WebGL 2 where the browser has no WebGPU, each in a render worker where the
+// browser can hand a canvas to one, else on this thread.
 async function createDevice(): Promise<RenderDevice | undefined> {
+  const wanted = TachyonChartElement.renderer;
+  if (wanted !== 'webgl2') {
+    const webgpu = await createWebGpu();
+    if (webgpu || wanted === 'webgpu') {
+      return webgpu;
+    }
+  }
+  if (TachyonChartElement.renderInWorker) {
+    const remote = await createWebGl2WorkerDevice();
+    if (remote) {
+      return remote;
+    }
+  }
+  return createWebGl2Device();
+}
+
+async function createWebGpu(): Promise<RenderDevice | undefined> {
   if (TachyonChartElement.renderInWorker) {
     const remote = await createWebGpuWorkerDevice();
     if (remote) {
@@ -89,6 +108,11 @@ export class TachyonChartElement extends HTMLElement {
    * the main thread. Set it before the first chart connects.
    */
   static renderInWorker = true;
+  /**
+   * Which renderer draws: `auto` takes WebGPU and falls back to WebGL 2 where the browser has no WebGPU; `webgpu` and
+   * `webgl2` take only that one. Set it before the first chart connects.
+   */
+  static renderer: 'auto' | 'webgpu' | 'webgl2' = 'auto';
   /**
    * Whether a data worker builds the pyramids of the series on cross-origin isolated pages, where the values live in
    * shared memory. Set it before the first chart connects.
@@ -160,6 +184,11 @@ export class TachyonChartElement extends HTMLElement {
       return undefined;
     }
     return this.device instanceof RemoteRenderDevice ? 'worker' : 'main';
+  }
+
+  /** The name of the renderer that draws the chart, such as `WebGPU (nvidia ampere)`; `undefined` before it starts. */
+  get rendererName(): string | undefined {
+    return this.device?.capabilities.backendName;
   }
 
   /** The size the chart is drawn in, in device pixels. */

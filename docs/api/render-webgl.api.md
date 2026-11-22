@@ -4,8 +4,66 @@
 
 ```ts
 
+import { BufferDesc } from '@tachyon-charts/core';
+import { CommandList } from '@tachyon-charts/core';
+import { DeviceCapabilities } from '@tachyon-charts/core';
+import { GpuBuffer } from '@tachyon-charts/core';
+import { GpuTexture } from '@tachyon-charts/core';
+import { OffscreenRenderTarget } from '@tachyon-charts/core';
+import { PixelSize } from '@tachyon-charts/core';
+import { RemoteRenderDevice } from '@tachyon-charts/core';
+import { RenderDevice } from '@tachyon-charts/core';
+import { RenderTarget } from '@tachyon-charts/core';
+import { SurfaceHandle } from '@tachyon-charts/core';
+import { SurfaceRenderTarget } from '@tachyon-charts/core';
+import { TextureDesc } from '@tachyon-charts/core';
+
+// @public
+export function createWebGl2Device(options?: WebGl2DeviceOptions): WebGl2Device | undefined;
+
+// @public
+export function createWebGl2WorkerDevice(options?: WebGl2WorkerDeviceOptions): Promise<RemoteRenderDevice | undefined>;
+
 // @public
 export const version = "0.1.0-dev";
+
+// @public
+export class WebGl2Device implements RenderDevice {
+    constructor(
+    gl: WebGL2RenderingContext,
+    canvas: HTMLCanvasElement | OffscreenCanvas,
+    capabilities: DeviceCapabilities);
+    beginFrame(target: RenderTarget): CommandList;
+    readonly canvas: HTMLCanvasElement | OffscreenCanvas;
+    readonly capabilities: DeviceCapabilities;
+    createBuffer(desc: BufferDesc): GpuBuffer;
+    createOffscreenTarget(size: PixelSize, dpiScale: number): OffscreenRenderTarget;
+    createSurfaceTarget(surface: SurfaceHandle, size: PixelSize, dpiScale: number): SurfaceRenderTarget;
+    createTexture(desc: TextureDesc): GpuTexture;
+    dispose(): void;
+    drawCallCount: number;
+    ensureUsable(): void;
+    get errors(): readonly string[];
+    readonly gl: WebGL2RenderingContext;
+    get isLost(): boolean;
+    get lostReason(): string | undefined;
+    onLost(listener: (reason: string) => void): () => void;
+    simulateLoss(): void;
+    uploadedByteCount: number;
+    whenIdle(): Promise<void>;
+}
+
+// @public
+export interface WebGl2DeviceOptions {
+    readonly canvas?: OffscreenCanvas;
+    readonly powerPreference?: WebGLPowerPreference;
+}
+
+// @public
+export interface WebGl2WorkerDeviceOptions {
+    readonly timeoutMilliseconds?: number;
+    readonly worker?: Worker;
+}
 
 // (No @packageDocumentation comment for this package)
 

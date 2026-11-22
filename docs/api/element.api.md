@@ -80,6 +80,8 @@ export class TachyonChartElement extends HTMLElement {
     static readonly observedAttributes: string[];
     get pipeline(): ModifierPipeline;
     readonly ready: Promise<void>;
+    static renderer: 'auto' | 'webgpu' | 'webgl2';
+    get rendererName(): string | undefined;
     static renderInWorker: boolean;
     get renderThread(): 'worker' | 'main' | undefined;
     get surface(): ChartSurface | undefined;
