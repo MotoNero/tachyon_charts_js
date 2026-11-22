@@ -17,6 +17,7 @@ import {
 import {
   ColumnFile,
   ColumnLineSeries,
+  ColumnRecorder,
   csvToColumnFile,
   LargeColumn,
   opfsFile,
@@ -141,6 +142,88 @@ async function writeSampleCsv(progress: (share: number) => void): Promise<void> 
     progress(size / sampleCsv.size);
   }
   await stream.close();
+}
+
+// A recording of a million values per second into a ring of 8 files of 16 Mi values in OPFS: the line shows the last
+// two minutes and more while they grow, and zooming in reads the values back from the files.
+function recording(): Page {
+  const hint = 'Wheel: zoom | Drag: pan | Double click: all, rolling';
+  return {
+    id: 'recording',
+    name: 'Recording',
+    group: 'Lines',
+    hint,
+    configure: (c) => {
+      c.theme(instrument)
+        .xAxis((a) => a.numeric('x'))
+        .yAxis((a) => a.numeric('y'));
+    },
+    start: () => {
+      const run = { stopped: false, frame: 0 };
+      const stopped = (): boolean => run.stopped;
+      let recorder: ColumnRecorder | undefined;
+      const chart = document.querySelector<HTMLElement & { chart: unknown }>('#chart');
+      const say = (text: string): void => {
+        const element = document.querySelector('#hint');
+        if (element) {
+          element.textContent = `${t(hint)} | ${text}`;
+        }
+      };
+      void (async () => {
+        const started = await ColumnRecorder.start({
+          folder: 'showroom',
+          name: 'recording',
+          fileValues: 1 << 24,
+          maxFiles: 8,
+          xStep: 1e-6,
+        });
+        if (stopped()) {
+          started.dispose();
+          return;
+        }
+        recorder = started;
+        if (chart) {
+          chart.chart = new ChartBuilder()
+            .theme(instrument)
+            .xAxis((a) => a.numeric('x').title(t('Time in s')).autoRange())
+            .yAxis((a) => a.numeric('y').autoRange())
+            .addSeries((x, y) => new ColumnLineSeries(started, x, y));
+        }
+        // A million values per second, appended each frame: a slow wave, a fast one and noise.
+        let last = performance.now();
+        let level = 0;
+        const chunk = new Float32Array(100_000);
+        const feed = (now: number): void => {
+          if (stopped()) {
+            return;
+          }
+          const count = Math.min(chunk.length, Math.round(now - last) * 1000);
+          last = now;
+          const first = started.recorded;
+          for (let i = 0; i < count; i++) {
+            const row = first + i;
+            level += (Math.random() - 0.5) * 0.002;
+            chunk[i] = Math.sin(row / 3e6) + 0.3 * Math.sin(row / 997) + level + (Math.random() - 0.5) * 0.1;
+          }
+          started.append(chunk.subarray(0, count));
+          const files = started.fileCount;
+          say(
+            `${(started.recorded / 1e6).toFixed(1)} M ${t('values recorded')} | ${String(files)} ${t('files')}, ` +
+              `${String(Math.round((started.rows * 4) / 1e6))} MB ${t('on the disk')}`,
+          );
+          run.frame = requestAnimationFrame(feed);
+        };
+        run.frame = requestAnimationFrame(feed);
+      })();
+      return {
+        dispose: () => {
+          run.stopped = true;
+          cancelAnimationFrame(run.frame);
+          recorder?.dispose();
+        },
+      };
+    },
+  };
 }
 
 function lineFromACsvFile(): Page {
@@ -466,6 +549,7 @@ export const pages: readonly Page[] = [
   manyCharts(),
   lineFromALargeFile(),
   lineFromACsvFile(),
+  recording(),
   {
     id: 'scatter',
     name: 'Scatter',

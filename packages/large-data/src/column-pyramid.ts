@@ -159,6 +159,36 @@ export class ColumnPyramid {
     this.changes++;
   }
 
+  /**
+   * Sets the extremes of blocks of the lowest level from `first` on and updates the levels above them, as a recording
+   * does while it grows.
+   */
+  setBlocks(first: number, min: ArrayLike<number>, max: ArrayLike<number>): void {
+    const level0 = this.levels[0] as PyramidLevel;
+    for (let i = 0; i < min.length; i++) {
+      level0.min[first + i] = min[i] as number;
+      level0.max[first + i] = max[i] as number;
+    }
+    let start = first;
+    let end = first + min.length;
+    for (let level = 1; level < this.levels.length; level++) {
+      start = Math.floor(start / pyramidFactor);
+      end = Math.ceil(end / pyramidFactor);
+      this.combine(level, start, end);
+    }
+    this.changes++;
+  }
+
+  /** The extremes of the type for a block without finite values: largest minimum, smallest maximum. */
+  get emptyMinimum(): number {
+    return largest[this.type];
+  }
+
+  /** {@inheritDoc ColumnPyramid.emptyMinimum} */
+  get emptyMaximum(): number {
+    return smallest[this.type];
+  }
+
   /** Takes all levels at once, as read from a pyramid file. */
   setLevels(levels: readonly PyramidLevel[]): void {
     if (levels.length !== this.levels.length) {

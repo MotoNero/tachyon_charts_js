@@ -176,6 +176,28 @@ A billion float32 values (4 GB) from the origin private file system: first pictu
 complete after 5.5–6.4 s, zoom and pan at 60 FPS, the spike among them kept. The showroom writes a test file of 1 GB
 on the page "Line from a large file".
 
+### Recording for hours
+
+![A live recording of a million values per second into a ring of files, drawn while it grows](docs/images/recording.png)
+
+`ColumnRecorder` writes values into column files of fixed size in the origin private file system, one after the
+other, as a ring that lets the oldest file go or on and on. It is at once the source and the pyramid of a line over
+the recording: memory holds only the extremes of the blocks of the files kept, about 1 % of the values, and the
+values come back from the files when a chart zooms in. Each file is a complete column file once full.
+
+```ts
+import { ColumnLineSeries, ColumnRecorder } from '@tachyon-charts/large-data';
+
+const recorder = await ColumnRecorder.start({ folder: 'recordings', name: 'run', maxFiles: 8, xStep: 1e-6 });
+chart.chart = new ChartBuilder()
+  .xAxis((a) => a.autoRange())
+  .yAxis((a) => a.autoRange())
+  .addSeries((x, y) => new ColumnLineSeries(recorder, x, y));
+recorder.append(values); // from the device, as they come
+```
+
+A million values per second into a ring of 8 files keeps the memory of the page at 58 MB once the ring is full.
+
 ### CSV into column files
 
 ![A line from a CSV file of 200 MB, converted in under a second, with the button to choose a file of one's own](docs/images/line-from-a-csv-file.png)

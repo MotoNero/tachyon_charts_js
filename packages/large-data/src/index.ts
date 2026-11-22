@@ -71,3 +71,12 @@ export {
   type CsvFormat,
   type CsvSummary,
 } from './csv-convert';
+export { WorkerColumn, pageRows } from './worker-column';
+export { ColumnRecorder, type ColumnRecorderOptions } from './column-recorder';
+export {
+  recordingFileName,
+  serveRecording,
+  type RecorderReply,
+  type RecorderRequest,
+  type RecordingSettings,
+} from './recorder-worker';

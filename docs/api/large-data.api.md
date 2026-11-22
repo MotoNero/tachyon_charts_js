@@ -98,11 +98,11 @@ export const columnHeaderSize = 64;
 // @public
 export class ColumnLineSeries extends ChartSeries {
     constructor(
-    column: LargeColumn, xAxis: Axis, yAxis: Axis);
+    column: WorkerColumn, xAxis: Axis, yAxis: Axis);
     get accentColor(): Rgba8;
     get color(): Rgba8;
     set color(value: Rgba8);
-    readonly column: LargeColumn;
+    readonly column: WorkerColumn;
     dataRange(axis: 'x' | 'y'): DoubleRange_2 | undefined;
     draw(commands: CommandList): void;
     get drawing(): {
@@ -135,6 +135,8 @@ export class ColumnPyramid {
     type: Exclude<ColumnType, 'bit'>);
     addPiece(piece: number, min: Float64Array, max: Float64Array): void;
     readonly count: number;
+    get emptyMaximum(): number;
+    get emptyMinimum(): number;
     hasPiece(piece: number): boolean;
     get isComplete(): boolean;
     isEmpty(extremes: Extremes): boolean;
@@ -142,10 +144,43 @@ export class ColumnPyramid {
     get pieceCount(): number;
     get progress(): number;
     queryBlocks(firstBlock: number, endBlock: number, into: Extremes): Extremes;
+    setBlocks(first: number, min: ArrayLike<number>, max: ArrayLike<number>): void;
     setLevels(levels: readonly PyramidLevel[]): void;
     total(into: Extremes): Extremes;
     readonly type: Exclude<ColumnType, 'bit'>;
     get version(): number;
+}
+
+// @public
+export class ColumnRecorder extends WorkerColumn {
+    append(values: number | ArrayLike<number>): void;
+    close(): Promise<void>;
+    protected get dataVersion(): number;
+    static readonly defaultFileValues: number;
+    dispose(): void;
+    get fileCount(): number;
+    get isComplete(): boolean;
+    protected get offset(): number;
+    get progress(): number;
+    queryBlocks(firstBlock: number, endBlock: number, into: Extremes): Extremes;
+    get recorded(): number;
+    get rows(): number;
+    static start(options?: ColumnRecorderOptions): Promise<ColumnRecorder>;
+    total(into: Extremes): Extremes;
+    get xStart(): number;
+    get xStep(): number;
+}
+
+// @public
+export interface ColumnRecorderOptions {
+    readonly fileValues?: number;
+    readonly folder?: string;
+    readonly maxFiles?: number;
+    readonly name?: string;
+    readonly type?: 'float32' | 'float64';
+    readonly worker?: Worker;
+    readonly xStart?: number;
+    readonly xStep?: number;
 }
 
 // @public
@@ -302,26 +337,21 @@ export interface HttpSourceOptions {
 }
 
 // @public
-export class LargeColumn {
-    block(index: number): Float64Array | undefined;
+export class LargeColumn extends WorkerColumn {
     get buildMilliseconds(): number;
-    dispose(): void;
-    get error(): string | undefined;
-    hasRows(start: number, end: number): boolean;
+    protected get dataVersion(): number;
     get isComplete(): boolean;
     get isFromCache(): boolean;
-    onChange(listener: () => void): () => void;
     static open(location: ColumnLocation, options?: LargeColumnOptions): Promise<LargeColumn>;
     get progress(): number;
     readonly pyramid: ColumnPyramid;
-    readonly rows: number;
+    queryBlocks(firstBlock: number, endBlock: number, into: Extremes): Extremes;
+    protected receive(reply: ColumnReply): boolean;
+    get rows(): number;
+    total(into: Extremes): Extremes;
     readonly type: Exclude<ColumnType, 'bit'>;
-    value(row: number): number | undefined;
-    get version(): number;
-    wantBlock(index: number): void;
-    wantRows(start: number, end: number): void;
-    readonly xStart: number;
-    readonly xStep: number;
+    get xStart(): number;
+    get xStep(): number;
 }
 
 // @public
@@ -343,6 +373,9 @@ export function opfsFile(path: string, create?: boolean): Promise<FileSystemFile
 
 // @public
 export function opfsSource(path: string): Promise<ByteSource>;
+
+// @public
+export const pageRows: number;
 
 // @public
 export function parseCsvPiece(bytes: Uint8Array, layout: CsvLayout): CsvPiece;
@@ -384,7 +417,50 @@ export function readColumnHeader(bytes: Uint8Array): ColumnHeader;
 export function readPyramidFile(bytes: Uint8Array, type: Exclude<ColumnType, 'bit'>, count: number, fingerprint: bigint): PyramidLevel[] | undefined;
 
 // @public
+export type RecorderReply = ColumnReply | {
+    readonly kind: 'started';
+} | {
+    readonly kind: 'closed';
+};
+
+// @public
+export type RecorderRequest = ({
+    readonly kind: 'start';
+} & RecordingSettings) | {
+    readonly kind: 'append';
+    readonly values: Float32Array | Float64Array;
+} | {
+    readonly kind: 'blocks';
+    readonly request: number;
+    readonly blocks: readonly number[];
+} | {
+    readonly kind: 'rows';
+    readonly request: number;
+    readonly start: number;
+    readonly count: number;
+} | {
+    readonly kind: 'close';
+};
+
+// @public
+export function recordingFileName(name: string, index: number): string;
+
+// @public
+export interface RecordingSettings {
+    readonly fileValues: number;
+    readonly folder: string;
+    readonly maxFiles: number;
+    readonly name: string;
+    readonly type: 'float32' | 'float64';
+    readonly xStart: number;
+    readonly xStep: number;
+}
+
+// @public
 export function serveColumn(endpoint: ColumnEndpoint): void;
+
+// @public
+export function serveRecording(endpoint: Worker): void;
 
 // @public
 export function splitCsvLine(line: string, delimiter: string): string[];
@@ -411,6 +487,34 @@ export function syncHandleSource(handle: SyncAccessHandle): ByteSource;
 
 // @public
 export const version = "0.1.0-dev";
+
+// @public
+export abstract class WorkerColumn {
+    protected constructor(
+    worker: Worker);
+    block(index: number): Float64Array | undefined;
+    protected abstract get dataVersion(): number;
+    dispose(): void;
+    get error(): string | undefined;
+    protected forget(start: number, end: number): void;
+    hasRows(start: number, end: number): boolean;
+    abstract get isComplete(): boolean;
+    protected notify(): void;
+    protected get offset(): number;
+    onChange(listener: () => void): () => void;
+    abstract get progress(): number;
+    abstract queryBlocks(firstBlock: number, endBlock: number, into: Extremes): Extremes;
+    protected receive(reply: ColumnReply): boolean;
+    abstract get rows(): number;
+    abstract total(into: Extremes): Extremes;
+    value(row: number): number | undefined;
+    get version(): number;
+    wantBlock(index: number): void;
+    wantRows(start: number, end: number): void;
+    protected readonly worker: Worker;
+    abstract get xStart(): number;
+    abstract get xStep(): number;
+}
 
 // @public
 export function writableSink(stream: FileSystemWritableFileStream): ByteSink;

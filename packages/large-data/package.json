@@ -6,7 +6,8 @@
   "type": "module",
   "sideEffects": [
     "./dist/column-worker-entry.js",
-    "./dist/csv-worker-entry.js"
+    "./dist/csv-worker-entry.js",
+    "./dist/recorder-worker-entry.js"
   ],
   "exports": {
     ".": {
@@ -20,6 +21,10 @@
     "./csv-worker": {
       "types": "./dist/csv-worker-entry.d.ts",
       "import": "./dist/csv-worker-entry.js"
+    },
+    "./recorder-worker": {
+      "types": "./dist/recorder-worker-entry.d.ts",
+      "import": "./dist/recorder-worker-entry.js"
     }
   },
   "files": [

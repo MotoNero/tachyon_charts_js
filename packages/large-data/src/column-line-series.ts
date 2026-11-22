@@ -13,12 +13,12 @@ import {
   type SeriesFrame,
 } from '@tachyon-charts/core';
 import { pyramidBlockSize, type Extremes } from './column-pyramid';
-import type { LargeColumn } from './large-column';
+import type { WorkerColumn } from './worker-column';
 
 /** Pixel columns from this many blocks on are drawn from the pyramid alone. */
 const wholeBlocksFrom = 16;
 
-/** A line through a {@link LargeColumn}. */
+/** A line through a column a worker reads: a {@link LargeColumn} or a {@link ColumnRecorder}. */
 export class ColumnLineSeries extends ChartSeries {
   private lineColor: Rgba8 = { r: 80, g: 170, b: 240, a: 255 };
   private lineThickness = 1.5;
@@ -40,7 +40,7 @@ export class ColumnLineSeries extends ChartSeries {
    */
   constructor(
     /** The column it draws. */
-    readonly column: LargeColumn,
+    readonly column: WorkerColumn,
     xAxis: Axis,
     yAxis: Axis,
   ) {
@@ -99,7 +99,7 @@ export class ColumnLineSeries extends ChartSeries {
     if (axis === 'x') {
       return new DoubleRange(column.xStart, column.xStart + (column.rows - 1) * column.xStep);
     }
-    const total = column.pyramid.total(this.part);
+    const total = column.total(this.part);
     return total.min > total.max ? undefined : new DoubleRange(total.min, total.max);
   }
 
@@ -170,7 +170,7 @@ export class ColumnLineSeries extends ChartSeries {
     if (start >= end) {
       return this.empty();
     }
-    return this.column.pyramid.queryBlocks(
+    return this.column.queryBlocks(
       Math.floor(start / pyramidBlockSize),
       Math.ceil(end / pyramidBlockSize),
       this.extremes,
@@ -186,7 +186,7 @@ export class ColumnLineSeries extends ChartSeries {
     const endWhole = Math.floor(end / pyramidBlockSize);
     const result = this.extremes;
     if (firstWhole < endWhole) {
-      this.column.pyramid.queryBlocks(firstWhole, endWhole, result);
+      this.column.queryBlocks(firstWhole, endWhole, result);
     } else {
       result.min = Number.POSITIVE_INFINITY;
       result.max = Number.NEGATIVE_INFINITY;
@@ -210,7 +210,7 @@ export class ColumnLineSeries extends ChartSeries {
     if (!values) {
       this.column.wantBlock(block);
       this.exact = false;
-      const whole = this.column.pyramid.queryBlocks(block, block + 1, this.part);
+      const whole = this.column.queryBlocks(block, block + 1, this.part);
       into.min = Math.min(into.min, whole.min);
       into.max = Math.max(into.max, whole.max);
       return;
