@@ -4,3 +4,4 @@
 *.png binary
 *.ttf binary
 *.gz binary
+tests/golden/columns/csv/*.csv binary
