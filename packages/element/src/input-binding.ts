@@ -67,7 +67,7 @@ export function modifiersOf(event: { shiftKey: boolean; ctrlKey: boolean; altKey
 /** Notches of a wheel event; a positive Y turns away from the user. */
 export function wheelNotches(event: { deltaX: number; deltaY: number; deltaMode: number }): Point {
   // Pixels are a hundred to a notch, lines three; pages are notches already.
-  const perNotch = event.deltaMode === 0 ? 100 : event.deltaMode === 1 ? 3 : 1;
+  const perNotch = ([100, 3] as const)[event.deltaMode] ?? 1;
   return { x: -event.deltaX / perNotch, y: -event.deltaY / perNotch };
 }
 

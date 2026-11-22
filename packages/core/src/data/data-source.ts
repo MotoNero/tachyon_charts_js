@@ -227,7 +227,7 @@ export class DataSource implements PointSource, ShareableSource {
   shareWithWorker(capacity: number): SharedDataHandle {
     this.ensureNotWriting();
     if (typeof SharedArrayBuffer !== 'function') {
-      throw new Error('This page cannot share memory with workers.');
+      throw new TypeError('This page cannot share memory with workers.');
     }
     if (!Number.isInteger(capacity) || capacity < this.count || capacity > maximumCapacity) {
       throw new RangeError(`The capacity must hold the ${String(this.count)} points, not ${String(capacity)}.`);

@@ -37,12 +37,16 @@ export function cssColorToHex(value: string, element: Element): string | undefin
   element.appendChild(probe);
   const computed = getComputedStyle(probe).color;
   probe.remove();
-  const match = /^rgba?\(\s*([\d.]+)[\s,]+([\d.]+)[\s,]+([\d.]+)(?:[\s,/]+([\d.]+%?))?\s*\)$/.exec(computed);
-  if (!match) {
+  const inner = /^rgba?\(([^()]*)\)$/.exec(computed)?.[1];
+  const parts = inner?.trim().split(/[\s,/]+/) ?? [];
+  if (parts.length < 3 || parts.length > 4 || !parts.slice(0, 3).every((part) => /^[\d.]+$/.test(part))) {
     return undefined;
   }
-  const alpha =
-    match[4] === undefined ? 1 : match[4].endsWith('%') ? Number.parseFloat(match[4]) / 100 : Number(match[4]);
+  const match = [computed, ...parts];
+  const alpha = alphaOf(match[4]);
+  if (alpha === undefined) {
+    return undefined;
+  }
   const hex = (channel: number): string =>
     Math.round(Math.min(Math.max(channel, 0), 255))
       .toString(16)
@@ -51,14 +55,51 @@ export function cssColorToHex(value: string, element: Element): string | undefin
   return `#${hex(Number(match[1]))}${hex(Number(match[2]))}${hex(Number(match[3]))}${hex(alpha * 255)}`;
 }
 
+// The alpha of rgba(): a number or a percentage, 1 when left out.
+function alphaOf(text: string | undefined): number | undefined {
+  if (text === undefined) {
+    return 1;
+  }
+  if (!/^[\d.]+%?$/.test(text)) {
+    return undefined;
+  }
+  return text.endsWith('%') ? Number.parseFloat(text) / 100 : Number(text);
+}
+
 function gradientOf(value: string, element: Element): string | undefined {
-  const inner = /^linear\((.+),(.+)\)$/i.exec(value.trim());
-  if (!inner?.[1] || !inner[2]) {
+  const trimmed = value.trim();
+  const comma = trimmed.lastIndexOf(',');
+  if (!/^linear\(/i.test(trimmed) || !trimmed.endsWith(')') || comma < 0) {
     return cssColorToHex(value, element);
   }
-  const start = cssColorToHex(inner[1], element);
-  const end = cssColorToHex(inner[2], element);
+  const first = trimmed.slice('linear('.length, comma);
+  const second = trimmed.slice(comma + 1, -1);
+  if (first === '' || second === '') {
+    return cssColorToHex(value, element);
+  }
+  const start = cssColorToHex(first, element);
+  const end = cssColorToHex(second, element);
   return start && end ? `linear(${start}, ${end})` : undefined;
+}
+
+// The value of one custom property for its token, undefined when it does not fit.
+function tokenValue(path: string, raw: string, element: Element): unknown {
+  switch (path) {
+    case 'surface.plotArea':
+      return gradientOf(raw, element);
+    case 'text.fontFamily':
+      return raw;
+    case 'text.size': {
+      const size = Number.parseFloat(raw);
+      return Number.isFinite(size) && size > 0 ? size : undefined;
+    }
+    case 'palette': {
+      const colors = raw.split(/\s+/).map((color) => cssColorToHex(color, element));
+      return colors.every((color) => color !== undefined) ? colors : undefined;
+    }
+    default:
+      return cssColorToHex(raw, element);
+  }
 }
 
 /**
@@ -74,20 +115,7 @@ export function themeFromCss(element: Element, base: ThemeDocument = preferredTh
     if (raw === '') {
       continue;
     }
-    let value: unknown;
-    if (path === 'surface.plotArea') {
-      value = gradientOf(raw, element);
-    } else if (path === 'text.fontFamily') {
-      value = raw;
-    } else if (path === 'text.size') {
-      const size = Number.parseFloat(raw);
-      value = Number.isFinite(size) && size > 0 ? size : undefined;
-    } else if (path === 'palette') {
-      const colors = raw.split(/\s+/).map((color) => cssColorToHex(color, element));
-      value = colors.every((color) => color !== undefined) ? colors : undefined;
-    } else {
-      value = cssColorToHex(raw, element);
-    }
+    const value = tokenValue(path, raw, element);
     if (value === undefined) {
       continue;
     }

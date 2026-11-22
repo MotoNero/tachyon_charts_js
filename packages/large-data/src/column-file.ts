@@ -40,7 +40,10 @@ const constructors = {
 
 /** The size of one value in bytes; 8 for the words of a bit column. */
 export function columnValueSize(type: ColumnType): number {
-  return type === 'float64' || type === 'bit' ? 8 : type === 'float32' || type === 'int32' ? 4 : 2;
+  if (type === 'float64' || type === 'bit') {
+    return 8;
+  }
+  return type === 'float32' || type === 'int32' ? 4 : 2;
 }
 
 /** The size of a file with this header in bytes. */

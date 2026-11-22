@@ -1,8 +1,7 @@
 // Finds the point of a series nearest to a position (SeriesHitTester of the .NET version, without the indexes, which
 // come with the large data: sorted X is searched by halves, other data scanned).
 import type { PointSource } from '../data/source';
-import type { SeriesFrame } from '../pipeline/chart-series';
-import type { ChartSeries } from '../pipeline/chart-series';
+import type { ChartSeries, SeriesFrame } from '../pipeline/chart-series';
 import { lowerBound } from '../resampling/min-max-decimator';
 import type { FoundPoint, HitTestMode } from './types';
 

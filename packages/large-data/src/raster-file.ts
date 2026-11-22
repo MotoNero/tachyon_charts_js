@@ -295,76 +295,119 @@ export async function buildStages(
   isStopped?: () => boolean,
 ): Promise<{ low: number; high: number }> {
   const sizes = stageSizes(file.width, file.height);
-  let low = Number.POSITIVE_INFINITY;
-  let high = Number.NEGATIVE_INFINITY;
-  const extend = (row: Float32Array): void => {
-    for (const value of row) {
-      if (Number.isFinite(value)) {
-        low = Math.min(low, value);
-        high = Math.max(high, value);
-      }
-    }
-  };
+  const build = new StagesBuild(file, reduction, store, sizes, onProgress, isStopped);
   if (sizes.length === 0) {
     for (let row = 0; row < file.height; row += 256) {
-      extend(await file.readRows(row, 256));
+      build.extend(await file.readRows(row, 256));
     }
   }
-  const total = sizes.reduce((sum, size) => sum + size.height, 0);
-  let done = 0;
   let belowWidth = file.width;
   let belowHeight = file.height;
   for (let stage = 0; stage < sizes.length; stage++) {
-    const { width, height } = sizes[stage] as { width: number; height: number };
+    if (!(await build.stage(stage, belowWidth, belowHeight))) {
+      break;
+    }
+    belowWidth = (sizes[stage] as { width: number }).width;
+    belowHeight = (sizes[stage] as { height: number }).height;
+  }
+  return { low: build.low, high: build.high };
+}
+
+// The stages of a raster while they are built: the extent of its values and the progress over all stages.
+class StagesBuild {
+  low = Number.POSITIVE_INFINITY;
+  high = Number.NEGATIVE_INFINITY;
+  private done = 0;
+  private readonly total: number;
+
+  constructor(
+    private readonly file: RasterFile,
+    private readonly reduction: RasterReduction,
+    private readonly store: StagesStore,
+    private readonly sizes: readonly { width: number; height: number }[],
+    private readonly onProgress?: (share: number) => void,
+    private readonly isStopped?: () => boolean,
+  ) {
+    this.total = sizes.reduce((sum, size) => sum + size.height, 0);
+  }
+
+  extend(row: Float32Array): void {
+    for (const value of row) {
+      if (Number.isFinite(value)) {
+        this.low = Math.min(this.low, value);
+        this.high = Math.max(this.high, value);
+      }
+    }
+  }
+
+  // Builds one stage from the level below; false when stopped. Rows go out in batches, so that a store with a cost
+  // per write is not called for every row.
+  async stage(stage: number, belowWidth: number, belowHeight: number): Promise<boolean> {
+    const { width, height } = this.sizes[stage] as { width: number; height: number };
     const halvesRows = height < belowHeight;
     const halvesColumns = width < belowWidth;
-    const below = stage === 0 ? undefined : stageOffset(sizes, stage - 1);
-    const target = stageOffset(sizes, stage);
-    // Rows go out in batches, so that a store with a cost per write is not called for every row.
+    const target = stageOffset(this.sizes, stage);
     const batchRows = Math.max(1, Math.floor((1 << 22) / (width * 4)));
     const batch = new Float32Array(batchRows * width);
     let batchFirst = 0;
     let batchCount = 0;
     for (let row = 0; row < height; row++) {
-      if (isStopped?.()) {
-        return { low, high };
+      if (this.isStopped?.()) {
+        return false;
       }
       const top = halvesRows ? row * 2 : row;
       const count = halvesRows && top + 1 < belowHeight ? 2 : 1;
-      const rows =
-        below === undefined
-          ? await file.readRows(top, count)
-          : floatsOf(await store.read(below + top * belowWidth * 4, count * belowWidth * 4));
-      const upper = rows.subarray(0, belowWidth);
-      const lower = count === 2 ? rows.subarray(belowWidth, 2 * belowWidth) : undefined;
-      if (stage === 0) {
-        extend(upper);
-        if (lower) {
-          extend(lower);
-        }
-      }
+      const rows = await this.rowsBelow(stage, top, count, belowWidth);
       const out = batch.subarray(batchCount * width, (batchCount + 1) * width);
-      for (let column = 0; column < width; column++) {
-        const left = halvesColumns ? column * 2 : column;
-        const right = halvesColumns && left + 1 < belowWidth ? left + 1 : -1;
-        out[column] = reduction === 'nearest' ? (upper[left] as number) : cell(upper, lower, left, right, reduction);
-      }
+      reduceRow(out, rows, count, belowWidth, halvesColumns, this.reduction);
       batchCount++;
       if (batchCount === batchRows || row === height - 1) {
         const bytes = new Uint8Array(batch.buffer, 0, batchCount * width * 4);
-        await store.write(target + batchFirst * width * 4, bytes.slice());
+        await this.store.write(target + batchFirst * width * 4, bytes.slice());
         batchFirst += batchCount;
         batchCount = 0;
       }
-      done++;
-      if (done % 256 === 0) {
-        onProgress?.(done / total);
-      }
+      this.step();
     }
-    belowWidth = width;
-    belowHeight = height;
+    return true;
   }
-  return { low, high };
+
+  // Rows of the level below a stage: of the raster for the first stage, whose values also give the extent, else of
+  // the stage before.
+  private async rowsBelow(stage: number, top: number, count: number, belowWidth: number): Promise<Float32Array> {
+    if (stage === 0) {
+      const rows = await this.file.readRows(top, count);
+      this.extend(rows.subarray(0, count * belowWidth));
+      return rows;
+    }
+    const below = stageOffset(this.sizes, stage - 1);
+    return floatsOf(await this.store.read(below + top * belowWidth * 4, count * belowWidth * 4));
+  }
+
+  private step(): void {
+    this.done++;
+    if (this.done % 256 === 0) {
+      this.onProgress?.(this.done / this.total);
+    }
+  }
+}
+
+// One row of a stage from one or two rows below.
+function reduceRow(
+  out: Float32Array,
+  rows: Float32Array,
+  count: number,
+  belowWidth: number,
+  halvesColumns: boolean,
+  reduction: RasterReduction,
+): void {
+  const upper = rows.subarray(0, belowWidth);
+  const lower = count === 2 ? rows.subarray(belowWidth, 2 * belowWidth) : undefined;
+  for (let column = 0; column < out.length; column++) {
+    const left = halvesColumns ? column * 2 : column;
+    const right = halvesColumns && left + 1 < belowWidth ? left + 1 : -1;
+    out[column] = reduction === 'nearest' ? (upper[left] as number) : cell(upper, lower, left, right, reduction);
+  }
 }
 
 // A cell of a stage from up to four below.

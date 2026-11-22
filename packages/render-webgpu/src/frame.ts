@@ -13,6 +13,7 @@ import {
   type MarkerStyle,
   type PixelRect,
   type PolylineStyle,
+  type RasterReduction,
   type RasterStyle,
   type Rgba8,
 } from '@tachyon-charts/core';
@@ -29,6 +30,7 @@ const enum Kind {
   Raster,
 }
 
+const reductionCodes: Record<RasterReduction, number> = { nearest: 0, mean: 1, maximum: 2 };
 const shapeCodes: Record<MarkerShape, number> = { circle: 0, square: 1, triangle: 2, diamond: 3, cross: 4, plus: 5 };
 
 /** One recorded command. The objects are kept and filled again in later frames. */
@@ -536,7 +538,7 @@ export class WebGpuFrame implements CommandList {
   private rasterUniforms(at: number, style: RasterStyle): void {
     const floats = this.uniformFloats;
     floats[at + 2] = style.isInterpolated === true ? 1 : 0;
-    floats[at + 4] = style.reduction === 'maximum' ? 2 : style.reduction === 'mean' ? 1 : 0;
+    floats[at + 4] = reductionCodes[style.reduction ?? 'nearest'];
     floats[at + 12] = style.isLogarithmic === true ? 1 : 0;
     this.uniformWords[at + 13] = style.rowShift ?? 0;
     floats[at + 14] = style.minimum;

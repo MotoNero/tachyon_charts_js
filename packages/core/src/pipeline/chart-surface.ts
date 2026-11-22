@@ -492,7 +492,7 @@ export class ChartSurface {
     }
     const dx = frame.x.toPixel(point.x) - pixelX;
     const dy = mode === 'nearestX' ? 0 : frame.y.toPixel(point.y) - pixelY;
-    return { ...point, series, distance: Math.sqrt(dx * dx + dy * dy) / scale };
+    return { ...point, series, distance: Math.hypot(dx, dy) / scale };
   }
 
   private applyTheme(theme: ThemeDocument | undefined): void {

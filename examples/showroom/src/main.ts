@@ -1,12 +1,18 @@
 // The showroom: a page for every finished feature, as in the showroom of the .NET version. The pages are in pages.ts;
 // this file builds the navigation, shows the chosen page in one <tachyon-chart> and switches theme and language.
-import { builtInThemes, ChartBuilder, chartText, findBuiltInTheme, type ChartLanguage } from '@tachyon-charts/core';
+import {
+  builtInThemes,
+  ChartBuilder,
+  chartText,
+  findBuiltInTheme,
+  type ChartLanguage,
+  type ThemeDocument,
+} from '@tachyon-charts/core';
 import { defineTachyonChart, preferredTheme, TachyonChartElement } from '@tachyon-charts/element';
 import logo from '../../../shared/logo/tachyon-charts-lockup-dark-transparent.svg?url';
 import icon from '../../../shared/logo/tachyon-charts-avatar-dark-32.png?url';
 import { pages, type Page, type PageRun } from './pages';
 import { t } from './texts';
-import type { ThemeDocument } from '@tachyon-charts/core';
 
 const instrumentTheme = findBuiltInTheme('instrument') as ThemeDocument;
 

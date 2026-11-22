@@ -203,7 +203,7 @@ export class BitColumn implements DigitalSource {
       this.want(at - 1);
       return -1;
     }
-    return ((before[before.length - 1] as number) >>> 31) & 1;
+    return ((before.at(-1) as number) >>> 31) & 1;
   }
 
   private page(index: number): Uint32Array | undefined {

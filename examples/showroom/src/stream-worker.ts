@@ -6,7 +6,8 @@ const total = 4_000_000;
 const chunk = 20_000;
 const scope = globalThis as unknown as DataEndpoint;
 
-void acceptDataLink(scope).then((writer) => {
+async function stream(): Promise<void> {
+  const writer = await acceptDataLink(scope);
   const x = new Float64Array(chunk);
   const y = new Float64Array(chunk);
   let written = 0;
@@ -25,4 +26,6 @@ void acceptDataLink(scope).then((writer) => {
       writer.flush();
     }
   }, 20);
-});
+}
+
+void stream();

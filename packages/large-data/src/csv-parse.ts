@@ -43,7 +43,7 @@ const comma = 44;
 const zero = 48;
 const nine = 57;
 const powers = Array.from({ length: 23 }, (_, i) => 10 ** i);
-const strict = /^[+-]?(?:\d+\.?\d*|\.\d+)(?:[eE][+-]?\d+)?$/;
+const strict = /^[+-]?(?:\d+(?:\.\d*)?|\.\d+)(?:[eE][+-]?\d+)?$/;
 const decoder = new TextDecoder();
 
 /** Reads a number as the .NET version does (Float with thousands); NaN for anything else. */
@@ -65,7 +65,7 @@ export function parseNumberText(text: string, decimalComma: boolean): number {
   // Group separators may stand in the whole part only, before the decimal separator and the exponent.
   const decimal = decimalComma ? ',' : '.';
   const group = decimalComma ? '.' : ',';
-  const end = trimmed.search(new RegExp(`[${decimal === '.' ? '\\.' : ','}eE]`));
+  const end = trimmed.search(new RegExp(decimal === '.' ? '[.eE]' : '[,eE]'));
   const whole = end < 0 ? trimmed : trimmed.slice(0, end);
   const rest = end < 0 ? '' : trimmed.slice(end);
   if (rest.includes(group) || whole.startsWith(group)) {
@@ -75,14 +75,87 @@ export function parseNumberText(text: string, decimalComma: boolean): number {
   return strict.test(trimmed) ? Number(trimmed) : Number.NaN;
 }
 
+// The state of the number being read, kept in one object so that reading a number allocates nothing.
+const scan = { at: 0, mantissa: 0, digits: 0, exponent: 0, any: false };
+
+// The digits of the whole part (group separators may follow digits) or, with `fraction`, after the decimal separator.
+function readDigits(bytes: Uint8Array, end: number, group: number, fraction: boolean): void {
+  let { at, mantissa, digits, exponent, any } = scan;
+  for (; at < end; at++) {
+    const byte = bytes[at] as number;
+    if (byte >= zero && byte <= nine) {
+      mantissa = mantissa * 10 + (byte - zero);
+      digits += mantissa === 0 ? 0 : 1;
+      exponent -= fraction ? 1 : 0;
+      any = true;
+    } else if (fraction || byte !== group || !any) {
+      break;
+    }
+  }
+  scan.at = at;
+  scan.mantissa = mantissa;
+  scan.digits = digits;
+  scan.exponent = exponent;
+  scan.any = any;
+}
+
+// The exponent after e or E; false when it has no digits.
+function readExponent(bytes: Uint8Array, end: number): boolean {
+  let sign = 1;
+  if (bytes[scan.at] === minus) {
+    sign = -1;
+    scan.at++;
+  } else if (bytes[scan.at] === plus) {
+    scan.at++;
+  }
+  let value = 0;
+  const first = scan.at;
+  for (; scan.at < end && value <= 100_000; scan.at++) {
+    const byte = bytes[scan.at] as number;
+    if (byte < zero || byte > nine) {
+      break;
+    }
+    value = value * 10 + (byte - zero);
+  }
+  scan.exponent += sign * value;
+  return scan.at > first;
+}
+
+function startScan(at: number): void {
+  scan.at = at;
+  scan.mantissa = 0;
+  scan.digits = 0;
+  scan.exponent = 0;
+  scan.any = false;
+}
+
+// Reads the digits, the fraction and the exponent into the scan; false when an exponent has no digits.
+function readNumber(bytes: Uint8Array, at: number, end: number, group: number, decimal: number): boolean {
+  startScan(at);
+  readDigits(bytes, end, group, false);
+  if (scan.at < end && bytes[scan.at] === decimal) {
+    scan.at++;
+    readDigits(bytes, end, group, true);
+  }
+  if (scan.any && scan.at < end && (bytes[scan.at] === 101 || bytes[scan.at] === 69)) {
+    scan.at++;
+    return readExponent(bytes, end);
+  }
+  return true;
+}
+
+function isBlank(byte: number | undefined): boolean {
+  return byte === space || byte === tab;
+}
+
 /** Reads the number in `bytes` from `start` to before `end`. */
 export function parseNumberBytes(bytes: Uint8Array, start: number, end: number, decimalComma: boolean): number {
   let s = start;
   let e = end;
-  while (s < e && (bytes[s] === space || bytes[s] === tab)) {
+  while (s < e && isBlank(bytes[s])) {
     s++;
   }
-  while (e > s && (bytes[e - 1] === space || bytes[e - 1] === tab)) {
+  while (e > s && isBlank(bytes[e - 1])) {
     e--;
   }
   if (s === e) {
@@ -90,77 +163,27 @@ export function parseNumberBytes(bytes: Uint8Array, start: number, end: number, 
   }
   const decimal = decimalComma ? comma : point;
   const group = decimalComma ? point : comma;
-  let i = s;
-  let negative = false;
-  if (bytes[i] === minus) {
-    negative = true;
-    i++;
-  } else if (bytes[i] === plus) {
-    i++;
+  const negative = bytes[s] === minus;
+  if (!readNumber(bytes, negative || bytes[s] === plus ? s + 1 : s, e, group, decimal)) {
+    return Number.NaN;
   }
-  let mantissa = 0;
-  let digits = 0;
-  let exponent = 0;
-  let any = false;
-  for (; i < e; i++) {
-    const byte = bytes[i] as number;
-    if (byte >= zero && byte <= nine) {
-      mantissa = mantissa * 10 + (byte - zero);
-      if (mantissa !== 0) {
-        digits++;
-      }
-      any = true;
-    } else if (byte !== group || !any) {
-      break;
-    }
-  }
-  if (i < e && bytes[i] === decimal) {
-    for (i++; i < e; i++) {
-      const byte = bytes[i] as number;
-      if (byte < zero || byte > nine) {
-        break;
-      }
-      mantissa = mantissa * 10 + (byte - zero);
-      if (mantissa !== 0) {
-        digits++;
-      }
-      exponent--;
-      any = true;
-    }
-  }
-  if (any && i < e && (bytes[i] === 101 || bytes[i] === 69)) {
-    i++;
-    let sign = 1;
-    if (bytes[i] === minus) {
-      sign = -1;
-      i++;
-    } else if (bytes[i] === plus) {
-      i++;
-    }
-    let value = 0;
-    let exponentDigits = 0;
-    for (; i < e && (bytes[i] as number) >= zero && (bytes[i] as number) <= nine; i++) {
-      value = value * 10 + ((bytes[i] as number) - zero);
-      exponentDigits++;
-      if (value > 100_000) {
-        break;
-      }
-    }
-    if (exponentDigits === 0) {
-      return Number.NaN;
-    }
-    exponent += sign * value;
-  }
-  // Exact: a whole number below 2^53 times or divided by an exact power of ten rounds once, correctly.
-  if (any && i === e && digits <= 15 && exponent >= -22 && exponent <= 22) {
-    const value = exponent < 0 ? mantissa / (powers[-exponent] as number) : mantissa * (powers[exponent] as number);
-    return negative ? -value : value;
+  if (!scan.any || scan.at !== e) {
+    return parseNumberText(decoder.decode(bytes.subarray(start, end)), decimalComma);
   }
   // Valid but beyond the exact path (more digits or a large exponent): Number() rounds correctly, as .NET does.
-  if (any && i === e) {
-    return exactText(bytes, s, e, group, decimal);
+  return exactValue(negative) ?? exactText(bytes, s, e, group, decimal);
+}
+
+// The number of the scan when it is exact: a whole number below 2^53 times or divided by an exact power of ten
+// rounds once, correctly. Undefined beyond that.
+function exactValue(negative: boolean): number | undefined {
+  const exponent = scan.exponent;
+  if (scan.digits > 15 || exponent < -22 || exponent > 22) {
+    return undefined;
   }
-  return parseNumberText(decoder.decode(bytes.subarray(start, end)), decimalComma);
+  const value =
+    exponent < 0 ? scan.mantissa / (powers[-exponent] as number) : scan.mantissa * (powers[exponent] as number);
+  return negative ? -value : value;
 }
 
 // The number as ASCII text without group separators and with a decimal point, for Number().
@@ -169,7 +192,7 @@ function exactText(bytes: Uint8Array, start: number, end: number, group: number,
   for (let i = start; i < end; i++) {
     const byte = bytes[i] as number;
     if (byte !== group) {
-      text += byte === decimal ? '.' : String.fromCharCode(byte);
+      text += byte === decimal ? '.' : String.fromCodePoint(byte);
     }
   }
   return Number(text);
@@ -201,70 +224,102 @@ export function splitCsvLine(line: string, delimiter: string): string[] {
   return fields;
 }
 
+// The rows of a piece while it is parsed.
+interface PieceRows {
+  readonly layout: CsvLayout;
+  readonly values: Float64Array;
+  readonly xs: Float64Array;
+  readonly delimiterText: string;
+}
+
+function hasQuote(bytes: Uint8Array, start: number, stop: number): boolean {
+  for (let i = start; i < stop; i++) {
+    if (bytes[i] === quote) {
+      return true;
+    }
+  }
+  return false;
+}
+
+// A line with quotes, split as text.
+function parseQuotedLine(bytes: Uint8Array, start: number, stop: number, rows: PieceRows, row: number): void {
+  const { layout, values, xs } = rows;
+  const fields = splitCsvLine(decoder.decode(bytes.subarray(start, stop)), rows.delimiterText);
+  for (let field = 0; field < fields.length && field < layout.slots.length; field++) {
+    store(layout, field, parseNumberText(fields[field] as string, layout.decimalComma), values, xs, row);
+  }
+}
+
+// A line without quotes, read from the bytes.
+function parseLine(bytes: Uint8Array, start: number, stop: number, rows: PieceRows, row: number): void {
+  const { layout, values, xs } = rows;
+  let fieldStart = start;
+  for (let field = 0; field < layout.slots.length; field++) {
+    let fieldEnd = fieldStart;
+    while (fieldEnd < stop && bytes[fieldEnd] !== layout.delimiter) {
+      fieldEnd++;
+    }
+    if (layout.slots[field] !== -1) {
+      store(layout, field, parseNumberBytes(bytes, fieldStart, fieldEnd, layout.decimalComma), values, xs, row);
+    }
+    if (fieldEnd === stop) {
+      return;
+    }
+    fieldStart = fieldEnd + 1;
+  }
+}
+
+function isBlankLine(bytes: Uint8Array, start: number, stop: number): boolean {
+  for (let i = start; i < stop; i++) {
+    if (!isBlank(bytes[i])) {
+      return false;
+    }
+  }
+  return true;
+}
+
+function countLines(bytes: Uint8Array): number {
+  let count = 1;
+  for (let at = bytes.indexOf(newline); at >= 0; at = bytes.indexOf(newline, at + 1)) {
+    count++;
+  }
+  return count;
+}
+
 /** Parses a piece that ends at a line end (or at the end of the file). */
 export function parseCsvPiece(bytes: Uint8Array, layout: CsvLayout): CsvPiece {
-  let estimate = 1;
-  for (let at = bytes.indexOf(newline); at >= 0; at = bytes.indexOf(newline, at + 1)) {
-    estimate++;
-  }
-  const values = new Float64Array(estimate * layout.kept);
-  const xs = new Float64Array(estimate);
+  const estimate = countLines(bytes);
+  const parsed: PieceRows = {
+    layout,
+    values: new Float64Array(estimate * layout.kept),
+    xs: new Float64Array(estimate),
+    delimiterText: String.fromCodePoint(layout.delimiter),
+  };
   const lineOfRow = new Int32Array(estimate);
-  const delimiterText = String.fromCharCode(layout.delimiter);
   // Quotes are rare in numbers: only a piece with one looks for them line by line.
   const anyQuote = bytes.includes(quote);
   let rows = 0;
   let lines = 0;
   let start = 0;
   while (start < bytes.length) {
-    let end = bytes.indexOf(newline, start);
-    const next = end < 0 ? bytes.length : end + 1;
-    if (end < 0) {
-      end = bytes.length;
-    }
+    const found = bytes.indexOf(newline, start);
+    const end = found < 0 ? bytes.length : found;
     lines++;
-    let stop = end;
-    if (stop > start && bytes[stop - 1] === carriage) {
-      stop--;
-    }
-    let first = start;
-    while (first < stop && (bytes[first] === space || bytes[first] === tab)) {
-      first++;
-    }
-    if (first < stop) {
-      values.fill(Number.NaN, rows * layout.kept, (rows + 1) * layout.kept);
-      xs[rows] = Number.NaN;
-      let quoted = false;
-      for (let i = start; anyQuote && i < stop && !quoted; i++) {
-        quoted = bytes[i] === quote;
-      }
-      if (quoted) {
-        const fields = splitCsvLine(decoder.decode(bytes.subarray(start, stop)), delimiterText);
-        for (let field = 0; field < fields.length && field < layout.slots.length; field++) {
-          store(layout, field, parseNumberText(fields[field] as string, layout.decimalComma), values, xs, rows);
-        }
+    const stop = end > start && bytes[end - 1] === carriage ? end - 1 : end;
+    if (!isBlankLine(bytes, start, stop)) {
+      parsed.values.fill(Number.NaN, rows * layout.kept, (rows + 1) * layout.kept);
+      parsed.xs[rows] = Number.NaN;
+      if (anyQuote && hasQuote(bytes, start, stop)) {
+        parseQuotedLine(bytes, start, stop, parsed, rows);
       } else {
-        let fieldStart = start;
-        for (let field = 0; field < layout.slots.length; field++) {
-          let fieldEnd = fieldStart;
-          while (fieldEnd < stop && bytes[fieldEnd] !== layout.delimiter) {
-            fieldEnd++;
-          }
-          if (layout.slots[field] !== -1) {
-            store(layout, field, parseNumberBytes(bytes, fieldStart, fieldEnd, layout.decimalComma), values, xs, rows);
-          }
-          if (fieldEnd === stop) {
-            break;
-          }
-          fieldStart = fieldEnd + 1;
-        }
+        parseLine(bytes, start, stop, parsed, rows);
       }
       lineOfRow[rows] = lines - 1;
       rows++;
     }
-    start = next;
+    start = end + 1;
   }
-  return { values, xs, lineOfRow, rows, lines };
+  return { values: parsed.values, xs: parsed.xs, lineOfRow, rows, lines };
 }
 
 function store(

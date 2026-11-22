@@ -166,6 +166,40 @@ export interface PointTilesBuildOptions {
   readonly isStopped?: () => boolean;
 }
 
+// The extent and the number of the points with finite X and Y; 0 to 1 on both axes without a point. Undefined when
+// stopped.
+async function extentOf(
+  file: ColumnFile,
+  xColumn: number,
+  yColumn: number,
+  isStopped: (() => boolean) | undefined,
+): Promise<{ minX: number; maxX: number; minY: number; maxY: number; count: number } | undefined> {
+  const extent = {
+    minX: Number.POSITIVE_INFINITY,
+    maxX: Number.NEGATIVE_INFINITY,
+    minY: Number.POSITIVE_INFINITY,
+    maxY: Number.NEGATIVE_INFINITY,
+    count: 0,
+  };
+  const done = await eachPoint(
+    file,
+    xColumn,
+    yColumn,
+    (x, y) => {
+      extent.minX = Math.min(extent.minX, x);
+      extent.maxX = Math.max(extent.maxX, x);
+      extent.minY = Math.min(extent.minY, y);
+      extent.maxY = Math.max(extent.maxY, y);
+      extent.count++;
+    },
+    isStopped,
+  );
+  if (!done) {
+    return undefined;
+  }
+  return extent.count === 0 ? { minX: 0, maxX: 1, minY: 0, maxY: 1, count: 0 } : extent;
+}
+
 /**
  * Builds point tiles from two columns of a column file into a store, as PointTiles of the .NET version: extent,
  * counts per tile, then the points sorted into their tiles in bands of tiles that fit in memory, each tile mixed in
@@ -180,30 +214,11 @@ export async function buildPointTiles(
 ): Promise<PointTilesHeader | undefined> {
   const { isStopped, onProgress } = options;
   const fingerprint = await pointTilesFingerprint(file, xColumn, yColumn);
-  let minX = Number.POSITIVE_INFINITY;
-  let maxX = Number.NEGATIVE_INFINITY;
-  let minY = Number.POSITIVE_INFINITY;
-  let maxY = Number.NEGATIVE_INFINITY;
-  let count = 0;
-  const extentDone = await eachPoint(
-    file,
-    xColumn,
-    yColumn,
-    (x, y) => {
-      minX = Math.min(minX, x);
-      maxX = Math.max(maxX, x);
-      minY = Math.min(minY, y);
-      maxY = Math.max(maxY, y);
-      count++;
-    },
-    isStopped,
-  );
-  if (!extentDone) {
+  const extent = await extentOf(file, xColumn, yColumn, isStopped);
+  if (!extent) {
     return undefined;
   }
-  if (count === 0) {
-    [minX, maxX, minY, maxY] = [0, 1, 0, 1];
-  }
+  const { minX, maxX, minY, maxY, count } = extent;
   const place = new Placement(minX, maxX, minY, maxY);
   const tileCounts = new Float64Array(tileCount);
   await eachPoint(file, xColumn, yColumn, (x, y) => {
@@ -346,7 +361,7 @@ export class PointTilesReader {
   ) {
     this.grids = [grid];
     for (let size = gridSize / 2; size >= 64; size /= 2) {
-      const below = this.grids[this.grids.length - 1] as Uint32Array;
+      const below = this.grids.at(-1) as Uint32Array;
       const level = new Uint32Array(size * size);
       for (let row = 0; row < size; row++) {
         for (let column = 0; column < size; column++) {
@@ -456,8 +471,8 @@ export class PointTilesReader {
     const dx = toX(h.minX + cellWidth) - x0;
     const y0 = toY(h.minY);
     const dy = toY(h.minY + cellHeight) - y0;
-    const cellPixelsX = Math.abs(dx);
     const cellPixelsY = Math.abs(dy);
+    const pass: GridPass = { view, grid, column0, column1, x0, dx, cellPixelsX: Math.abs(dx), bins };
     for (let row = row0; row <= row1; row++) {
       const top = Math.min(y0 + row * dy, y0 + (row + 1) * dy);
       const upper = Math.floor(top);
@@ -469,21 +484,7 @@ export class PointTilesReader {
       }
       const lowerShare = takesLower ? 1 - upperShare : 0;
       const upperTaken = takesUpper ? upperShare : 0;
-      for (let column = column0; column <= column1; column++) {
-        const count = grid[row * size + column] as number;
-        if (count === 0) {
-          continue;
-        }
-        const left = Math.min(x0 + column * dx, x0 + (column + 1) * dx);
-        const first = Math.floor(left);
-        const firstShare = Math.min(1, (first + 1 - left) / cellPixelsX);
-        if (upperTaken > 0) {
-          add(bins, view.width, upper, first, firstShare, count * upperTaken);
-        }
-        if (lowerShare > 0) {
-          add(bins, view.width, upper + 1, first, firstShare, count * lowerShare);
-        }
-      }
+      addGridRow(pass, row * size, upper, upperTaken, lowerShare);
     }
   }
 
@@ -510,23 +511,8 @@ export class PointTilesReader {
       }
       return total;
     };
-    let cap = largest;
-    let planned = sum(largest, Number.MAX_SAFE_INTEGER);
-    if (planned > budget) {
-      // The highest share per tile that keeps the sum within the budget.
-      let low = 1;
-      let high = largest;
-      while (low < high) {
-        const middle = Math.floor((low + high + 1) / 2);
-        if (sum(middle, budget) <= budget) {
-          low = middle;
-        } else {
-          high = middle - 1;
-        }
-      }
-      cap = low;
-      planned = sum(low, Number.MAX_SAFE_INTEGER);
-    }
+    const cap = capWithin(sum, largest, budget);
+    const planned = sum(cap, Number.MAX_SAFE_INTEGER);
     const tileWidth = spanX / tilesPerSide;
     const tileHeight = spanY / tilesPerSide;
     const toX = (x: number): number => ((x - view.left) / (view.right - view.left)) * view.width;
@@ -544,18 +530,81 @@ export class PointTilesReader {
         const ax = Math.fround(toX(left));
         const bx = Math.fround(Math.fround(toX(left + tileWidth)) - ax);
         const points = this.tilePoints(tx, ty, Math.min(count, cap));
-        const weight = Math.fround(count / (points.length / 2));
-        for (let i = 0; i < points.length; i += 2) {
-          const pixelX = Math.fround(ax + Math.fround((points[i] as number) * bx));
-          const pixelY = Math.fround(ay + Math.fround((points[i + 1] as number) * by));
-          if (pixelY >= 0 && pixelY < view.height && pixelX >= 0 && pixelX < view.width) {
-            const at = Math.trunc(pixelY) * view.width + Math.trunc(pixelX);
-            bins[at] = (bins[at] as number) + weight;
-          }
-        }
+        addPoints(view, points, Math.fround(count / (points.length / 2)), { ax, bx, ay, by }, bins);
       }
     }
     return planned;
+  }
+}
+
+// The highest number of points per tile that keeps the sum within the budget, found by halving; all points of the
+// largest tile when they fit.
+function capWithin(sum: (cap: number, limit: number) => number, largest: number, budget: number): number {
+  if (sum(largest, Number.MAX_SAFE_INTEGER) <= budget) {
+    return largest;
+  }
+  let low = 1;
+  let high = largest;
+  while (low < high) {
+    const middle = Math.floor((low + high + 1) / 2);
+    if (sum(middle, budget) <= budget) {
+      low = middle;
+    } else {
+      high = middle - 1;
+    }
+  }
+  return low;
+}
+
+// Adds the points of a tile, each with its weight, to the pixels they fall in; X and Y in the tile go to pixels as
+// a + value * b, in float as the shader of the .NET version does.
+function addPoints(
+  view: DensityView,
+  points: Float32Array,
+  weight: number,
+  tile: { readonly ax: number; readonly bx: number; readonly ay: number; readonly by: number },
+  bins: Float32Array,
+): void {
+  const { ax, bx, ay, by } = tile;
+  for (let i = 0; i < points.length; i += 2) {
+    const pixelX = Math.fround(ax + Math.fround((points[i] as number) * bx));
+    const pixelY = Math.fround(ay + Math.fround((points[i + 1] as number) * by));
+    if (pixelY >= 0 && pixelY < view.height && pixelX >= 0 && pixelX < view.width) {
+      const at = Math.trunc(pixelY) * view.width + Math.trunc(pixelX);
+      bins[at] = (bins[at] as number) + weight;
+    }
+  }
+}
+
+// A row of grid cells going to the pixels of a view.
+interface GridPass {
+  readonly view: DensityView;
+  readonly grid: Uint32Array;
+  readonly column0: number;
+  readonly column1: number;
+  readonly x0: number;
+  readonly dx: number;
+  readonly cellPixelsX: number;
+  readonly bins: Float32Array;
+}
+
+// Adds the cells of one grid row, starting at `rowStart`, to the pixel row `upper` and the one below by their shares.
+function addGridRow(pass: GridPass, rowStart: number, upper: number, upperShare: number, lowerShare: number): void {
+  const { view, grid, x0, dx, bins } = pass;
+  for (let column = pass.column0; column <= pass.column1; column++) {
+    const count = grid[rowStart + column] as number;
+    if (count === 0) {
+      continue;
+    }
+    const left = Math.min(x0 + column * dx, x0 + (column + 1) * dx);
+    const first = Math.floor(left);
+    const firstShare = Math.min(1, (first + 1 - left) / pass.cellPixelsX);
+    if (upperShare > 0) {
+      add(bins, view.width, upper, first, firstShare, count * upperShare);
+    }
+    if (lowerShare > 0) {
+      add(bins, view.width, upper + 1, first, firstShare, count * lowerShare);
+    }
   }
 }
 

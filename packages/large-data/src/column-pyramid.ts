@@ -48,8 +48,8 @@ export interface PyramidLevel {
 /** The number of blocks on each level for a column of `count` values. */
 export function pyramidLevelSizes(count: number): number[] {
   const sizes = [Math.ceil(count / pyramidBlockSize)];
-  while ((sizes[sizes.length - 1] ?? 0) > 1) {
-    sizes.push(Math.ceil((sizes[sizes.length - 1] ?? 0) / pyramidFactor));
+  while ((sizes.at(-1) ?? 0) > 1) {
+    sizes.push(Math.ceil((sizes.at(-1) ?? 0) / pyramidFactor));
   }
   return sizes;
 }
@@ -235,7 +235,7 @@ export class ColumnPyramid {
 
   /** The extremes of all values in so far. */
   total(into: Extremes): Extremes {
-    const top = this.levels[this.levels.length - 1] as PyramidLevel;
+    const top = this.levels.at(-1) as PyramidLevel;
     into.min = top.min.length > 0 ? (top.min[0] as number) : largest[this.type];
     into.max = top.max.length > 0 ? (top.max[0] as number) : smallest[this.type];
     return into;
@@ -277,7 +277,7 @@ export class Fnv1a64 {
     for (const byte of bytes) {
       low = (low ^ byte) >>> 0;
       const lowTimes = low * 435;
-      const carry = Math.floor(lowTimes / 0x1_0000_0000);
+      const carry = Math.floor(lowTimes / 2 ** 32);
       const newLow = lowTimes >>> 0;
       high = (Math.imul(high, 435) + carry + ((low << 8) >>> 0)) >>> 0;
       low = newLow;
@@ -365,11 +365,14 @@ export function readPyramidFile(
 function typedArrayOf(
   type: Exclude<ColumnType, 'bit'>,
 ): Float64ArrayConstructor | Float32ArrayConstructor | Int16ArrayConstructor | Int32ArrayConstructor {
-  return type === 'float64'
-    ? Float64Array
-    : type === 'float32'
-      ? Float32Array
-      : type === 'int16'
-        ? Int16Array
-        : Int32Array;
+  switch (type) {
+    case 'float64':
+      return Float64Array;
+    case 'float32':
+      return Float32Array;
+    case 'int16':
+      return Int16Array;
+    default:
+      return Int32Array;
+  }
 }

@@ -120,7 +120,7 @@ export function serveRecording(endpoint: Worker): void {
     const s = settings as RecordingSettings;
     let at = 0;
     while (at < values.length) {
-      let file = live[live.length - 1];
+      let file = live.at(-1);
       if (!file || file.count === s.fileValues) {
         if (file) {
           finish(file);

@@ -46,6 +46,21 @@ import { t } from './texts';
  * English keys of texts.ts; `configure` gets the theme the chart is shown in.
  */
 /** What a running page keeps: a worker or a timer to stop when the next page shows, and a line for the hint. */
+// Writes the hint of a page and a status after it.
+function sayer(hint: string): (text: string) => void {
+  return (text) => {
+    const element = document.querySelector('#hint');
+    if (element) {
+      element.textContent = `${t(hint)} | ${text}`;
+    }
+  };
+}
+
+// How long a build took, or that it was kept from before.
+function took(opened: { isFromCache: boolean; buildMilliseconds: number }): string {
+  return opened.isFromCache ? t('kept from before') : `${String(Math.round(opened.buildMilliseconds))} ms`;
+}
+
 export interface PageRun {
   dispose(): void;
   readonly status?: string;
@@ -178,12 +193,7 @@ function recording(): Page {
       const stopped = (): boolean => run.stopped;
       let recorder: ColumnRecorder | undefined;
       const chart = document.querySelector<HTMLElement & { chart: unknown }>('#chart');
-      const say = (text: string): void => {
-        const element = document.querySelector('#hint');
-        if (element) {
-          element.textContent = `${t(hint)} | ${text}`;
-        }
-      };
+      const say = sayer(hint);
       void (async () => {
         const started = await ColumnRecorder.start({
           folder: 'showroom',
@@ -290,12 +300,7 @@ function digitalChannels(): Page {
       const stopped = (): boolean => run.stopped;
       let file: BitColumn | undefined;
       const chart = document.querySelector<HTMLElement & { chart: unknown }>('#chart');
-      const say = (text: string): void => {
-        const element = document.querySelector('#hint');
-        if (element) {
-          element.textContent = `${t(hint)} | ${text}`;
-        }
-      };
+      const say = sayer(hint);
       void (async () => {
         await writeBitFile((share) => {
           say(`${t('The first visit writes a bit file of 125 MB')} ${String(Math.floor(share * 100))} %`);
@@ -334,10 +339,12 @@ function digitalChannels(): Page {
             transitions.append(false, quiet);
             at += quiet;
             const end = Math.min(at + 5_000_000 + random(25_000_000), 1_000_000_000);
-            for (let level = true; at < end; level = !level) {
+            let level = true;
+            while (at < end) {
               const length = Math.min(half + random(half), end - at);
               transitions.append(level, length);
               at += length;
+              level = !level;
             }
           }
           sources.push(transitions);
@@ -386,12 +393,7 @@ function lineFromACsvFile(): Page {
       const stopped = (): boolean => run.stopped;
       let column: LargeColumn | undefined;
       const chart = document.querySelector<HTMLElement & { chart: unknown }>('#chart');
-      const say = (text: string): void => {
-        const element = document.querySelector('#hint');
-        if (element) {
-          element.textContent = `${t(hint)} | ${text}`;
-        }
-      };
+      const say = sayer(hint);
       const percent = (share: number): string => `${String(Math.floor(share * 100))} %`;
       // A file of one's own: the first column is X, the second the line.
       const picker = document.createElement('label');
@@ -487,12 +489,7 @@ function lineFromALargeFile(): Page {
       let column: LargeColumn | undefined;
       let worker: Worker | undefined;
       const chart = document.querySelector<HTMLElement & { chart: unknown }>('#chart');
-      const say = (text: string): void => {
-        const element = document.querySelector('#hint');
-        if (element) {
-          element.textContent = `${t(hint)} | ${text}`;
-        }
-      };
+      const say = sayer(hint);
       const percent = (share: number): string => `${String(Math.floor(share * 100))} %`;
       void (async () => {
         if (!(await hasLargeFile())) {
@@ -522,7 +519,7 @@ function lineFromALargeFile(): Page {
         const status = (): void => {
           say(
             opened.isComplete
-              ? `${t('250 million values, five spikes among them')} | ${t('Pyramid')} ${String(Math.round(opened.buildMilliseconds))} ms${opened.isFromCache ? ` (${t('kept from before')})` : ''}`
+              ? `${t('250 million values, five spikes among them')} | ${t('Pyramid')} ${took(opened)}`
               : `${t('Refining')} ${percent(opened.progress)}`,
           );
         };
@@ -925,12 +922,7 @@ function rasterFromALargeFile(): Page {
       const stopped = (): boolean => run.stopped;
       let raster: LargeRaster | undefined;
       const chart = document.querySelector<HTMLElement & { chart: unknown }>('#chart');
-      const say = (text: string): void => {
-        const element = document.querySelector('#hint');
-        if (element) {
-          element.textContent = `${t(hint)} | ${text}`;
-        }
-      };
+      const say = sayer(hint);
       void (async () => {
         await writeRasterFile((share) => {
           say(`${t('The first visit writes a raster file of 200 MB')} ${String(Math.floor(share * 100))} %`);
@@ -947,9 +939,7 @@ function rasterFromALargeFile(): Page {
         const status = (): void => {
           say(
             opened.isReady
-              ? `${t('50 million cells; zoom in for the ripples')} | ${t('Stages')} ${
-                  opened.isFromCache ? t('kept from before') : `${String(Math.round(opened.buildMilliseconds))} ms`
-                }`
+              ? `${t('50 million cells; zoom in for the ripples')} | ${t('Stages')} ${took(opened)}`
               : `${t('Stages')} ${String(Math.floor(opened.progress * 100))} %`,
           );
         };
@@ -1072,12 +1062,7 @@ function scatterDensityFromAFile(): Page {
       const stopped = (): boolean => run.stopped;
       let tiles: PointTiles | undefined;
       const chart = document.querySelector<HTMLElement & { chart: unknown }>('#chart');
-      const say = (text: string): void => {
-        const element = document.querySelector('#hint');
-        if (element) {
-          element.textContent = `${t(hint)} | ${text}`;
-        }
-      };
+      const say = sayer(hint);
       void (async () => {
         await writePointsFile((share) => {
           say(`${t('The first visit writes 20 million points (160 MB)')} ${String(Math.floor(share * 100))} %`);
@@ -1094,9 +1079,7 @@ function scatterDensityFromAFile(): Page {
         const status = (): void => {
           say(
             opened.isReady
-              ? `${t('20 million points as a density; zoom in down to single points')} | ${t('Tiles')} ${
-                  opened.isFromCache ? t('kept from before') : `${String(Math.round(opened.buildMilliseconds))} ms`
-                }`
+              ? `${t('20 million points as a density; zoom in down to single points')} | ${t('Tiles')} ${took(opened)}`
               : `${t('Tiles')} ${String(Math.floor(opened.progress * 100))} %`,
           );
         };

@@ -115,6 +115,22 @@ function memoryStore(size: number): StagesStore {
   };
 }
 
+// The cells of a region in one row of a stage that starts at `rowOffset`: the whole row read when `whole`, else the
+// part of the region.
+async function stageCells(
+  store: StagesStore,
+  rowOffset: number,
+  width: number,
+  region: RasterRegion,
+  whole: boolean,
+): Promise<Float32Array> {
+  const offset = rowOffset + (whole ? 0 : region.column) * 4;
+  const bytes = await store.read(offset, (whole ? width : region.columns) * 4);
+  const own = bytes.byteOffset % 4 === 0 ? bytes : bytes.slice();
+  const all = new Float32Array(own.buffer, own.byteOffset, own.byteLength / 4);
+  return whole ? all.subarray(region.column, region.column + region.columns) : all;
+}
+
 /** Serves one raster file on an endpoint: call it in the module of the worker with its global scope. */
 export function serveRaster(endpoint: ColumnEndpoint): void {
   let file: RasterFile | undefined;
@@ -183,16 +199,10 @@ export function serveRaster(endpoint: ColumnEndpoint): void {
     const whole = region.columns * 2 >= width;
     for (let r = 0; r < region.rows; r++) {
       const row = region.row + r;
-      let cells: Float32Array;
-      if (region.level === 0) {
-        cells = await opened.readCells(row, region.column, region.columns);
-      } else {
-        const offset = base + (row * width + (whole ? 0 : region.column)) * 4;
-        const bytes = await (store as StagesStore).read(offset, (whole ? width : region.columns) * 4);
-        const own = bytes.byteOffset % 4 === 0 ? bytes : bytes.slice();
-        const all = new Float32Array(own.buffer, own.byteOffset, own.byteLength / 4);
-        cells = whole ? all.subarray(region.column, region.column + region.columns) : all;
-      }
+      const cells =
+        region.level === 0
+          ? await opened.readCells(row, region.column, region.columns)
+          : await stageCells(store as StagesStore, base + row * width * 4, width, region, whole);
       values.set(cells.subarray(0, region.columns), r * region.columns);
     }
     return values;

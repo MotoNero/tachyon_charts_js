@@ -214,11 +214,8 @@ export class CrosshairOverlay extends ChartOverlay {
       const axis = placement.axis;
       const along = axis.isHorizontal ? center.x : center.y;
       const curve = this.curveOf(axis);
-      const inside = axis.isHorizontal
-        ? along >= placement.bounds.x && along <= placement.bounds.right
-        : along >= placement.bounds.y && along <= placement.bounds.bottom;
       const value = canvas.valueAt(axis, along);
-      if (!inside || (axis.isHidden && !curve) || value === undefined) {
+      if (!isAlong(placement, along) || (axis.isHidden && !curve) || value === undefined) {
         continue;
       }
       const text = this.textOf(axis, value);
@@ -285,4 +282,12 @@ export class CrosshairOverlay extends ChartOverlay {
 
 function sharesSide(placements: readonly AxisPlacement[], placement: AxisPlacement): boolean {
   return placements.some((other) => other.axis !== placement.axis && other.axis.position === placement.axis.position);
+}
+
+// Whether a position along an axis lies on the axis.
+function isAlong(placement: AxisPlacement, along: number): boolean {
+  const bounds = placement.bounds;
+  return placement.axis.isHorizontal
+    ? along >= bounds.x && along <= bounds.right
+    : along >= bounds.y && along <= bounds.bottom;
 }

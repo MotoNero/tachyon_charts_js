@@ -78,7 +78,8 @@ export const builtInThemes: readonly ThemeDocument[] = Object.values(builtInThem
 /** A built-in theme by its name, `dark` and `light` included, ignoring case. */
 export function findBuiltInTheme(name: string): ThemeDocument | undefined {
   const wanted = name.trim().toLowerCase();
-  const key = wanted === 'dark' ? 'tachyon-dark' : wanted === 'light' ? 'tachyon-light' : wanted;
+  const aliases: Record<string, string> = { dark: 'tachyon-dark', light: 'tachyon-light' };
+  const key = aliases[wanted] ?? wanted;
   return builtInThemeDocuments[key] ?? builtInThemes.find((theme) => theme.name.toLowerCase() === wanted);
 }
 
@@ -121,7 +122,7 @@ export function parseTheme(json: string): ThemeDocument {
   if (typeof value !== 'object' || value === null || typeof (value as { name?: unknown }).name !== 'string') {
     throw new Error('A theme document needs a name.');
   }
-  const known = [
+  const known = new Set([
     'name',
     'base',
     'surface',
@@ -133,8 +134,8 @@ export function parseTheme(json: string): ThemeDocument {
     'effects',
     'colormap',
     'animation',
-  ];
-  const unknown = Object.keys(value).filter((key) => !known.includes(key));
+  ]);
+  const unknown = Object.keys(value).filter((key) => !known.has(key));
   if (unknown.length > 0) {
     throw new Error(`The theme has unknown tokens: ${unknown.join(', ')}.`);
   }

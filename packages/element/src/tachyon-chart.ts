@@ -114,7 +114,7 @@ export class TachyonChartElement extends HTMLElement {
   private pixelSize = { width: 1, height: 1 };
   private measuredRatio = 0;
   private observer: ResizeObserver | undefined;
-  private cleanups: (() => void)[] = [];
+  private readonly cleanups: (() => void)[] = [];
   private resolveReady: () => void = () => undefined;
   /** Resolves after the first frame of a chart. */
   readonly ready: Promise<void>;
@@ -255,7 +255,7 @@ export class TachyonChartElement extends HTMLElement {
     this.applyTheme();
     // A chart out of view keeps its changes until it shows again; its first frame it draws anyway.
     this.visibility = new IntersectionObserver((entries) => {
-      const entry = entries[entries.length - 1];
+      const entry = entries.at(-1);
       this.visible = entry?.isIntersecting ?? true;
       wakeFrameLoop();
     });

@@ -10,8 +10,10 @@
 Fast charts for the browser, drawn on the GPU with WebGPU, with fallbacks to WebGL 2 and Canvas 2D. Made for large
 data: millions of points in real time and files larger than memory.
 
-**Status:** early development. Charts with lines, scatter markers, areas, bands and bars draw on WebGPU, with
-axes, time axes, layout and text as in the .NET version.
+**Status:** early development. Charts with lines, scatter markers, areas, bands, bars, digital channels and rasters
+draw on WebGPU, with axes, time axes, layout, text, interaction and themes as in the .NET version, in a render worker
+and with data from workers. Column files, rasters and point tiles larger than memory come from the origin private
+file system, files or servers.
 There is no release yet and the API will change. The packages will appear on npm under
 `@tachyon-charts/…`.
 
@@ -134,6 +136,26 @@ writer.append(xs, ys);
 450 ms when the same points are appended on the main thread. The showroom streams four million points on the page
 "Data from a worker".
 
+## Rasters and colormaps
+
+![A field of 400 x 300 cells with two peaks and a valley in the colormap Inferno](docs/images/raster.png)
+
+`RasterSeries` draws a grid of float values in a colormap: Viridis, Inferno, Magma, Plasma, Turbo and Grayscale, the
+same tables as the .NET version. NaN cells stay transparent. The value range is set by the chart, on a linear or a
+logarithmic scale; zoomed out, cells are averaged, zoomed in, each cell is a sharp square.
+
+```ts
+import { Colormap, DoubleRange, RasterSeries } from '@tachyon-charts/core';
+
+builder.addSeries((x, y) => {
+  const series = new RasterSeries(x, y);
+  series.colormap = Colormap.builtIn('Inferno');
+  series.valueRange = new DoubleRange(-0.5, 1);
+  series.setValues(values, 400, 300, { left: -5, right: 5, bottom: -3.75, top: 3.75 });
+  return series;
+});
+```
+
 ## Column files
 
 `@tachyon-charts/large-data` reads and writes column files (TCOL), the format of the .NET version for data larger than
@@ -216,6 +238,25 @@ import { PointDensitySeries, PointTiles } from '@tachyon-charts/large-data';
 
 const tiles = await PointTiles.open({ opfs: 'data/points.tcol' }, { xColumn: 0, yColumn: 1 });
 builder.addSeries((x, y) => Object.assign(new PointDensitySeries(tiles, x, y), { colormap: Colormap.builtIn('Inferno') }));
+```
+
+### Rasters larger than memory
+
+![A terrain of 50 million cells with a lake in the colormap Turbo](docs/images/raster-from-a-large-file.png)
+
+`RasterFileWriter` writes a raster file (TRAS, the format of the .NET version) row batch by row batch, and
+`LargeRaster` opens one from the origin private file system, a File or a server with range requests. A worker builds
+its stages once, each half the size of the one below, by mean, maximum or nearest cell, the same bytes as the .NET
+version, and keeps them in the origin private file system. `FileRasterSeries` reads only the visible part of the
+stage that fits the zoom. The showroom writes 50 million cells (200 MB) on the page "Raster from a large file"; their
+stages take about 2 s.
+
+```ts
+import { Colormap } from '@tachyon-charts/core';
+import { FileRasterSeries, LargeRaster } from '@tachyon-charts/large-data';
+
+const raster = await LargeRaster.open({ opfs: 'data/terrain.tras' });
+builder.addSeries((x, y) => Object.assign(new FileRasterSeries(raster, x, y), { colormap: Colormap.builtIn('Turbo') }));
 ```
 
 ### Recording for hours
@@ -304,7 +345,8 @@ A chart described with the fluent API brings its own theme with `.theme(findBuil
 ![The showroom: a navigation of all chart types at the left, a sine line in the theme Instrument at the right](docs/images/showroom.png)
 
 `examples/showroom` shows every finished feature on a page of its own: lines, splines, step lines, a million points,
-scatter, areas, bands, bars, logarithmic, category and time axes, axes in the origin and the themes. A theme and the
+scatter, areas, bands, bars, logarithmic, category and time axes, axes in the origin, the themes, data from workers,
+many charts, files larger than memory, CSV, recording, digital channels, rasters and scatter density. A theme and the
 language of the axes can be chosen at the top for all pages. Every new feature brings its page.
 
 ## Packages

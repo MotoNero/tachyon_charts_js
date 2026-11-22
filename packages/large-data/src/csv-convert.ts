@@ -210,39 +210,131 @@ function readStart(bytes: Uint8Array, format: Required<CsvFormat>, atEnd: boolea
   let lines = 0;
   let header: string[] | undefined;
   for (;;) {
-    let end = bytes.indexOf(10, offset);
-    if (end < 0) {
-      if (!atEnd) {
-        return undefined;
-      }
-      end = bytes.length;
+    const found = bytes.indexOf(10, offset);
+    if (found < 0 && !atEnd) {
+      return undefined;
     }
+    const end = found < 0 ? bytes.length : found;
     const line = decoder.decode(bytes.subarray(offset, end)).replace(/\r$/, '');
-    const isLast = end === bytes.length;
-    if (line.trim() === '') {
-      if (isLast) {
-        return { header, columns: header?.length ?? 1, consumedLines: lines, consumedBytes: bytes.length };
-      }
-      offset = end + 1;
-      lines++;
-      continue;
+    const blank = line.trim() === '';
+    if (!blank && (header || !format.hasHeader)) {
+      // The first row stays; it is parsed with the others.
+      return {
+        header,
+        columns: Math.max(header?.length ?? 0, splitCsvLine(line, format.delimiter).length),
+        consumedLines: lines,
+        consumedBytes: offset,
+      };
     }
-    if (!header && format.hasHeader) {
+    if (!blank) {
       header = splitCsvLine(line, format.delimiter);
-      offset = Math.min(end + 1, bytes.length);
-      lines++;
-      if (isLast) {
-        return { header, columns: header.length, consumedLines: lines, consumedBytes: bytes.length };
-      }
-      continue;
     }
-    // The first row stays; it is parsed with the others.
-    return {
-      header,
-      columns: Math.max(header?.length ?? 0, splitCsvLine(line, format.delimiter).length),
-      consumedLines: lines,
-      consumedBytes: offset,
-    };
+    offset = Math.min(end + 1, bytes.length);
+    lines++;
+    if (end === bytes.length) {
+      return { header, columns: header?.length ?? 1, consumedLines: lines, consumedBytes: bytes.length };
+    }
+  }
+}
+
+// Drops the byte order mark of UTF-8 once three bytes are there; false while fewer are.
+function dropByteOrderMark(pieces: Pieces): boolean {
+  const head = pieces.peek();
+  if (head.length < 3) {
+    return false;
+  }
+  if (head[0] === 0xef && head[1] === 0xbb && head[2] === 0xbf) {
+    pieces.drop(3);
+  }
+  return true;
+}
+
+// Collects bytes until the header and the first row are there, without the byte order mark.
+async function collectStart(
+  chunks: AsyncIterator<Uint8Array>,
+  pieces: Pieces,
+  format: Required<CsvFormat>,
+): Promise<{ start: Start; read: number }> {
+  let read = 0;
+  let checkedMark = false;
+  for (;;) {
+    const next = await chunks.next();
+    if (!next.done) {
+      read += next.value.length;
+      pieces.add(next.value);
+      checkedMark ||= dropByteOrderMark(pieces);
+    }
+    const start = readStart(pieces.peek(), format, next.done === true);
+    if (start) {
+      return { start, read };
+    }
+    if (next.done) {
+      throw new Error('The CSV file is empty.');
+    }
+  }
+}
+
+// Where each field goes, from the columns asked for and the columns of the file.
+function layoutOf(
+  start: Start,
+  options: CsvConversionOptions,
+  format: Required<CsvFormat>,
+): { layout: CsvLayout; kept: number[] } {
+  const xColumn = options.xColumn;
+  const kept = [
+    ...(options.columns ?? Array.from({ length: start.columns }, (_, c) => c).filter((c) => c !== xColumn)),
+  ];
+  if (kept.length === 0) {
+    throw new Error('The CSV file has no column to keep beside X.');
+  }
+  const missing = [...kept, ...(xColumn === undefined ? [] : [xColumn])].find((c) => c < 0 || c >= start.columns);
+  if (missing !== undefined) {
+    throw new Error(`The CSV file has ${String(start.columns)} columns; there is no column ${String(missing)}.`);
+  }
+  const slots = new Array<number>(start.columns).fill(-1);
+  kept.forEach((column, place) => {
+    slots[column] = place;
+  });
+  if (xColumn !== undefined) {
+    slots[xColumn] = -2;
+  }
+  const layout: CsvLayout = {
+    delimiter: format.delimiter.codePointAt(0) ?? 0,
+    slots,
+    kept: kept.length,
+    hasX: xColumn !== undefined,
+    decimalComma: format.decimalComma,
+  };
+  return { layout, kept };
+}
+
+// Checks that X of each row follows the step of the first two rows.
+class StepCheck {
+  first = 0;
+  second = 0;
+  last = 0;
+  private rows = 0;
+
+  check(piece: CsvPiece, lineBase: number): void {
+    for (let i = 0; i < piece.rows; i++) {
+      const x = piece.xs[i] as number;
+      const count = this.rows + i;
+      if (count === 0) {
+        this.first = x;
+      } else if (count === 1) {
+        this.second = x;
+      } else if (
+        Math.abs(x - this.last - (this.second - this.first)) >
+        Math.abs(this.second - this.first) * stepTolerance
+      ) {
+        throw new Error(
+          `Line ${String(lineBase + (piece.lineOfRow[i] ?? 0) + 1)}: X ${String(x)} does not follow the step ` +
+            `${String(this.second - this.first)}; column files need X in even steps.`,
+        );
+      }
+      this.last = x;
+    }
+    this.rows += piece.rows;
   }
 }
 
@@ -265,57 +357,12 @@ export async function csvToColumnFile(
   const size = input instanceof Blob ? input.size : options.size;
   const pieces = new Pieces(options.pieceBytes ?? pieceBytes);
   const chunks = chunksOf(input);
-  let read = 0;
-  let checkedMark = false;
-  let start: Start | undefined;
   // The header and the first row tell the columns.
-  for (;;) {
-    const next = await chunks.next();
-    if (!next.done) {
-      read += next.value.length;
-      pieces.add(next.value);
-      if (!checkedMark && pieces.peek().length >= 3) {
-        checkedMark = true;
-        const head = pieces.peek();
-        if (head[0] === 0xef && head[1] === 0xbb && head[2] === 0xbf) {
-          pieces.drop(3);
-        }
-      }
-    }
-    start = readStart(pieces.peek(), format, next.done === true);
-    if (start || next.done) {
-      break;
-    }
-  }
-  if (!start) {
-    throw new Error('The CSV file is empty.');
-  }
+  const collected = await collectStart(chunks, pieces, format);
+  const start = collected.start;
+  let read = collected.read;
   pieces.drop(start.consumedBytes);
-  const xColumn = options.xColumn;
-  const kept = [
-    ...(options.columns ?? Array.from({ length: start.columns }, (_, c) => c).filter((c) => c !== xColumn)),
-  ];
-  if (kept.length === 0) {
-    throw new Error('The CSV file has no column to keep beside X.');
-  }
-  const missing = [...kept, ...(xColumn === undefined ? [] : [xColumn])].find((c) => c < 0 || c >= start.columns);
-  if (missing !== undefined) {
-    throw new Error(`The CSV file has ${String(start.columns)} columns; there is no column ${String(missing)}.`);
-  }
-  const slots = new Array<number>(start.columns).fill(-1);
-  kept.forEach((column, place) => {
-    slots[column] = place;
-  });
-  if (xColumn !== undefined) {
-    slots[xColumn] = -2;
-  }
-  const layout: CsvLayout = {
-    delimiter: format.delimiter.charCodeAt(0),
-    slots,
-    kept: kept.length,
-    hasX: xColumn !== undefined,
-    decimalComma: format.decimalComma,
-  };
+  const { layout, kept } = layoutOf(start, options, format);
   const workerCount =
     options.workers ??
     Math.max(1, Math.min(8, ((globalThis as { navigator?: Navigator }).navigator?.hardwareConcurrency ?? 2) - 1));
@@ -325,39 +372,19 @@ export async function csvToColumnFile(
   const parsers = new Parsers(workerCount, layout, create);
   const writer = new ColumnFileWriter(sink, {
     type: 'float64',
-    columns: kept.length,
+    columns: layout.kept,
     xStart: options.xStart ?? 0,
     xStep: options.xStep ?? 1,
   });
   let rows = 0;
   let lineBase = start.consumedLines;
-  let first = 0;
-  let second = 0;
-  let last = 0;
-  // X of each row must follow the step of the first two.
-  const check = (piece: CsvPiece): void => {
-    for (let i = 0; i < piece.rows; i++) {
-      const x = piece.xs[i] as number;
-      const count = rows + i;
-      if (count === 0) {
-        first = x;
-      } else if (count === 1) {
-        second = x;
-      } else if (Math.abs(x - last - (second - first)) > Math.abs(second - first) * stepTolerance) {
-        throw new Error(
-          `Line ${String(lineBase + (piece.lineOfRow[i] ?? 0) + 1)}: X ${String(x)} does not follow the step ` +
-            `${String(second - first)}; column files need X in even steps.`,
-        );
-      }
-      last = x;
-    }
-  };
+  const steps = new StepCheck();
   // Pieces parse in parallel; they are written in the order they came.
   const inFlight: Promise<CsvPiece>[] = [];
   const writeOldest = async (): Promise<void> => {
     const piece = await (inFlight.shift() as Promise<CsvPiece>);
     if (layout.hasX) {
-      check(piece);
+      steps.check(piece, lineBase);
     }
     await writer.append(piece.values.subarray(0, piece.rows * layout.kept));
     rows += piece.rows;
@@ -396,7 +423,9 @@ export async function csvToColumnFile(
     parsers.close();
   }
   const [xStart, xStep] =
-    layout.hasX && rows >= 2 ? [first, (last - first) / (rows - 1)] : [options.xStart ?? 0, options.xStep ?? 1];
+    layout.hasX && rows >= 2
+      ? [steps.first, (steps.last - steps.first) / (rows - 1)]
+      : [options.xStart ?? 0, options.xStep ?? 1];
   writer.setX(xStart, xStep);
   await writer.close();
   options.onProgress?.(1);

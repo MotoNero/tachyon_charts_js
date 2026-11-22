@@ -290,11 +290,15 @@ export class ModifierPipeline {
   }
 
   private releaseCaptures(modifier: ChartModifier): void {
-    for (const [pointerId, holder] of [...this.pointerCaptures]) {
+    const lost: number[] = [];
+    for (const [pointerId, holder] of this.pointerCaptures) {
       if (holder === modifier) {
-        this.pointerCaptures.delete(pointerId);
-        modifier.onCaptureLost({ kind: 'pointer', pointerId });
+        lost.push(pointerId);
       }
+    }
+    for (const pointerId of lost) {
+      this.pointerCaptures.delete(pointerId);
+      modifier.onCaptureLost({ kind: 'pointer', pointerId });
     }
     if (this.keyboardCapture === modifier) {
       this.keyboardCapture = undefined;

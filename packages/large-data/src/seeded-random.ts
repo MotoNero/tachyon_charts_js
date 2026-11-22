@@ -60,7 +60,12 @@ export class SeededRandom {
     }
     const bits = Math.ceil(Math.log2(maxValue));
     // log2 of a power of two can come out a hair high or low; the bound decides.
-    const width = 2 ** (bits - 1) >= maxValue ? bits - 1 : 2 ** bits < maxValue ? bits + 1 : bits;
+    let width = bits;
+    if (2 ** (bits - 1) >= maxValue) {
+      width = bits - 1;
+    } else if (2 ** bits < maxValue) {
+      width = bits + 1;
+    }
     for (;;) {
       const low = this.nextInt(1 << 22);
       const middle = this.nextInt(1 << 22);

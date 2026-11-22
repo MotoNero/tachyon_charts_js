@@ -179,6 +179,40 @@ async function saveCached(name: string, bytes: Uint8Array): Promise<void> {
   }
 }
 
+// Per block of a piece of a bit column: whether a point differs from the one before it, and the level of its first
+// point. `words` hold the piece, with one word of the point before it in front when `lead` is 1.
+function changesOf(words: Uint32Array, points: number, lead: number): { changes: Uint8Array; starts: Uint8Array } {
+  const blocks = Math.ceil(points / changeBlockSize);
+  const changes = new Uint8Array(blocks);
+  const starts = new Uint8Array(blocks);
+  for (let block = 0; block < blocks; block++) {
+    const begin = block * (changeBlockSize / 32);
+    const end = Math.min(begin + changeBlockSize / 32, Math.ceil(points / 32));
+    starts[block] = (words[begin + lead] as number) & 1;
+    const before = begin + lead > 0 ? (words[begin + lead - 1] as number) >>> 31 : (words[0] as number) & 1;
+    changes[block] = blockChanges(words, begin + lead, end + lead, before & 1, points - begin * 32);
+  }
+  return { changes, starts };
+}
+
+// 1 when a point of the words from `from` to before `to` differs from the one before it, `valid` points counted.
+function blockChanges(words: Uint32Array, from: number, to: number, first: number, valid: number): number {
+  let previous = first;
+  let left = valid;
+  for (let w = from; w < to; w++, left -= 32) {
+    const word = words[w] as number;
+    let changed = (word ^ ((word << 1) | previous)) >>> 0;
+    if (left < 32) {
+      changed &= (1 << left) - 1;
+    }
+    if (changed !== 0) {
+      return 1;
+    }
+    previous = word >>> 31;
+  }
+  return 0;
+}
+
 /** Serves one column on an endpoint: call it in the module of the worker with its global scope. */
 export function serveColumn(endpoint: ColumnEndpoint): void {
   let file: ColumnFile | undefined;
@@ -242,27 +276,7 @@ export function serveColumn(endpoint: ColumnEndpoint): void {
       // One word more in front: the point before the piece.
       const lead = first > 0 ? 1 : 0;
       const words = await opened.readWords32(first / 32 - lead, Math.ceil(points / 32) + lead);
-      const blocks = Math.ceil(points / changeBlockSize);
-      const changes = new Uint8Array(blocks);
-      const starts = new Uint8Array(blocks);
-      for (let block = 0; block < blocks; block++) {
-        const begin = block * (changeBlockSize / 32);
-        const end = Math.min(begin + changeBlockSize / 32, Math.ceil(points / 32));
-        starts[block] = ((words[begin + lead] as number) & 1) === 1 ? 1 : 0;
-        let previous = begin + lead > 0 ? ((words[begin + lead - 1] as number) >>> 31) & 1 : (words[0] as number) & 1;
-        let any = 0;
-        for (let w = begin; w < end && any === 0; w++) {
-          const word = words[w + lead] as number;
-          let changed = (word ^ ((word << 1) | previous)) >>> 0;
-          const valid = points - w * 32;
-          if (valid < 32) {
-            changed &= (1 << valid) - 1;
-          }
-          any = changed === 0 ? 0 : 1;
-          previous = word >>> 31;
-        }
-        changes[block] = any;
-      }
+      const { changes, starts } = changesOf(words, points, lead);
       send({ kind: 'bitPiece', piece, changes, starts }, [changes.buffer, starts.buffer]);
     }
     send({ kind: 'complete', milliseconds: performance.now() - start, fromCache: false });
