@@ -24,6 +24,7 @@ import {
   type ThemeDocument,
   type TooltipData,
 } from '@tachyon-charts/core';
+import { createCanvas2dDevice, createCanvas2dWorkerDevice } from '@tachyon-charts/render-canvas';
 import { createWebGl2Device, createWebGl2WorkerDevice } from '@tachyon-charts/render-webgl';
 import { createWebGpuDevice, createWebGpuWorkerDevice } from '@tachyon-charts/render-webgpu';
 import { joinFrameLoop, leaveFrameLoop, wakeFrameLoop, type LoopMember } from './frame-loop';
@@ -54,33 +55,95 @@ function startDataWorker(): void {
   }
 }
 
-// The device of the page: WebGPU, else WebGL 2 where the browser has no WebGPU, each in a render worker where the
-// browser can hand a canvas to one, else on this thread.
-async function createDevice(): Promise<RenderDevice | undefined> {
-  const wanted = TachyonChartElement.renderer;
-  if (wanted !== 'webgl2') {
-    const webgpu = await createWebGpu();
-    if (webgpu || wanted === 'webgpu') {
-      return webgpu;
-    }
+/** A renderer of the element. */
+export type RendererKind = 'webgpu' | 'webgl2' | 'canvas2d';
+
+// The renderers in the order `auto` tries them, as RendererSelector of the .NET version: the GPU first, Canvas 2D last.
+const rendererOrder: readonly RendererKind[] = ['webgpu', 'webgl2', 'canvas2d'];
+
+// Losses per renderer since the page loaded; `auto` leaves out a renderer that lost its device twice.
+const losses = new Map<RendererKind, number>();
+const maximumLosses = 2;
+
+// The charts that draw, so that a lost device can be replaced for all of them.
+const charts = new Set<TachyonChartElement>();
+
+// The smallest texture a GPU renderer must take: the largest raster and the glyph atlas need it.
+const minimumTextureDimension = 4096;
+
+/** The renderer a device belongs to, by the name it gives. */
+export function rendererKindOf(device: RenderDevice): RendererKind {
+  const name = device.capabilities.backendName;
+  if (name.startsWith('WebGPU')) {
+    return 'webgpu';
   }
-  if (TachyonChartElement.renderInWorker) {
-    const remote = await createWebGl2WorkerDevice();
-    if (remote) {
-      return remote;
-    }
-  }
-  return createWebGl2Device();
+  return name.startsWith('WebGL') ? 'webgl2' : 'canvas2d';
 }
 
-async function createWebGpu(): Promise<RenderDevice | undefined> {
-  if (TachyonChartElement.renderInWorker) {
-    const remote = await createWebGpuWorkerDevice();
-    if (remote) {
-      return remote;
-    }
+async function createKind(kind: RendererKind): Promise<RenderDevice | undefined> {
+  const inWorker = TachyonChartElement.renderInWorker;
+  switch (kind) {
+    case 'webgpu':
+      return (inWorker ? await createWebGpuWorkerDevice() : undefined) ?? (await createWebGpuDevice());
+    case 'webgl2':
+      return (inWorker ? await createWebGl2WorkerDevice() : undefined) ?? createWebGl2Device();
+    default:
+      return (inWorker ? await createCanvas2dWorkerDevice() : undefined) ?? createCanvas2dDevice();
   }
-  return createWebGpuDevice();
+}
+
+// Whether a device can serve the charts: large enough textures on the GPU, and a first frame that works.
+async function works(device: RenderDevice, kind: RendererKind): Promise<boolean> {
+  if (kind !== 'canvas2d' && device.capabilities.maxTextureDimension < minimumTextureDimension) {
+    return false;
+  }
+  try {
+    const target = device.createOffscreenTarget({ width: 1, height: 1 }, 1);
+    const frame = device.beginFrame(target);
+    frame.clear({ r: 0, g: 0, b: 0, a: 255 });
+    frame.submit();
+    await device.whenIdle();
+    target.dispose();
+    return !device.isLost;
+  } catch {
+    return false;
+  }
+}
+
+// The device of the page: the first renderer that works, each in a render worker where the browser can hand a canvas
+// to one, else on this thread.
+async function createDevice(): Promise<RenderDevice | undefined> {
+  const wanted = TachyonChartElement.renderer;
+  const kinds = wanted === 'auto' ? rendererOrder.filter((kind) => (losses.get(kind) ?? 0) < maximumLosses) : [wanted];
+  for (const kind of kinds) {
+    let device: RenderDevice | undefined;
+    try {
+      device = await createKind(kind);
+    } catch {
+      device = undefined;
+    }
+    if (device && (await works(device, kind))) {
+      watchLoss(device, kind);
+      return device;
+    }
+    device?.dispose();
+  }
+  return undefined;
+}
+
+// A lost device is replaced: every chart lets go of it and starts again with a new one.
+function watchLoss(device: RenderDevice, kind: RendererKind): void {
+  device.onLost(() => {
+    losses.set(kind, (losses.get(kind) ?? 0) + 1);
+    shared.device = undefined;
+    void shared.engine?.then((engine) => {
+      engine.releaseAtlas(device);
+    });
+    for (const chart of [...charts]) {
+      chart.restartAfterLoss();
+    }
+    device.dispose();
+  });
 }
 
 const style = `
@@ -109,10 +172,11 @@ export class TachyonChartElement extends HTMLElement {
    */
   static renderInWorker = true;
   /**
-   * Which renderer draws: `auto` takes WebGPU and falls back to WebGL 2 where the browser has no WebGPU; `webgpu` and
-   * `webgl2` take only that one. Set it before the first chart connects.
+   * Which renderer draws: `auto` takes the first that works of WebGPU, WebGL 2 and Canvas 2D, and leaves out one that
+   * lost its device twice; `webgpu`, `webgl2` and `canvas2d` take only that one. Set it before the first chart
+   * connects.
    */
-  static renderer: 'auto' | 'webgpu' | 'webgl2' = 'auto';
+  static renderer: 'auto' | RendererKind = 'auto';
   /**
    * Whether a data worker builds the pyramids of the series on cross-origin isolated pages, where the values live in
    * shared memory. Set it before the first chart connects.
@@ -186,6 +250,11 @@ export class TachyonChartElement extends HTMLElement {
     return this.device instanceof RemoteRenderDevice ? 'worker' : 'main';
   }
 
+  /** The renderer that draws the chart; `undefined` before it starts. */
+  get renderer(): RendererKind | undefined {
+    return this.device ? rendererKindOf(this.device) : undefined;
+  }
+
   /** The name of the renderer that draws the chart, such as `WebGPU (nvidia ampere)`; `undefined` before it starts. */
   get rendererName(): string | undefined {
     return this.device?.capabilities.backendName;
@@ -208,6 +277,7 @@ export class TachyonChartElement extends HTMLElement {
 
   /** Frees the GPU resources and stops drawing when the element leaves the page; it starts again when it returns. */
   disconnectedCallback(): void {
+    charts.delete(this);
     leaveFrameLoop(this.member);
     this.visibility?.disconnect();
     this.visibility = undefined;
@@ -220,8 +290,30 @@ export class TachyonChartElement extends HTMLElement {
     for (const series of this.chartSurface?.series ?? []) {
       series.releaseResources();
     }
-    this.target?.dispose();
+    try {
+      this.target?.dispose();
+    } catch {
+      // A target of a lost device may fail to let go; it is gone with its device.
+    }
     this.target = undefined;
+  }
+
+  /**
+   * Starts again with a new device after the device of the page was lost: the canvas is replaced, since a canvas keeps
+   * the kind of its first context, and everything on the GPU is made anew.
+   * @internal
+   */
+  restartAfterLoss(): void {
+    if (!this.isConnected) {
+      return;
+    }
+    this.disconnectedCallback();
+    this.device = undefined;
+    const canvas = document.createElement('canvas');
+    this.canvas.replaceWith(canvas);
+    this.canvas = canvas;
+    this.canvasTransferred = false;
+    void this.start();
   }
 
   /** Follows a change of `theme` or `interactive`. */
@@ -245,11 +337,17 @@ export class TachyonChartElement extends HTMLElement {
       return;
     }
     if (!device) {
-      this.message.textContent = 'This browser cannot draw with WebGPU.';
+      this.message.textContent = 'This browser cannot draw charts.';
       this.message.hidden = false;
-      this.dispatchEvent(new CustomEvent('tachyon-error', { detail: 'WebGPU is not available.' }));
+      this.dispatchEvent(new CustomEvent('tachyon-error', { detail: 'No renderer is available.' }));
       return;
     }
+    if (device.isLost) {
+      // Lost while this chart waited: it takes the next device.
+      void this.start();
+      return;
+    }
+    charts.add(this);
     this.device = device;
     this.engine = engine;
     this.measure();

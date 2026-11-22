@@ -115,7 +115,10 @@ export class WebGlSurfaceTarget extends WebGlTarget implements SurfaceRenderTarg
   constructor(device: GlContext, surface: SurfaceHandle, size: PixelSize, dpiScale: number) {
     super(device, size, dpiScale);
     const canvas = surface.canvas as HTMLCanvasElement | OffscreenCanvas | null;
-    const context = typeof canvas?.getContext === 'function' ? canvas.getContext('bitmaprenderer') : null;
+    const context =
+      typeof canvas?.getContext === 'function'
+        ? (canvas.getContext('bitmaprenderer') as ImageBitmapRenderingContext | null)
+        : null;
     if (!canvas || !context) {
       throw new TypeError('The surface is no canvas that can show image bitmaps.');
     }

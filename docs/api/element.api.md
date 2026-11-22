@@ -11,6 +11,7 @@ import { ChartSurface } from '@tachyon-charts/core';
 import { ModifierPipeline } from '@tachyon-charts/core';
 import { PixelSize } from '@tachyon-charts/core';
 import { Point } from '@tachyon-charts/core';
+import { RenderDevice } from '@tachyon-charts/core';
 import { ThemeDocument } from '@tachyon-charts/core';
 
 // @public
@@ -66,6 +67,12 @@ export function modifiersOf(event: {
 export function preferredTheme(): ThemeDocument;
 
 // @public
+export type RendererKind = 'webgpu' | 'webgl2' | 'canvas2d';
+
+// @public
+export function rendererKindOf(device: RenderDevice): RendererKind;
+
+// @public
 export class TachyonChartElement extends HTMLElement {
     constructor();
     attributeChangedCallback(name: string): void;
@@ -80,10 +87,13 @@ export class TachyonChartElement extends HTMLElement {
     static readonly observedAttributes: string[];
     get pipeline(): ModifierPipeline;
     readonly ready: Promise<void>;
-    static renderer: 'auto' | 'webgpu' | 'webgl2';
+    static renderer: 'auto' | RendererKind;
+    get renderer(): RendererKind | undefined;
     get rendererName(): string | undefined;
     static renderInWorker: boolean;
     get renderThread(): 'worker' | 'main' | undefined;
+    // @internal
+    restartAfterLoss(): void;
     get surface(): ChartSurface | undefined;
 }
 

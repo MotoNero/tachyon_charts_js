@@ -85,17 +85,36 @@ pixel. `TachyonChartElement.renderInWorker = false` before the first chart choos
 `chart.renderThread` tells where a chart draws. Without the element, `createWebGpuWorkerDevice()` of
 `@tachyon-charts/render-webgpu` gives the same device to a chart of your own.
 
-## WebGL 2 fallback
+## Fallbacks: WebGL 2 and Canvas 2D
+
+Charts run everywhere. The element takes the first renderer that works: WebGPU, then WebGL 2, then Canvas 2D. A
+renderer must draw a first frame, and a GPU renderer must take textures of 4096 pixels. When a device is lost, after
+a driver reset for example, every chart of the page lets go of it and starts again with a new one; a renderer that
+lost its device twice is left out. `TachyonChartElement.renderer` chooses before the first chart: `auto`, `webgpu`,
+`webgl2` or `canvas2d`; `chart.renderer` and `chart.rendererName` tell which one draws. The showroom draws with a
+fallback on `index.html?renderer=webgl2` or `?renderer=canvas2d`.
+
+### WebGL 2
 
 ![The showroom drawn with WebGL 2 in the render worker](docs/images/webgl2-fallback.png)
 
-Where a browser has no WebGPU, charts draw with WebGL 2: the same commands and shaders derived line by line from the
-WGSL shaders. Every scene of the image tests matches the .NET reference with WebGL 2 within the tolerance of WebGPU,
-most of them to the pixel. All charts of a page share one WebGL context, its buffers and the glyph atlas; a frame
-for a chart goes to its canvas as an image bitmap, without a copy, in the render worker or on the main thread. `TachyonChartElement.renderer` chooses
-before the first chart: `auto` (WebGPU, else WebGL 2), `webgpu` or `webgl2`; `chart.rendererName` tells which one
-draws. Without the element, `createWebGl2Device()` and `createWebGl2WorkerDevice()` of `@tachyon-charts/render-webgl`
-give a device of your own. The showroom draws with WebGL 2 on `index.html?renderer=webgl2`.
+The same commands and shaders derived line by line from the WGSL shaders. Every scene of the image tests matches the
+.NET reference with WebGL 2 within the tolerance of WebGPU, most of them to the pixel. All charts of a page share one
+WebGL context, its buffers and the glyph atlas; a frame for a chart goes to its canvas as an image bitmap, without a
+copy, in the render worker or on the main thread. Without the element, `createWebGl2Device()` and
+`createWebGl2WorkerDevice()` of `@tachyon-charts/render-webgl` give a device of your own.
+
+### Canvas 2D
+
+![The showroom drawn with Canvas 2D in the render worker](docs/images/canvas2d-fallback.png)
+
+The last fallback, as the Skia backend of the .NET version: buffers and textures in the memory of the CPU, lines as
+strokes with round caps and joins, markers as shapes, and on the CPU what the shaders do: distance field text,
+rasters through their colormap, triangles with a color per corner and, from 200 000 on, markers written straight into
+pixels (a million in about 135 ms). It draws on a canvas of the CPU, where the browser rasterizes with Skia too, so
+the scenes match the images of the Skia backend of the .NET version, most of them to the pixel. It draws in the render
+worker as well, which keeps the work off the page. `createCanvas2dDevice()` and `createCanvas2dWorkerDevice()` of
+`@tachyon-charts/render-canvas` give a device of your own.
 
 ## Performance
 
@@ -380,7 +399,7 @@ language of the axes can be chosen at the top for all pages. Every new feature b
 | `@tachyon-charts/core` | Charts, axes, data, interaction, layout and themes |
 | `@tachyon-charts/render-webgpu` | WebGPU backend |
 | `@tachyon-charts/render-webgl` | WebGL 2 fallback, the same images as WebGPU |
-| `@tachyon-charts/render-canvas` | Canvas 2D fallback and export |
+| `@tachyon-charts/render-canvas` | Canvas 2D fallback, the images of the Skia backend |
 | `@tachyon-charts/element` | The web component `<tachyon-chart>` |
 | `@tachyon-charts/large-data` | Column files, pyramids, OPFS, HTTP range requests, workers |
 | `@tachyon-charts/3d` | 3D charts |
