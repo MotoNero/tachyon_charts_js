@@ -197,6 +197,27 @@ const file = await BitColumn.open({ opfs: 'capture/channel0.tcol' });
 builder.addSeries((x, y) => Object.assign(new DigitalSeries(file, x, y), { low: 1, high: 1.7 }));
 ```
 
+### Scatter density from files
+
+![Twenty million points in clusters and a ring as a density in the colormap Inferno](docs/images/scatter-density-from-a-file.png)
+
+`PointTiles` sorts the points of two columns of a column file once into tiles (TPTS, the format of the .NET version,
+the same bytes): 1024 × 1024 tiles over the extent, the points of each tile in a random order, and a grid of
+4096 × 4096 counts. A worker builds them in bands of tiles that fit in memory, so any number of points works, and
+keeps them in the origin private file system. `PointDensitySeries` counts the view per pixel in that worker: a wide
+view from the grid, each cell shared out by area, a narrow one from the points of the visible tiles, at most four
+million of them, a fair share of each dense tile weighed for the rest. The counts are drawn as a raster on a
+logarithmic colormap; zoomed in, single points show. The showroom writes 20 million points on the page
+"Scatter density from a file"; their tiles take about 5 s.
+
+```ts
+import { Colormap } from '@tachyon-charts/core';
+import { PointDensitySeries, PointTiles } from '@tachyon-charts/large-data';
+
+const tiles = await PointTiles.open({ opfs: 'data/points.tcol' }, { xColumn: 0, yColumn: 1 });
+builder.addSeries((x, y) => Object.assign(new PointDensitySeries(tiles, x, y), { colormap: Colormap.builtIn('Inferno') }));
+```
+
 ### Recording for hours
 
 ![A live recording of a million values per second into a ring of files, drawn while it grows](docs/images/recording.png)

@@ -25,10 +25,13 @@ import {
   BitColumn,
   BitFileWriter,
   ColumnFile,
+  ColumnFileWriter,
   ColumnLineSeries,
   ColumnRecorder,
   FileRasterSeries,
   LargeRaster,
+  PointDensitySeries,
+  PointTiles,
   RasterFileWriter,
   csvToColumnFile,
   LargeColumn,
@@ -693,6 +696,7 @@ export const pages: readonly Page[] = [
   digitalChannels(),
   raster(),
   rasterFromALargeFile(),
+  scatterDensityFromAFile(),
   {
     id: 'scatter',
     name: 'Scatter',
@@ -1001,6 +1005,121 @@ function raster(): Page {
         series.setValues(values, columns, rows, { left: -5, right: 5, bottom: -3.75, top: 3.75 });
         return series;
       });
+    },
+  };
+}
+
+// 20 million points in clusters and a ring (160 MB as two float32 columns in OPFS), drawn as a density: the grid of
+// the point tiles for the whole of it, the points of the visible tiles when zoomed in.
+const pointsFile = { path: 'showroom/points.tcol', count: 20_000_000 };
+
+async function writePointsFile(progress: (share: number) => void): Promise<void> {
+  const handle = await opfsFile(pointsFile.path, true);
+  if ((await handle.getFile()).size >= 64 + pointsFile.count * 8) {
+    return;
+  }
+  const writer = new ColumnFileWriter(writableSink(await handle.createWritable()), { type: 'float32', columns: 2 });
+  const centers = [
+    [2, 3, 0.6],
+    [6, 7, 1.2],
+    [7.5, 2.5, 0.35],
+    [4, 5.5, 2.5],
+  ] as const;
+  let seed = 12_345;
+  const uniform = (): number => {
+    seed = (Math.imul(seed, 1_664_525) + 1_013_904_223) >>> 0;
+    return seed / 4_294_967_296;
+  };
+  // Normal, by Box and Muller.
+  const normal = (): number => Math.sqrt(-2 * Math.log(1 - uniform())) * Math.cos(2 * Math.PI * uniform());
+  const chunk = new Float32Array(2 * (1 << 20));
+  for (let first = 0; first < pointsFile.count; first += chunk.length / 2) {
+    const size = Math.min(chunk.length / 2, pointsFile.count - first);
+    for (let i = 0; i < size; i++) {
+      const pick = uniform();
+      if (pick < 0.15) {
+        // A thin ring around the middle.
+        const angle = uniform() * Math.PI * 2;
+        const radius = 3.6 + normal() * 0.03;
+        chunk[i * 2] = 5 + radius * Math.cos(angle);
+        chunk[i * 2 + 1] = 5 + radius * Math.sin(angle);
+      } else {
+        const [x, y, spread] = centers[Math.floor(uniform() * centers.length)] ?? centers[0];
+        chunk[i * 2] = x + normal() * spread * 0.5;
+        chunk[i * 2 + 1] = y + normal() * spread * 0.5;
+      }
+    }
+    await writer.append(size * 2 === chunk.length ? chunk : chunk.subarray(0, size * 2));
+    progress((first + size) / pointsFile.count);
+  }
+  await writer.close();
+}
+
+function scatterDensityFromAFile(): Page {
+  const hint = 'Wheel: zoom | Drag: pan | Double click: all';
+  return {
+    id: 'scatter-density-from-a-file',
+    name: 'Scatter density from a file',
+    group: 'Points and areas',
+    hint,
+    configure: (c) => {
+      c.theme(instrument)
+        .xAxis((a) => a.numeric('x'))
+        .yAxis((a) => a.numeric('y'));
+    },
+    start: () => {
+      const run = { stopped: false };
+      const stopped = (): boolean => run.stopped;
+      let tiles: PointTiles | undefined;
+      const chart = document.querySelector<HTMLElement & { chart: unknown }>('#chart');
+      const say = (text: string): void => {
+        const element = document.querySelector('#hint');
+        if (element) {
+          element.textContent = `${t(hint)} | ${text}`;
+        }
+      };
+      void (async () => {
+        await writePointsFile((share) => {
+          say(`${t('The first visit writes 20 million points (160 MB)')} ${String(Math.floor(share * 100))} %`);
+        });
+        if (stopped()) {
+          return;
+        }
+        const opened = await PointTiles.open({ opfs: pointsFile.path });
+        if (stopped()) {
+          opened.close();
+          return;
+        }
+        tiles = opened;
+        const status = (): void => {
+          say(
+            opened.isReady
+              ? `${t('20 million points as a density; zoom in down to single points')} | ${t('Tiles')} ${
+                  opened.isFromCache ? t('kept from before') : `${String(Math.round(opened.buildMilliseconds))} ms`
+                }`
+              : `${t('Tiles')} ${String(Math.floor(opened.progress * 100))} %`,
+          );
+        };
+        opened.onChange(status);
+        status();
+        if (chart) {
+          chart.chart = new ChartBuilder()
+            .theme(instrument)
+            .xAxis((a) => a.numeric('x').autoRange())
+            .yAxis((a) => a.numeric('y').autoRange())
+            .addSeries((x, y) => {
+              const series = new PointDensitySeries(opened, x, y);
+              series.colormap = Colormap.builtIn('Inferno');
+              return series;
+            });
+        }
+      })();
+      return {
+        dispose: () => {
+          run.stopped = true;
+          tiles?.close();
+        },
+      };
     },
   };
 }

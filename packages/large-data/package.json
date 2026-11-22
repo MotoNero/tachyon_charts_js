@@ -29,6 +29,10 @@
     "./raster-worker": {
       "types": "./dist/raster-worker-entry.d.ts",
       "import": "./dist/raster-worker-entry.js"
+    },
+    "./point-tiles-worker": {
+      "types": "./dist/point-tiles-worker-entry.d.ts",
+      "import": "./dist/point-tiles-worker-entry.js"
     }
   },
   "files": [

@@ -103,3 +103,22 @@ export {
 export { FileRasterSeries } from './file-raster-series';
 export { LargeRaster, type LargeRasterOptions, type RasterLevel } from './large-raster';
 export { serveRaster, type RasterRegion, type RasterReply, type RasterRequest } from './raster-worker';
+export {
+  buildPointTiles,
+  gridSize,
+  pointsStart,
+  pointTilesFingerprint,
+  pointTilesHeaderSize,
+  PointTilesReader,
+  readPointTilesHeader,
+  tilesPerSide,
+  writePointTilesHeader,
+  type Density,
+  type DensityView,
+  type PointTilesBuildOptions,
+  type PointTilesHeader,
+} from './point-tiles-file';
+export { SeededRandom } from './seeded-random';
+export { PointDensitySeries } from './point-density-series';
+export { PointTiles, type CountedView, type PointTilesOptions } from './point-tiles';
+export { servePointTiles, type PointTilesReply, type PointTilesRequest } from './point-tiles-worker';

@@ -53,6 +53,9 @@ export function blobSource(blob: Blob): ByteSource;
 export function blockExtremes(values: ArrayLike<number>, type: Exclude<ColumnType, 'bit'>, min: Float64Array, max: Float64Array): void;
 
 // @public
+export function buildPointTiles(file: ColumnFile, xColumn: number, yColumn: number, store: StagesStore, options?: PointTilesBuildOptions): Promise<PointTilesHeader | undefined>;
+
+// @public
 export function buildStages(file: RasterFile, reduction: RasterReduction, store: StagesStore, onProgress?: (share: number) => void, isStopped?: () => boolean): Promise<{
     low: number;
     high: number;
@@ -303,6 +306,14 @@ export type ColumnValues = Float64Array | Float32Array | Int16Array | Int32Array
 export function columnValueSize(type: ColumnType): number;
 
 // @public
+export interface CountedView {
+    readonly drawn: number;
+    readonly maximum: number;
+    readonly values: Float32Array;
+    readonly view: DensityView;
+}
+
+// @public
 export interface CsvColumns {
     readonly columns?: readonly number[];
     readonly format?: CsvFormat;
@@ -358,6 +369,23 @@ export interface CsvSummary {
 export function csvToColumnFile(input: Blob | ReadableStream<Uint8Array>, sink: ByteSink, options?: CsvConversionOptions): Promise<CsvSummary>;
 
 // @public
+export interface Density {
+    readonly bins: Float32Array;
+    readonly drawn: number;
+    readonly maximum: number;
+}
+
+// @public
+export interface DensityView {
+    readonly bottom: number;
+    readonly height: number;
+    readonly left: number;
+    readonly right: number;
+    readonly top: number;
+    readonly width: number;
+}
+
+// @public
 export interface Extremes {
     max: number;
     min: number;
@@ -395,6 +423,9 @@ export class Fnv1a64 {
     add(bytes: Uint8Array): void;
     get value(): bigint;
 }
+
+// @public
+export const gridSize = 4096;
 
 // @public
 export function httpSource(url: string | URL, options?: HttpSourceOptions): Promise<ByteSource>;
@@ -487,6 +518,126 @@ export function parseNumberText(text: string, decimalComma: boolean): number;
 
 // @public
 export function pieceOrder(count: number): number[];
+
+// @public
+export class PointDensitySeries extends RasterSeries {
+    constructor(
+    tiles: PointTiles, xAxis: Axis, yAxis: Axis);
+    dataRange(axis: 'x' | 'y'): DoubleRange_2 | undefined;
+    get drawnPointCount(): number;
+    get maximum(): number;
+    pointBudget: number;
+    prepareData(frame: SeriesFrame): void;
+    readonly tiles: PointTiles;
+    get version(): number;
+}
+
+// @public
+export const pointsStart: number;
+
+// @public
+export class PointTiles {
+    get buildMilliseconds(): number;
+    close(): void;
+    get count(): number;
+    countView(view: DensityView, budget?: number): Promise<CountedView>;
+    get error(): string | undefined;
+    get extent(): {
+        minX: number;
+        maxX: number;
+        minY: number;
+        maxY: number;
+    } | undefined;
+    get isFromCache(): boolean;
+    get isReady(): boolean;
+    onChange(listener: () => void): () => void;
+    static open(location: ColumnLocation, options?: PointTilesOptions): Promise<PointTiles>;
+    get progress(): number;
+    readonly rows: number;
+    get version(): number;
+}
+
+// @public
+export interface PointTilesBuildOptions {
+    readonly bandPoints?: number;
+    readonly isStopped?: () => boolean;
+    readonly onProgress?: (share: number) => void;
+}
+
+// @public
+export function pointTilesFingerprint(file: ColumnFile, xColumn: number, yColumn: number): Promise<bigint>;
+
+// @public
+export interface PointTilesHeader {
+    readonly count: number;
+    readonly fingerprint: bigint;
+    readonly maxX: number;
+    readonly maxY: number;
+    readonly minX: number;
+    readonly minY: number;
+    readonly rows: number;
+}
+
+// @public
+export const pointTilesHeaderSize = 128;
+
+// @public
+export interface PointTilesOptions {
+    readonly cache?: boolean;
+    readonly worker?: Worker;
+    readonly xColumn?: number;
+    readonly yColumn?: number;
+}
+
+// @public
+export class PointTilesReader {
+    count(view: DensityView, budget?: number): Density;
+    readonly grids: Uint32Array[];
+    readonly header: PointTilesHeader;
+    static open(read: (offset: number, length: number) => Uint8Array, rows: number, fingerprint: bigint): PointTilesReader | undefined;
+    tileCount(tileX: number, tileY: number): number;
+    tilePoints(tileX: number, tileY: number, max: number): Float32Array;
+}
+
+// @public
+export type PointTilesReply = {
+    readonly kind: 'opened';
+    readonly rows: number;
+} | {
+    readonly kind: 'progress';
+    readonly share: number;
+} | {
+    readonly kind: 'ready';
+    readonly header: PointTilesHeader;
+    readonly milliseconds: number;
+    readonly fromCache: boolean;
+} | {
+    readonly kind: 'counted';
+    readonly request: number;
+    readonly view: DensityView;
+    readonly values: Float32Array;
+    readonly maximum: number;
+    readonly drawn: number;
+} | {
+    readonly kind: 'error';
+    readonly message: string;
+};
+
+// @public
+export type PointTilesRequest = {
+    readonly kind: 'open';
+    readonly location: ColumnLocation;
+    readonly xColumn: number;
+    readonly yColumn: number;
+    readonly cache: boolean;
+} | {
+    readonly kind: 'count';
+    readonly request: number;
+    readonly view: DensityView;
+    readonly budget: number;
+} | {
+    readonly kind: 'close';
+};
 
 // @public
 export const pyramidBlockSize = 256;
@@ -612,6 +763,9 @@ export type RasterRequest = {
 export function readColumnHeader(bytes: Uint8Array): ColumnHeader;
 
 // @public
+export function readPointTilesHeader(bytes: Uint8Array): PointTilesHeader | undefined;
+
+// @public
 export function readPyramidFile(bytes: Uint8Array, type: Exclude<ColumnType, 'bit'>, count: number, fingerprint: bigint): PyramidLevel[] | undefined;
 
 // @public
@@ -661,7 +815,17 @@ export interface RecordingSettings {
 }
 
 // @public
+export class SeededRandom {
+    constructor(seed: number);
+    nextInt(maxValue: number): number;
+    nextInt64(maxValue: number): number;
+}
+
+// @public
 export function serveColumn(endpoint: ColumnEndpoint): void;
+
+// @public
+export function servePointTiles(endpoint: ColumnEndpoint): void;
 
 // @public
 export function serveRaster(endpoint: ColumnEndpoint): void;
@@ -725,6 +889,9 @@ export function syncHandleSink(handle: SyncAccessHandle): ByteSink;
 export function syncHandleSource(handle: SyncAccessHandle): ByteSource;
 
 // @public
+export const tilesPerSide = 1024;
+
+// @public
 export const version = "0.1.0-dev";
 
 // @public
@@ -760,6 +927,9 @@ export function writableSink(stream: FileSystemWritableFileStream): ByteSink;
 
 // @public
 export function writeColumnHeader(header: ColumnHeader): Uint8Array;
+
+// @public
+export function writePointTilesHeader(header: PointTilesHeader): Uint8Array;
 
 // @public
 export function writePyramidFile(pyramid: ColumnPyramid, fingerprint: bigint): Uint8Array;

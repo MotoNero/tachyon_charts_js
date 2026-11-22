@@ -42,6 +42,11 @@ const german: Readonly<Record<string, string>> = {
   Stages: 'Stufen',
   'East in km': 'Ost in km',
   'North in km': 'Nord in km',
+  'Scatter density from a file': 'Punktdichte aus einer Datei',
+  'The first visit writes 20 million points (160 MB)': 'Der erste Besuch schreibt 20 Millionen Punkte (160 MB)',
+  '20 million points as a density; zoom in down to single points':
+    '20 Millionen Punkte als Dichte; hineinzoomen bis zu einzelnen Punkten',
+  Tiles: 'Kacheln',
   'Points and areas': 'Punkte und Flächen',
   Scatter: 'Punktwolke',
   Area: 'Fläche',
