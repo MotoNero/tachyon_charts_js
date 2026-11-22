@@ -24,7 +24,16 @@ import {
   type ThemeDocument,
   type TooltipData,
 } from '@tachyon-charts/core';
-import { createCanvas2dDevice, createCanvas2dWorkerDevice } from '@tachyon-charts/render-canvas';
+import {
+  chartToCsv,
+  chartToPng,
+  chartToSvg,
+  createCanvas2dDevice,
+  createCanvas2dWorkerDevice,
+  recordChartVideo,
+  type ChartExportOptions,
+  type ChartVideoOptions,
+} from '@tachyon-charts/render-canvas';
 import { createWebGl2Device, createWebGl2WorkerDevice } from '@tachyon-charts/render-webgl';
 import { createWebGpuDevice, createWebGpuWorkerDevice } from '@tachyon-charts/render-webgpu';
 import { joinFrameLoop, leaveFrameLoop, wakeFrameLoop, type LoopMember } from './frame-loop';
@@ -268,6 +277,48 @@ export class TachyonChartElement extends HTMLElement {
   /** The number of frames drawn, for whoever waits for one. */
   get frameCount(): number {
     return this.framesDrawn;
+  }
+
+  /**
+   * The chart as PNG, drawn with its renderer at the size and resolution of the options; the display stays as it is.
+   * @throws Error before the chart has started.
+   */
+  exportPng(options?: ChartExportOptions): Promise<Blob> {
+    const [surface, device] = this.exportable();
+    return chartToPng(surface, device, options);
+  }
+
+  /**
+   * The chart as SVG: lines and shapes as vectors, text and rasters as pictures of at least 288 dpi.
+   * @throws Error before the chart has started.
+   */
+  exportSvg(options?: ChartExportOptions): Promise<string> {
+    return chartToSvg(this.exportable()[0], options);
+  }
+
+  /**
+   * The visible points of the chart as CSV: series, X and Y.
+   * @throws Error before the chart has started.
+   */
+  exportCsv(): string {
+    return chartToCsv(this.exportable()[0]);
+  }
+
+  /**
+   * A video of the chart as WebM, frame by frame at fixed times; it takes as long as the video.
+   * The option step moves a range or appends data before each frame.
+   * @throws Error before the chart has started.
+   */
+  recordVideo(options?: ChartVideoOptions): Promise<Blob> {
+    const [surface, device] = this.exportable();
+    return recordChartVideo(surface, device, options);
+  }
+
+  private exportable(): [ChartSurface, RenderDevice] {
+    if (!this.chartSurface || !this.device) {
+      throw new Error('The chart has not started yet.');
+    }
+    return [this.chartSurface, this.device];
   }
 
   /** Starts drawing when the element enters a page. */

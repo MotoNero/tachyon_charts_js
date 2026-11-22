@@ -429,6 +429,7 @@ export class ChartSurface {
     get overlays(): readonly ChartOverlay[];
     get panes(): readonly LayoutPane[];
     prepareData(): void;
+    releaseDevice(device: RenderDevice): void;
     removeOverlay(overlay: ChartOverlay): boolean;
     removeSeries(series: ChartSeries): boolean;
     render(device: RenderDevice, target: RenderTarget): void;

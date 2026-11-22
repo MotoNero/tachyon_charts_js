@@ -346,6 +346,29 @@ const summary = await csvToColumnFile(file, writableSink(await target.createWrit
 
 A CSV file of 1 GB converts into the origin private file system in 4.6–4.9 s (about 210 MB/s with 8 workers).
 
+## Export
+
+![An area chart exported as PNG at 192 dpi](docs/images/export.png)
+
+A chart becomes a file as in the .NET version, and the display stays as it is:
+
+- **PNG** with the renderer of the chart, at any size and resolution, with the resolution in the file, so that a
+  picture of 300 dpi prints at its size.
+- **SVG** with lines, shapes and markers as vectors and text and rasters as pictures of at least 288 dpi.
+- **CSV** of the points in the visible ranges: series, X and Y; times as the cursor shows them.
+- **Video** as WebM: each frame belongs to a fixed time, frame number by frame rate, and `step` moves a range or
+  appends data before it.
+
+```ts
+const png = await chart.exportPng({ width: 1200, height: 800, dpi: 300 });
+const svg = await chart.exportSvg({ width: 1200, height: 800 });
+const csv = chart.exportCsv();
+const video = await chart.recordVideo({ duration: 5, step: (frame, seconds) => moveTo(seconds) });
+```
+
+`chartToPng`, `chartToSvg`, `chartToCsv` and `recordChartVideo` of `@tachyon-charts/render-canvas` do the same for a
+chart of your own. The showroom exports the page shown with the buttons in its header.
+
 ## Interaction
 
 ![A crosshair with the values of two lines beside it and the values of both axes at its lines](docs/images/crosshair-values.png)
@@ -399,7 +422,7 @@ language of the axes can be chosen at the top for all pages. Every new feature b
 | `@tachyon-charts/core` | Charts, axes, data, interaction, layout and themes |
 | `@tachyon-charts/render-webgpu` | WebGPU backend |
 | `@tachyon-charts/render-webgl` | WebGL 2 fallback, the same images as WebGPU |
-| `@tachyon-charts/render-canvas` | Canvas 2D fallback, the images of the Skia backend |
+| `@tachyon-charts/render-canvas` | Canvas 2D fallback, the images of the Skia backend; export as PNG, SVG, CSV and video |
 | `@tachyon-charts/element` | The web component `<tachyon-chart>` |
 | `@tachyon-charts/large-data` | Column files, pyramids, OPFS, HTTP range requests, workers |
 | `@tachyon-charts/3d` | 3D charts |

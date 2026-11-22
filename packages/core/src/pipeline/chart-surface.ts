@@ -303,6 +303,11 @@ export class ChartSurface {
     return hits;
   }
 
+  /** Lets go of what the chart keeps on a device that goes away, such as one of an export: its copy of the glyph atlas. */
+  releaseDevice(device: RenderDevice): void {
+    this.textEngine.releaseAtlas(device);
+  }
+
   /** Asks for a new frame, for changes the chart cannot see. */
   invalidate(): void {
     this.invalidated = true;

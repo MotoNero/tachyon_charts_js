@@ -5,6 +5,7 @@
 ```ts
 
 import { BufferDesc } from '@tachyon-charts/core';
+import { ChartSurface } from '@tachyon-charts/core';
 import { CommandList } from '@tachyon-charts/core';
 import { DeviceCapabilities } from '@tachyon-charts/core';
 import { GpuBuffer } from '@tachyon-charts/core';
@@ -17,6 +18,7 @@ import { RenderTarget } from '@tachyon-charts/core';
 import { SurfaceHandle } from '@tachyon-charts/core';
 import { SurfaceRenderTarget } from '@tachyon-charts/core';
 import { TextureDesc } from '@tachyon-charts/core';
+import { ThemeDocument } from '@tachyon-charts/core';
 
 // @public
 export class Canvas2dDevice implements RenderDevice {
@@ -45,13 +47,55 @@ export interface Canvas2dWorkerDeviceOptions {
 }
 
 // @public
+export interface ChartExportOptions {
+    readonly dpi?: number;
+    readonly height?: number;
+    readonly theme?: ThemeDocument;
+    readonly width?: number;
+}
+
+// @public
+export function chartToCsv(chart: ChartSurface): string;
+
+// @public
+export function chartToPng(chart: ChartSurface, device: RenderDevice, options?: ChartExportOptions): Promise<Blob>;
+
+// @public
+export function chartToSvg(chart: ChartSurface, options?: ChartExportOptions): Promise<string>;
+
+// @public
+export interface ChartVideoOptions {
+    readonly bitRate?: number;
+    readonly duration?: number;
+    readonly frameRate?: number;
+    readonly height?: number;
+    readonly step?: (frame: number, seconds: number) => void;
+    readonly theme?: ThemeDocument;
+    readonly width?: number;
+}
+
+// @public
 export function createCanvas2dDevice(): Canvas2dDevice | undefined;
 
 // @public
 export function createCanvas2dWorkerDevice(options?: Canvas2dWorkerDeviceOptions): Promise<RemoteRenderDevice | undefined>;
 
 // @public
+export interface CsvPoints {
+    readonly formatX: (value: number) => string;
+    readonly name: string;
+    readonly x: ArrayLike<number>;
+    readonly y: ArrayLike<number>;
+}
+
+// @public
+export function recordChartVideo(chart: ChartSurface, device: RenderDevice, options?: ChartVideoOptions): Promise<Blob>;
+
+// @public
 export const version = "0.1.0-dev";
+
+// @public
+export function visiblePoints(chart: ChartSurface): CsvPoints[];
 
 // (No @packageDocumentation comment for this package)
 

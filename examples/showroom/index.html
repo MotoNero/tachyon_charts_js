@@ -51,6 +51,23 @@
         color: var(--muted);
         font-size: 13px;
       }
+      header .export {
+        color: var(--muted);
+        font-size: 13px;
+      }
+      header .export button {
+        margin-left: 4px;
+        background: var(--bg);
+        color: var(--text);
+        border: 1px solid var(--line);
+        border-radius: 4px;
+        padding: 3px 7px;
+        font: inherit;
+        cursor: pointer;
+      }
+      header .export button:disabled {
+        opacity: 0.5;
+      }
       select {
         margin-left: 6px;
         background: var(--bg);
@@ -157,6 +174,13 @@
       <img id="logo" alt="Tachyon Charts" />
       <span class="spacer"></span>
       <span id="thread" class="thread"></span>
+      <span class="export">
+        <span data-text="Export">Export</span>
+        <button id="export-png" type="button">PNG</button>
+        <button id="export-svg" type="button">SVG</button>
+        <button id="export-csv" type="button">CSV</button>
+        <button id="export-video" type="button" data-text="Video">Video</button>
+      </span>
       <label>
         <span data-text="Theme">Theme</span>
         <select id="theme"></select

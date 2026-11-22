@@ -177,3 +177,50 @@ chart?.addEventListener('tachyon-tooltip', (event) => {
     tip.style.top = `${String(bounds.top + data.position.y + 14)}px`;
   }
 });
+
+// Export of the chart shown: the file goes to the downloads, named after the page.
+function download(content: Blob | string, extension: string, type: string): void {
+  const blob = typeof content === 'string' ? new Blob([content], { type }) : content;
+  const link = document.createElement('a');
+  link.href = URL.createObjectURL(blob);
+  link.download = `${location.hash.slice(1) || 'chart'}.${extension}`;
+  link.click();
+  setTimeout(() => {
+    URL.revokeObjectURL(link.href);
+  }, 1000);
+}
+
+function onExport(id: string, run: (button: HTMLButtonElement) => Promise<void>): void {
+  const button = document.querySelector<HTMLButtonElement>(id);
+  button?.addEventListener('click', () => {
+    button.disabled = true;
+    run(button)
+      .catch((error: unknown) => {
+        console.error(error);
+      })
+      .finally(() => {
+        button.disabled = false;
+      });
+  });
+}
+
+if (chart) {
+  const size = (): { width: number; height: number } => ({
+    width: Math.round(chart.clientWidth),
+    height: Math.round(chart.clientHeight),
+  });
+  onExport('#export-png', async () => {
+    download(await chart.exportPng({ ...size(), dpi: 192 }), 'png', 'image/png');
+  });
+  onExport('#export-svg', async () => {
+    download(await chart.exportSvg(size()), 'svg', 'image/svg+xml');
+  });
+  onExport('#export-csv', () => {
+    download(chart.exportCsv(), 'csv', 'text/csv');
+    return Promise.resolve();
+  });
+  // Three seconds of the chart as it is; a page that streams keeps streaming into the video.
+  onExport('#export-video', async () => {
+    download(await chart.recordVideo({ ...size(), duration: 3 }), 'webm', 'video/webm');
+  });
+}
