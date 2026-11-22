@@ -82,3 +82,24 @@ export {
   type RecordingSettings,
 } from './recorder-worker';
 export { BitColumn, BitFileWriter } from './bit-column';
+export {
+  buildStages,
+  rasterFingerprint,
+  RasterFile,
+  RasterFileWriter,
+  rasterHeaderSize,
+  readRasterHeader,
+  readStagesHeader,
+  stageLimit,
+  stageOffset,
+  stageSizes,
+  stagesHeaderSize,
+  writeRasterHeader,
+  writeStagesHeader,
+  type RasterHeader,
+  type StagesHeader,
+  type StagesStore,
+} from './raster-file';
+export { FileRasterSeries } from './file-raster-series';
+export { LargeRaster, type LargeRasterOptions, type RasterLevel } from './large-raster';
+export { serveRaster, type RasterRegion, type RasterReply, type RasterRequest } from './raster-worker';

@@ -10,6 +10,8 @@ import { ChartSeries } from '@tachyon-charts/core';
 import { CommandList } from '@tachyon-charts/core';
 import { DigitalSource } from '@tachyon-charts/core';
 import { DoubleRange as DoubleRange_2 } from '@tachyon-charts/core';
+import type { RasterReduction } from '@tachyon-charts/core';
+import { RasterSeries } from '@tachyon-charts/core';
 import { RenderDevice } from '@tachyon-charts/core';
 import { Rgba8 } from '@tachyon-charts/core';
 import { SeriesFrame } from '@tachyon-charts/core';
@@ -49,6 +51,12 @@ export function blobSource(blob: Blob): ByteSource;
 
 // @public
 export function blockExtremes(values: ArrayLike<number>, type: Exclude<ColumnType, 'bit'>, min: Float64Array, max: Float64Array): void;
+
+// @public
+export function buildStages(file: RasterFile, reduction: RasterReduction, store: StagesStore, onProgress?: (share: number) => void, isStopped?: () => boolean): Promise<{
+    low: number;
+    high: number;
+}>;
 
 // @public
 export interface ByteSink {
@@ -369,6 +377,20 @@ export class FileColumn {
 }
 
 // @public
+export class FileRasterSeries extends RasterSeries {
+    constructor(
+    raster: LargeRaster, xAxis: Axis, yAxis: Axis);
+    autoValueRange: boolean;
+    dataRange(axis: 'x' | 'y'): DoubleRange_2 | undefined;
+    prepareData(frame: SeriesFrame): void;
+    readonly raster: LargeRaster;
+    get region(): RasterRegion | undefined;
+    get valueRange(): DoubleRange_2;
+    set valueRange(value: DoubleRange_2);
+    get version(): number;
+}
+
+// @public
 export class Fnv1a64 {
     add(bytes: Uint8Array): void;
     get value(): bigint;
@@ -405,6 +427,36 @@ export class LargeColumn extends WorkerColumn {
 export interface LargeColumnOptions {
     readonly cache?: boolean;
     readonly column?: number;
+    readonly worker?: Worker;
+}
+
+// @public
+export class LargeRaster {
+    get buildMilliseconds(): number;
+    close(): void;
+    get error(): string | undefined;
+    readonly height: number;
+    get high(): number;
+    get isFromCache(): boolean;
+    get isReady(): boolean;
+    readonly levels: readonly RasterLevel[];
+    get low(): number;
+    onChange(listener: () => void): () => void;
+    static open(location: ColumnLocation, options?: LargeRasterOptions): Promise<LargeRaster>;
+    get progress(): number;
+    readRegion(region: RasterRegion): Promise<Float32Array>;
+    get version(): number;
+    readonly width: number;
+    readonly xStart: number;
+    readonly xStep: number;
+    readonly yStart: number;
+    readonly yStep: number;
+}
+
+// @public
+export interface LargeRasterOptions {
+    readonly cache?: boolean;
+    readonly reduction?: RasterReduction;
     readonly worker?: Worker;
 }
 
@@ -458,10 +510,115 @@ export function pyramidLevelSizes(count: number): number[];
 export const pyramidPieceSize: number;
 
 // @public
+export class RasterFile implements RasterHeader {
+    close(): void;
+    readonly height: number;
+    static open(source: ByteSource): Promise<RasterFile>;
+    readCells(row: number, column: number, count: number): Promise<Float32Array>;
+    readRows(first: number, count: number): Promise<Float32Array>;
+    readonly width: number;
+    readonly xStart: number;
+    readonly xStep: number;
+    readonly yStart: number;
+    readonly yStep: number;
+}
+
+// @public
+export class RasterFileWriter {
+    constructor(sink: ByteSink, header: Omit<RasterHeader, 'height'>);
+    append(values: ArrayLike<number>): Promise<void>;
+    close(): Promise<void>;
+    get height(): number;
+}
+
+// @public
+export function rasterFingerprint(file: RasterFile): Promise<bigint>;
+
+// @public
+export interface RasterHeader {
+    readonly height: number;
+    readonly width: number;
+    readonly xStart: number;
+    readonly xStep: number;
+    readonly yStart: number;
+    readonly yStep: number;
+}
+
+// @public
+export const rasterHeaderSize = 64;
+
+// @public
+export interface RasterLevel {
+    readonly height: number;
+    readonly width: number;
+}
+
+// @public
+export interface RasterRegion {
+    readonly column: number;
+    readonly columns: number;
+    readonly level: number;
+    readonly row: number;
+    readonly rows: number;
+}
+
+// @public
+export type RasterReply = {
+    readonly kind: 'opened';
+    readonly width: number;
+    readonly height: number;
+    readonly xStart: number;
+    readonly xStep: number;
+    readonly yStart: number;
+    readonly yStep: number;
+    readonly stages: {
+        width: number;
+        height: number;
+    }[];
+} | {
+    readonly kind: 'progress';
+    readonly share: number;
+} | {
+    readonly kind: 'ready';
+    readonly low: number;
+    readonly high: number;
+    readonly milliseconds: number;
+    readonly fromCache: boolean;
+} | {
+    readonly kind: 'region';
+    readonly request: number;
+    readonly region: RasterRegion;
+    readonly values: Float32Array;
+} | {
+    readonly kind: 'error';
+    readonly message: string;
+};
+
+// @public
+export type RasterRequest = {
+    readonly kind: 'open';
+    readonly location: ColumnLocation;
+    readonly reduction: RasterReduction;
+    readonly cache: boolean;
+} | {
+    readonly kind: 'region';
+    readonly request: number;
+    readonly region: RasterRegion;
+} | {
+    readonly kind: 'close';
+};
+
+// @public
 export function readColumnHeader(bytes: Uint8Array): ColumnHeader;
 
 // @public
 export function readPyramidFile(bytes: Uint8Array, type: Exclude<ColumnType, 'bit'>, count: number, fingerprint: bigint): PyramidLevel[] | undefined;
+
+// @public
+export function readRasterHeader(bytes: Uint8Array): RasterHeader;
+
+// @public
+export function readStagesHeader(bytes: Uint8Array): StagesHeader | undefined;
 
 // @public
 export type RecorderReply = ColumnReply | {
@@ -507,10 +664,45 @@ export interface RecordingSettings {
 export function serveColumn(endpoint: ColumnEndpoint): void;
 
 // @public
+export function serveRaster(endpoint: ColumnEndpoint): void;
+
+// @public
 export function serveRecording(endpoint: Worker): void;
 
 // @public
 export function splitCsvLine(line: string, delimiter: string): string[];
+
+// @public
+export const stageLimit = 1024;
+
+// @public
+export function stageOffset(sizes: readonly {
+    width: number;
+    height: number;
+}[], stage: number): number;
+
+// @public
+export interface StagesHeader {
+    readonly fingerprint: bigint;
+    readonly high: number;
+    readonly low: number;
+    readonly reduction: RasterReduction;
+}
+
+// @public
+export const stagesHeaderSize = 128;
+
+// @public
+export function stageSizes(width: number, height: number): {
+    width: number;
+    height: number;
+}[];
+
+// @public
+export interface StagesStore {
+    read(offset: number, length: number): Uint8Array | Promise<Uint8Array>;
+    write(offset: number, bytes: Uint8Array): void | Promise<void>;
+}
 
 // @public
 export interface SyncAccessHandle {
@@ -571,6 +763,12 @@ export function writeColumnHeader(header: ColumnHeader): Uint8Array;
 
 // @public
 export function writePyramidFile(pyramid: ColumnPyramid, fingerprint: bigint): Uint8Array;
+
+// @public
+export function writeRasterHeader(header: RasterHeader): Uint8Array;
+
+// @public
+export function writeStagesHeader(header: StagesHeader): Uint8Array;
 
 // (No @packageDocumentation comment for this package)
 

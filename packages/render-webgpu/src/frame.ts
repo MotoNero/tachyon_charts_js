@@ -26,6 +26,7 @@ const enum Kind {
   Polyline,
   Markers,
   Glyphs,
+  Raster,
 }
 
 const shapeCodes: Record<MarkerShape, number> = { circle: 0, square: 1, triangle: 2, diamond: 3, cross: 4, plus: 5 };
@@ -57,6 +58,9 @@ class Op {
   // Glow intensity of a line, shape code of markers.
   extra2 = 0;
   turn: number | undefined;
+  // The table of colors and the style of a raster.
+  colormap: WebGpuTexture | undefined;
+  raster: RasterStyle | undefined;
 }
 
 const finite = (...values: number[]): boolean => values.every(Number.isFinite);
@@ -86,6 +90,7 @@ export class WebGpuFrame implements CommandList {
   private glyphBuffer: GPUBuffer | undefined;
   // A bind group per texture drawn from, made once.
   private readonly textureGroups = new WeakMap<WebGpuTexture, GPUBindGroup>();
+  private readonly valueGroups = new WeakMap<WebGpuTexture, GPUBindGroup>();
   private vertexBuffer: GPUBuffer | undefined;
   private uniformBuffer: GPUBuffer | undefined;
   private uniformGroup: GPUBindGroup | undefined;
@@ -292,7 +297,23 @@ export class WebGpuFrame implements CommandList {
   }
 
   drawRaster(values: GpuTexture, colormap: GpuTexture, bounds: PixelRect, style: RasterStyle): void {
-    this.notYet('rasters', values, colormap, bounds, style);
+    this.ensureRecording();
+    for (const texture of [values, colormap]) {
+      if (!(texture instanceof WebGpuTexture) || texture.device !== this.device) {
+        throw new TypeError('The texture belongs to another device.');
+      }
+      texture.ensureUsable();
+    }
+    const op = this.nextOp(Kind.Raster);
+    op.texture = values as WebGpuTexture;
+    op.colormap = colormap as WebGpuTexture;
+    op.raster = style;
+    op.scaleX = bounds.width;
+    op.scaleY = bounds.height;
+    op.offsetX = bounds.x;
+    op.offsetY = bounds.y;
+    op.slot = this.slots++;
+    op.turn = this.turn;
   }
 
   setQuarterTurn(sum: number | undefined): void {
@@ -330,6 +351,11 @@ export class WebGpuFrame implements CommandList {
         pass.setBindGroup(1, this.textureGroup(op.texture as WebGpuTexture));
         pass.setVertexBuffer(0, this.glyphBuffer as GPUBuffer, op.first * glyphSize, op.count * glyphSize);
         pass.draw(6, op.count, 0, 0);
+      } else if (op.kind === Kind.Raster) {
+        pass.setPipeline(pipelines.raster);
+        pass.setBindGroup(1, this.valuesGroup(op.texture as WebGpuTexture));
+        pass.setBindGroup(2, this.textureGroup(op.colormap as WebGpuTexture));
+        pass.draw(6, 1, 0, 0);
       } else if (op.kind === Kind.Markers) {
         pass.setPipeline(pipelines.marker);
         pass.setVertexBuffer(0, op.buffer as GPUBuffer, op.first * markerSize, op.count * markerSize);
@@ -452,6 +478,19 @@ export class WebGpuFrame implements CommandList {
     }
   }
 
+  // Values of a raster are 32-bit floats, which a texture of filterable floats does not take.
+  private valuesGroup(texture: WebGpuTexture): GPUBindGroup {
+    let group = this.valueGroups.get(texture);
+    if (!group) {
+      group = this.device.gpu.createBindGroup({
+        layout: this.pipelines.valuesLayout,
+        entries: [{ binding: 0, resource: texture.view }],
+      });
+      this.valueGroups.set(texture, group);
+    }
+    return group;
+  }
+
   private textureGroup(texture: WebGpuTexture): GPUBindGroup {
     let group = this.textureGroups.get(texture);
     if (!group) {
@@ -493,6 +532,30 @@ export class WebGpuFrame implements CommandList {
     this.device.gpu.queue.writeBuffer(this.vertexBuffer, 0, this.vertexWords.buffer, 0, bytes);
   }
 
+  // The fields of the raster shader in the shared layout of the parameters.
+  private rasterUniforms(at: number, style: RasterStyle): void {
+    const floats = this.uniformFloats;
+    floats[at + 2] = style.isInterpolated === true ? 1 : 0;
+    floats[at + 4] = style.reduction === 'maximum' ? 2 : style.reduction === 'mean' ? 1 : 0;
+    floats[at + 12] = style.isLogarithmic === true ? 1 : 0;
+    this.uniformWords[at + 13] = style.rowShift ?? 0;
+    floats[at + 14] = style.minimum;
+    floats[at + 15] = style.maximum;
+    floats[at + 16] = style.sectionX ?? 0;
+    floats[at + 17] = style.sectionY ?? 0;
+    floats[at + 18] = style.sectionWidth ?? 1;
+    floats[at + 19] = style.sectionHeight ?? 1;
+    const color = (offset: number, value: Rgba8 | undefined): void => {
+      floats[at + offset] = value ? value.r / 255 : -1;
+      floats[at + offset + 1] = value ? value.g / 255 : -1;
+      floats[at + offset + 2] = value ? value.b / 255 : -1;
+      floats[at + offset + 3] = value ? value.a / 255 : -1;
+    };
+    color(20, style.missingColor ?? { r: 0, g: 0, b: 0, a: 0 });
+    color(24, style.belowColor);
+    color(28, style.aboveColor);
+  }
+
   private uploadUniforms(target: WebGpuTarget): void {
     const words = this.uniformStride / 4;
     const needed = this.slots * words;
@@ -528,6 +591,9 @@ export class WebGpuFrame implements CommandList {
         this.uniformWords[at + 13] = op.extra2;
       } else {
         floats[at + 13] = op.extra2;
+      }
+      if (op.kind === Kind.Raster && op.raster) {
+        this.rasterUniforms(at, op.raster);
       }
       if (op.turn !== undefined) {
         floats[at + 32] = 1;

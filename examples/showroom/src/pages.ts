@@ -4,6 +4,9 @@ import {
   AreaSeries,
   BandSeries,
   BarSeries,
+  Colormap,
+  DoubleRange,
+  RasterSeries,
   DataSource,
   DigitalSeries,
   DigitalTransitions,
@@ -24,6 +27,9 @@ import {
   ColumnFile,
   ColumnLineSeries,
   ColumnRecorder,
+  FileRasterSeries,
+  LargeRaster,
+  RasterFileWriter,
   csvToColumnFile,
   LargeColumn,
   opfsFile,
@@ -685,6 +691,8 @@ export const pages: readonly Page[] = [
   lineFromACsvFile(),
   recording(),
   digitalChannels(),
+  raster(),
+  rasterFromALargeFile(),
   {
     id: 'scatter',
     name: 'Scatter',
@@ -855,3 +863,144 @@ export const pages: readonly Page[] = [
     },
   },
 ];
+
+// A raster of 8192 x 6144 cells (200 MB) in OPFS: hills, a lake without values, and fine ripples that only the
+// raster itself holds; the stages show the whole of it at once.
+const rasterFile = { path: 'showroom/terrain.tras', width: 8192, height: 6144 };
+
+async function writeRasterFile(progress: (share: number) => void): Promise<void> {
+  const handle = await opfsFile(rasterFile.path, true);
+  const { width, height } = rasterFile;
+  if ((await handle.getFile()).size >= 64 + width * height * 4) {
+    return;
+  }
+  const writer = new RasterFileWriter(writableSink(await handle.createWritable()), {
+    width,
+    xStart: 0,
+    xStep: 1 / 1024,
+    yStart: 0,
+    yStep: 1 / 1024,
+  });
+  const sine = Float32Array.from({ length: 4096 }, (_, i) => Math.sin((i / 4096) * Math.PI * 2));
+  const wave = (turns: number): number => sine[Math.floor(turns * 4096) & 4095] as number;
+  const rows = 128;
+  const batch = new Float32Array(rows * width);
+  for (let first = 0; first < height; first += rows) {
+    for (let r = 0; r < rows; r++) {
+      const y = first + r;
+      for (let x = 0; x < width; x++) {
+        const lake = (x - 5600) * (x - 5600) + 2 * (y - 2300) * (y - 2300) < 700 * 700;
+        batch[r * width + x] = lake
+          ? Number.NaN
+          : 40 +
+            25 * wave(x / 5000) * wave(y / 3700 + 0.25) +
+            12 * wave((x + y) / 1900) +
+            5 * wave(x / 23) * wave(y / 19);
+      }
+    }
+    await writer.append(batch);
+    progress((first + rows) / height);
+  }
+  await writer.close();
+}
+
+function rasterFromALargeFile(): Page {
+  const hint = 'Wheel: zoom | Drag: pan | Double click: all';
+  return {
+    id: 'raster-from-a-large-file',
+    name: 'Raster from a large file',
+    group: 'Rasters',
+    hint,
+    configure: (c) => {
+      c.theme(instrument)
+        .xAxis((a) => a.numeric('x'))
+        .yAxis((a) => a.numeric('y'));
+    },
+    start: () => {
+      const run = { stopped: false };
+      const stopped = (): boolean => run.stopped;
+      let raster: LargeRaster | undefined;
+      const chart = document.querySelector<HTMLElement & { chart: unknown }>('#chart');
+      const say = (text: string): void => {
+        const element = document.querySelector('#hint');
+        if (element) {
+          element.textContent = `${t(hint)} | ${text}`;
+        }
+      };
+      void (async () => {
+        await writeRasterFile((share) => {
+          say(`${t('The first visit writes a raster file of 200 MB')} ${String(Math.floor(share * 100))} %`);
+        });
+        if (stopped()) {
+          return;
+        }
+        const opened = await LargeRaster.open({ opfs: rasterFile.path });
+        if (stopped()) {
+          opened.close();
+          return;
+        }
+        raster = opened;
+        const status = (): void => {
+          say(
+            opened.isReady
+              ? `${t('50 million cells; zoom in for the ripples')} | ${t('Stages')} ${
+                  opened.isFromCache ? t('kept from before') : `${String(Math.round(opened.buildMilliseconds))} ms`
+                }`
+              : `${t('Stages')} ${String(Math.floor(opened.progress * 100))} %`,
+          );
+        };
+        opened.onChange(status);
+        status();
+        if (chart) {
+          chart.chart = new ChartBuilder()
+            .theme(instrument)
+            .xAxis((a) => a.numeric('x').title(t('East in km')).autoRange())
+            .yAxis((a) => a.numeric('y').title(t('North in km')).autoRange())
+            .addSeries((x, y) => {
+              const series = new FileRasterSeries(opened, x, y);
+              series.colormap = Colormap.builtIn('Turbo');
+              return series;
+            });
+        }
+      })();
+      return {
+        dispose: () => {
+          run.stopped = true;
+          raster?.close();
+        },
+      };
+    },
+  };
+}
+
+function raster(): Page {
+  return {
+    id: 'raster',
+    name: 'Raster',
+    group: 'Rasters',
+    hint: 'Wheel: zoom | Drag: pan | Double click: all',
+    configure: (c) => {
+      // A field of 400 x 300 cells: two peaks and a valley, colored by Inferno.
+      const columns = 400;
+      const rows = 300;
+      const values = new Float32Array(columns * rows);
+      for (let r = 0; r < rows; r++) {
+        for (let col = 0; col < columns; col++) {
+          const x = col / 40 - 5;
+          const y = r / 40 - 3.75;
+          values[r * columns + col] =
+            Math.exp(-((x - 1.5) ** 2 + (y - 1) ** 2)) +
+            0.8 * Math.exp(-((x + 2) ** 2 + (y + 1) ** 2) / 1.5) -
+            0.5 * Math.exp(-((x - 0.5) ** 2 + (y + 2) ** 2) / 0.5);
+        }
+      }
+      numeric(c, -5, 5, -3.75, 3.75).addSeries((x, y) => {
+        const series = new RasterSeries(x, y);
+        series.colormap = Colormap.builtIn('Inferno');
+        series.valueRange = new DoubleRange(-0.5, 1);
+        series.setValues(values, columns, rows, { left: -5, right: 5, bottom: -3.75, top: 3.75 });
+        return series;
+      });
+    },
+  };
+}

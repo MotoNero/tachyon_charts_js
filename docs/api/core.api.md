@@ -467,6 +467,18 @@ export const chartText: {
 };
 
 // @public
+export class Colormap {
+    constructor(
+    name: string,
+    entries: readonly Rgba8[]);
+    static builtIn(name: string): Colormap;
+    static get builtInNames(): readonly string[];
+    readonly entries: readonly Rgba8[];
+    readonly name: string;
+    toBytes(): Uint8Array;
+}
+
+// @public
 export type ColumnArray = Float64Array | Float32Array;
 
 // @public
@@ -1381,7 +1393,35 @@ export interface PyramidRequest {
 }
 
 // @public
+export interface RasterExtent {
+    readonly bottom: number;
+    readonly left: number;
+    readonly right: number;
+    readonly top: number;
+}
+
+// @public
 export type RasterReduction = 'nearest' | 'mean' | 'maximum';
+
+// @public
+export class RasterSeries extends ChartSeries {
+    get colormap(): Colormap;
+    set colormap(value: Colormap);
+    dataRange(axis: 'x' | 'y'): DoubleRange | undefined;
+    draw(commands: CommandList): void;
+    get isInterpolated(): boolean;
+    set isInterpolated(value: boolean);
+    get isLogarithmic(): boolean;
+    set isLogarithmic(value: boolean);
+    get missingColor(): Rgba8;
+    set missingColor(value: Rgba8);
+    prepare(device: RenderDevice, frame: SeriesFrame): void;
+    releaseResources(): void;
+    setValues(values: Float32Array, columns: number, rows: number, extent: RasterExtent): void;
+    get valueRange(): DoubleRange;
+    set valueRange(value: DoubleRange);
+    get version(): number;
+}
 
 // @public
 export interface RasterStyle {
