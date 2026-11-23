@@ -21,3 +21,4 @@ export { BoxPlotSeries, SampleSeries, ViolinSeries } from './sample-series';
 export { HeatmapData, HeatmapSeries } from './heatmap-series';
 export { SpectrogramData, SpectrogramSeries } from './spectrogram-series';
 export { ContourSeries } from './contour-series';
+export { PolarProjection, PolarSeries, type PolarParts } from './polar-series';

@@ -11,6 +11,7 @@ import type { LayoutPane } from '../layout/chart-layout';
 import { DoubleRange } from '../numerics/range';
 import type { ChartSeries } from '../pipeline/chart-series';
 import { ChartSurface } from '../pipeline/chart-surface';
+import type { ChartOverlay } from '../overlays/chart-overlay';
 import type { MarkerShape } from '../render/commands';
 import type { Rgba8 } from '../render/types';
 import { LineSeries } from '../series/line-series';
@@ -150,6 +151,8 @@ export class ChartDefinition {
     readonly axisFont?: TextFont,
     /** The theme; the colors of a chart without a theme when left out. */
     readonly theme?: ThemeDocument,
+    /** Creates the overlays of the chart, such as the grid of a polar chart. */
+    readonly overlays: readonly ((chart: ChartSurface) => ChartOverlay)[] = [],
   ) {}
 
   /**
@@ -173,6 +176,9 @@ export class ChartDefinition {
         series.name = description.name;
       }
       surface.addSeries(series);
+    }
+    for (const overlay of this.overlays) {
+      surface.addOverlay(overlay(surface));
     }
     return { surface };
   }
@@ -555,6 +561,7 @@ export class ChartBuilder {
   private readonly xAxes: AxisDefinition[] = [];
   private readonly yAxes: AxisDefinition[] = [];
   private readonly seriesList: SeriesDefinition[] = [];
+  private readonly overlayList: ((chart: ChartSurface) => ChartOverlay)[] = [];
   private titleText: string | undefined;
   private titleTextFont: TextFont | undefined;
   private axisTextFont: TextFont | undefined;
@@ -651,7 +658,14 @@ export class ChartBuilder {
       this.titleTextFont,
       this.axisTextFont,
       this.themeDocument,
+      [...this.overlayList],
     );
+  }
+
+  /** Adds an overlay the chart creates once it has its axes and series, such as the grid of a polar chart. */
+  addOverlay(factory: (chart: ChartSurface) => ChartOverlay): this {
+    this.overlayList.push(factory);
+    return this;
   }
 
   /** Finishes the description and creates the chart. */

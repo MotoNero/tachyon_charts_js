@@ -290,6 +290,7 @@ export class ChangeIndex {
 // @public
 export class ChartBuilder {
     addLine(source: PointSource, configure?: (line: LineBuilder) => unknown): this;
+    addOverlay(factory: (chart: ChartSurface) => ChartOverlay): this;
     addScatter(source: PointSource, configure?: (scatter: ScatterBuilder) => unknown): this;
     addSeries(factory: (xAxis: Axis, yAxis: Axis, axis: (id: string) => Axis) => ChartSeries, xAxis?: string, yAxis?: string): this;
     axisFont(font: TextFont): this;
@@ -311,9 +312,11 @@ export class ChartDefinition {
     series: readonly SeriesDefinition[],
     titleFont?: TextFont | undefined,
     axisFont?: TextFont | undefined,
-    theme?: ThemeDocument | undefined);
+    theme?: ThemeDocument | undefined,
+    overlays?: readonly ((chart: ChartSurface) => ChartOverlay)[]);
     readonly axisFont?: TextFont | undefined;
     build(textEngine: TextEngine): BuiltChart;
+    readonly overlays: readonly ((chart: ChartSurface) => ChartOverlay)[];
     readonly series: readonly SeriesDefinition[];
     readonly theme?: ThemeDocument | undefined;
     readonly title: string | undefined;
@@ -597,6 +600,9 @@ export class ContourSeries extends ChartSeries {
     get yStep(): number;
     set yStep(value: number);
 }
+
+// @public
+export function createPolarChart(textEngine: TextEngine, range: DoubleRange, spokes?: readonly string[]): PolarChart;
 
 // @public
 export class CrosshairModifier extends ChartModifier {
@@ -1502,6 +1508,68 @@ export interface PointSource {
 }
 
 // @public
+export interface PolarChart {
+    readonly angle: NumericAxis;
+    readonly chart: ChartSurface;
+    readonly radial: NumericAxis;
+}
+
+// @public
+export class PolarGridOverlay extends ChartOverlay {
+    constructor(radialAxis: Axis, spokes: readonly string[]);
+    draw(canvas: OverlayCanvas): void;
+    get version(): number;
+}
+
+// @public
+export interface PolarParts {
+    readonly area?: boolean;
+    readonly line?: boolean;
+    readonly markers?: boolean;
+}
+
+// @public
+export class PolarProjection {
+    constructor(
+    centerX: number,
+    centerY: number,
+    radius: number,
+    range: DoubleRange);
+    readonly centerX: number;
+    readonly centerY: number;
+    static fit(x: number, y: number, width: number, height: number, range: DoubleRange): PolarProjection;
+    readonly radius: number;
+    readonly range: DoubleRange;
+    toPoint(angle: number, value: number): {
+        x: number;
+        y: number;
+    };
+    withRadius(radius: number): PolarProjection;
+}
+
+// @public
+export class PolarSeries extends ChartSeries {
+    constructor(angles: ArrayLike<number>, values: ArrayLike<number>, xAxis: Axis, yAxis: Axis);
+    get accentColor(): Rgba8;
+    get color(): Rgba8;
+    set color(value: Rgba8);
+    dataRange(axis: 'x' | 'y'): DoubleRange | undefined;
+    draw(commands: CommandList, frame: SeriesFrame): void;
+    get fill(): SeriesFill;
+    set fill(value: SeriesFill);
+    get isClosed(): boolean;
+    set isClosed(value: boolean);
+    get parts(): PolarParts;
+    set parts(value: PolarParts);
+    prepare(device: RenderDevice, frame: SeriesFrame): void;
+    static radar(values: ArrayLike<number>, xAxis: Axis, yAxis: Axis): PolarSeries;
+    releaseResources(): void;
+    get thickness(): number;
+    set thickness(value: number);
+    get version(): number;
+}
+
+// @public
 export interface PolylineStyle {
     readonly clip?: PixelRect;
     readonly color: Rgba8;
@@ -1546,6 +1614,13 @@ export interface PyramidRequest {
 
 // @public
 export function quantile(sorted: ArrayLike<number>, share: number): number;
+
+// @public
+export class RadialZoomModifier extends ChartModifier {
+    constructor(radialAxis?: Axis | undefined);
+    factorPerStep: number;
+    onWheel(input: WheelInputEvent): ModifierResult;
+}
 
 // @public
 export interface RasterExtent {

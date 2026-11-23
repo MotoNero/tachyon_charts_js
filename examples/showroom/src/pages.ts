@@ -6,6 +6,8 @@ import {
   BarSeries,
   ColorAxis,
   ContourSeries,
+  PolarGridOverlay,
+  PolarSeries,
   HeatmapData,
   HeatmapSeries,
   SpectrogramData,
@@ -30,6 +32,8 @@ import {
   StackedAreaSeries,
   type DigitalSource,
   type ThemeDocument,
+  type Axis,
+  type ChartSurface,
 } from '@tachyon-charts/core';
 import {
   BitColumn,
@@ -112,6 +116,11 @@ function cloud(): DataSource {
     data.append(0.5 + 9 * ((i * 0.618) % 1), 0.5 + 9 * ((i * 0.7549) % 1));
   }
   return data;
+}
+
+// The radial axis of a polar chart: the axis of its only pane.
+function radialAxis(chart: ChartSurface): Axis {
+  return chart.panes[0]?.axes[0] as Axis;
 }
 
 function numeric(c: ChartBuilder, left: number, right: number, bottom: number, top: number): ChartBuilder {
@@ -834,6 +843,72 @@ export const pages: readonly Page[] = [
           'x',
           'violins',
         );
+    },
+  },
+  {
+    id: 'polar',
+    name: 'Polar',
+    group: 'Coordinates',
+    hint: 'Double click: all',
+    configure: (c) => {
+      const degrees = Array.from({ length: 361 }, (_, i) => i);
+      return c
+        .theme(instrument)
+        .xAxis((a) => a.numeric('angle').range(0, 360).hidden())
+        .yAxis((a) => a.numeric('radial').range(0, 10).hidden())
+        .addSeries((x, y) =>
+          Object.assign(
+            new PolarSeries(
+              degrees,
+              degrees.map((d) => 5 + 3 * Math.sin((d * Math.PI) / 45)),
+              x,
+              y,
+            ),
+            {
+              parts: { area: true, line: true },
+              isClosed: true,
+            },
+          ),
+        )
+        .addSeries((x, y) =>
+          Object.assign(
+            new PolarSeries(
+              degrees,
+              degrees.map((d) => d / 40),
+              x,
+              y,
+            ),
+            {
+              color: { r: 255, g: 183, b: 3, a: 255 },
+              thickness: 2,
+            },
+          ),
+        )
+        .addOverlay(
+          (chart) =>
+            new PolarGridOverlay(radialAxis(chart), ['0°', '45°', '90°', '135°', '180°', '225°', '270°', '315°']),
+        );
+    },
+  },
+  {
+    id: 'radar',
+    name: 'Radar',
+    group: 'Coordinates',
+    hint: 'Double click: all',
+    configure: (c) => {
+      const names = [t('Speed'), t('Price'), t('Quality'), t('Service'), t('Design'), t('Range')];
+      return c
+        .theme(instrument)
+        .xAxis((a) => a.numeric('angle').range(0, 360).hidden())
+        .yAxis((a) => a.numeric('radial').range(0, 100).hidden())
+        .addSeries((x, y) => PolarSeries.radar([80, 60, 90, 70, 50, 75], x, y))
+        .addSeries((x, y) =>
+          Object.assign(PolarSeries.radar([50, 90, 60, 85, 80, 40], x, y), {
+            color: { r: 247, g: 37, b: 133, a: 255 },
+            fill: new SolidFill({ r: 247, g: 37, b: 133, a: 60 }),
+          }),
+        )
+        .addOverlay((chart) => new PolarGridOverlay(radialAxis(chart), names));
     },
   },
   {

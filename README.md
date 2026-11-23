@@ -197,6 +197,22 @@ builder.addSeries((x, y) => new BoxPlotSeries([first, second, third], x, y));
 builder.addSeries((x, y) => new ViolinSeries([first, second, third], x, y));
 ```
 
+## Polar and radar charts
+
+![A radar chart of two products over six qualities](docs/images/radar.png)
+
+`PolarSeries` draws points by angle and radius, 0 degrees up and clockwise, as an area, a line, markers or all of
+them; `PolarSeries.radar` makes a closed polygon with one corner per category. `createPolarChart` sets up hidden axes
+for the angle and the radius and a `PolarGridOverlay` of rings and spokes; `RadialZoomModifier` zooms the radius
+around the middle.
+
+```ts
+import { createPolarChart, DoubleRange, PolarSeries } from '@tachyon-charts/core';
+
+const { chart, angle, radial } = createPolarChart(textEngine, new DoubleRange(0, 100), ['Speed', 'Price', 'Quality']);
+chart.addSeries(PolarSeries.radar([80, 60, 90], angle, radial));
+```
+
 ## Rasters and colormaps
 
 ![A field of 400 x 300 cells with two peaks and a valley in the colormap Inferno](docs/images/raster.png)
