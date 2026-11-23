@@ -6,10 +6,10 @@
 
 import { ChartBuilder } from '@tachyon-charts/core';
 import { ChartDefinition } from '@tachyon-charts/core';
-import { ChartExportOptions } from '@tachyon-charts/render-canvas';
+import type { ChartExportOptions } from '@tachyon-charts/render-canvas';
 import { ChartKey } from '@tachyon-charts/core';
 import { ChartSurface } from '@tachyon-charts/core';
-import { ChartVideoOptions } from '@tachyon-charts/render-canvas';
+import type { ChartVideoOptions } from '@tachyon-charts/render-canvas';
 import { ModifierPipeline } from '@tachyon-charts/core';
 import { PixelSize } from '@tachyon-charts/core';
 import { Point } from '@tachyon-charts/core';
@@ -84,7 +84,7 @@ export class TachyonChartElement extends HTMLElement {
     static dataWorker: boolean;
     disconnectedCallback(): void;
     get drawingSize(): PixelSize;
-    exportCsv(): string;
+    exportCsv(): Promise<string>;
     exportPng(options?: ChartExportOptions): Promise<Blob>;
     exportSvg(options?: ChartExportOptions): Promise<string>;
     static fontUrl: string | URL;

@@ -1890,6 +1890,48 @@ export class SolidFill implements SeriesFill {
 }
 
 // @public
+export class SpectrogramData {
+    constructor(
+    columns: number,
+    rows: number);
+    appendRow(row: ArrayLike<number>): void;
+    readonly columns: number;
+    read(row: number, column: number): number;
+    readonly rows: number;
+    get totalRows(): number;
+    upload(texture: GpuTexture, uploaded: number): number;
+    get valueRange(): DoubleRange | undefined;
+}
+
+// @public
+export class SpectrogramSeries extends ChartSeries {
+    constructor(
+    data: SpectrogramData, xAxis: Axis, yAxis: Axis, axis: ColorAxis);
+    get colorAxis(): ColorAxis;
+    colorRange(): DoubleRange | undefined;
+    readonly data: SpectrogramData;
+    dataRange(axis: 'x' | 'y'): DoubleRange | undefined;
+    draw(commands: CommandList): void;
+    get drawnPointCount(): number;
+    get isAnchoredToNewest(): boolean;
+    set isAnchoredToNewest(value: boolean);
+    prepare(device: RenderDevice, frame: SeriesFrame): void;
+    get reduction(): RasterReduction;
+    set reduction(value: RasterReduction);
+    releaseResources(): void;
+    get uploadedRowCount(): number;
+    get version(): number;
+    get xStart(): number;
+    set xStart(value: number);
+    get xStep(): number;
+    set xStep(value: number);
+    get yStart(): number;
+    set yStart(value: number);
+    get yStep(): number;
+    set yStep(value: number);
+}
+
+// @public
 export class StackedAreaSeries extends RibbonSeries {
     constructor(
     layers: readonly PointSource[], xAxis: Axis, yAxis: Axis);

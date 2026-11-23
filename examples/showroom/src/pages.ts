@@ -7,6 +7,8 @@ import {
   ColorAxis,
   HeatmapData,
   HeatmapSeries,
+  SpectrogramData,
+  SpectrogramSeries,
   BoxPlotSeries,
   computeHistogram,
   SolidFill,
@@ -700,6 +702,7 @@ export const pages: readonly Page[] = [
   digitalChannels(),
   raster(),
   heatmap(),
+  spectrogram(),
   rasterFromALargeFile(),
   scatterDensityFromAFile(),
   {
@@ -915,6 +918,49 @@ export const pages: readonly Page[] = [
 ];
 
 // A raster of 8192 x 6144 cells (200 MB) in OPFS: hills, a lake without values, and fine ripples that only the
+// A waterfall of 512 frequencies and 512 rows: a new row every frame, the newest at 0; the GPU gets one row each time.
+function spectrogram(): Page {
+  const data = new SpectrogramData(512, 512);
+  let index = 0;
+  const row = new Float32Array(512);
+  const append = (): void => {
+    const center = 256 + 200 * Math.sin(index * 0.03);
+    for (let i = 0; i < 512; i++) {
+      const distance = (i - center) / 6;
+      const overtone = (i - center / 2) / 10;
+      row[i] = Math.exp(-distance * distance) + 0.4 * Math.exp(-overtone * overtone) + 0.05 * Math.sin(i * 0.9);
+    }
+    data.appendRow(row);
+    index++;
+  };
+  return {
+    id: 'spectrogram',
+    name: 'Spectrogram',
+    group: 'Rasters',
+    hint: 'Wheel over the color bar: values',
+    configure: (c) =>
+      c
+        .theme(instrument)
+        .xAxis((a) => a.numeric('x').range(0, 512).title(t('Frequency')))
+        .yAxis((a) => a.numeric('y').range(-512, 0))
+        .yAxis((a) => a.color('Plasma', 'values').range(-0.1, 1.1))
+        .addSeries((x, y, axis) => new SpectrogramSeries(data, x, y, axis('values') as ColorAxis)),
+    start: () => {
+      let frame = 0;
+      const feed = (): void => {
+        append();
+        frame = requestAnimationFrame(feed);
+      };
+      frame = requestAnimationFrame(feed);
+      return {
+        dispose: () => {
+          cancelAnimationFrame(frame);
+        },
+      };
+    },
+  };
+}
+
 // A grid of 1024 × 1024 values, two waves and a hill with a gap, in the colors of a color axis beside the plot.
 function heatmap(): Page {
   return {

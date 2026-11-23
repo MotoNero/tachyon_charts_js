@@ -24,17 +24,7 @@ import {
   type ThemeDocument,
   type TooltipData,
 } from '@tachyon-charts/core';
-import {
-  chartToCsv,
-  chartToPng,
-  chartToSvg,
-  createCanvas2dDevice,
-  createCanvas2dWorkerDevice,
-  recordChartVideo,
-  type ChartExportOptions,
-  type ChartVideoOptions,
-} from '@tachyon-charts/render-canvas';
-import { createWebGl2Device, createWebGl2WorkerDevice } from '@tachyon-charts/render-webgl';
+import type { ChartExportOptions, ChartVideoOptions } from '@tachyon-charts/render-canvas';
 import { createWebGpuDevice, createWebGpuWorkerDevice } from '@tachyon-charts/render-webgpu';
 import { joinFrameLoop, leaveFrameLoop, wakeFrameLoop, type LoopMember } from './frame-loop';
 import { bindChartInput } from './input-binding';
@@ -94,10 +84,15 @@ async function createKind(kind: RendererKind): Promise<RenderDevice | undefined>
   switch (kind) {
     case 'webgpu':
       return (inWorker ? await createWebGpuWorkerDevice() : undefined) ?? (await createWebGpuDevice());
-    case 'webgl2':
-      return (inWorker ? await createWebGl2WorkerDevice() : undefined) ?? createWebGl2Device();
-    default:
-      return (inWorker ? await createCanvas2dWorkerDevice() : undefined) ?? createCanvas2dDevice();
+    // The fallbacks load only when they are needed, so that a page with WebGPU does not wait for them.
+    case 'webgl2': {
+      const webgl = await import('@tachyon-charts/render-webgl');
+      return (inWorker ? await webgl.createWebGl2WorkerDevice() : undefined) ?? webgl.createWebGl2Device();
+    }
+    default: {
+      const canvas = await import('@tachyon-charts/render-canvas');
+      return (inWorker ? await canvas.createCanvas2dWorkerDevice() : undefined) ?? canvas.createCanvas2dDevice();
+    }
   }
 }
 
@@ -283,8 +278,9 @@ export class TachyonChartElement extends HTMLElement {
    * The chart as PNG, drawn with its renderer at the size and resolution of the options; the display stays as it is.
    * @throws Error before the chart has started.
    */
-  exportPng(options?: ChartExportOptions): Promise<Blob> {
+  async exportPng(options?: ChartExportOptions): Promise<Blob> {
     const [surface, device] = this.exportable();
+    const { chartToPng } = await import('@tachyon-charts/render-canvas');
     return chartToPng(surface, device, options);
   }
 
@@ -292,16 +288,20 @@ export class TachyonChartElement extends HTMLElement {
    * The chart as SVG: lines and shapes as vectors, text and rasters as pictures of at least 288 dpi.
    * @throws Error before the chart has started.
    */
-  exportSvg(options?: ChartExportOptions): Promise<string> {
-    return chartToSvg(this.exportable()[0], options);
+  async exportSvg(options?: ChartExportOptions): Promise<string> {
+    const [surface] = this.exportable();
+    const { chartToSvg } = await import('@tachyon-charts/render-canvas');
+    return chartToSvg(surface, options);
   }
 
   /**
    * The visible points of the chart as CSV: series, X and Y.
    * @throws Error before the chart has started.
    */
-  exportCsv(): string {
-    return chartToCsv(this.exportable()[0]);
+  async exportCsv(): Promise<string> {
+    const [surface] = this.exportable();
+    const { chartToCsv } = await import('@tachyon-charts/render-canvas');
+    return chartToCsv(surface);
   }
 
   /**
@@ -309,8 +309,9 @@ export class TachyonChartElement extends HTMLElement {
    * The option step moves a range or appends data before each frame.
    * @throws Error before the chart has started.
    */
-  recordVideo(options?: ChartVideoOptions): Promise<Blob> {
+  async recordVideo(options?: ChartVideoOptions): Promise<Blob> {
     const [surface, device] = this.exportable();
+    const { recordChartVideo } = await import('@tachyon-charts/render-canvas');
     return recordChartVideo(surface, device, options);
   }
 

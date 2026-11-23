@@ -19,3 +19,4 @@ export { Colormap } from './colormap';
 export { RasterSeries, type RasterExtent } from './raster-series';
 export { BoxPlotSeries, SampleSeries, ViolinSeries } from './sample-series';
 export { HeatmapData, HeatmapSeries } from './heatmap-series';
+export { SpectrogramData, SpectrogramSeries } from './spectrogram-series';

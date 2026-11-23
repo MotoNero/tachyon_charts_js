@@ -50,6 +50,9 @@ const german: Readonly<Record<string, string>> = {
   'Points and areas': 'Punkte und Flächen',
   Statistics: 'Statistik',
   Heatmap: 'Heatmap',
+  Spectrogram: 'Spektrogramm',
+  Frequency: 'Frequenz',
+  'Wheel over the color bar: values': 'Rad über dem Farbbalken: Werte',
   'Wheel: zoom | Drag: pan | Wheel over the color bar: values':
     'Rad: Zoom | Ziehen: Verschieben | Rad über dem Farbbalken: Werte',
   Histogram: 'Histogramm',

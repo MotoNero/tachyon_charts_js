@@ -127,8 +127,8 @@ Measured with WebGPU in Edge on a laptop GPU, 1920 × 1080, charts drawing in th
 | Streaming, 10 series × 100 000 points per second | ≥ 60 FPS, no frame > 33 ms | 60 FPS, longest frame 18 ms |
 | 50 charts on a page, all streaming | ≥ 45 FPS each | 53 FPS each |
 | An idle chart | no frames, < 1 % CPU | no frames, 0.13 % CPU |
-| JavaScript of core, render-webgpu, render-webgl and element | < 250 KB compressed | 95 KB gzip |
-| First frame after loading the page | < 300 ms | 273 ms |
+| JavaScript of core, the renderers and element, fallbacks and export loaded when needed | < 250 KB compressed | 126 KB gzip in all |
+| First frame after loading the page | < 300 ms | 292 ms |
 
 With WebGL 2 on the same machine, against the targets of the fallback:
 
@@ -236,6 +236,26 @@ builder
   .yAxis((a) => a.numeric('y'))
   .yAxis((a) => a.color('Inferno', 'values'))
   .addSeries((x, y, axis) => new HeatmapSeries(data, x, y, axis('values') as ColorAxis));
+```
+
+### Spectrograms
+
+![A spectrogram of a sweeping tone with an overtone and pauses, in the colormap Plasma](docs/images/spectrogram.png)
+
+`SpectrogramSeries` draws a waterfall of rows (`SpectrogramData`, a ring that keeps the newest rows): frequencies along
+X, time along Y, the newest row at 0. A new row reaches the GPU as one row of a ring texture, and the shader turns the
+ring, so nothing else moves in memory; a pixel over several cells shows their maximum, so that narrow lines stay
+visible. 4096 × 4096 cells with a new row every frame draw at 60 FPS while zooming, with WebGPU and with WebGL 2.
+
+```ts
+import { ColorAxis, SpectrogramData, SpectrogramSeries } from '@tachyon-charts/core';
+
+const data = new SpectrogramData(4096, 4096);
+builder
+  .yAxis((a) => a.numeric('y').range(-4096, 0))
+  .yAxis((a) => a.color('Plasma', 'values'))
+  .addSeries((x, y, axis) => new SpectrogramSeries(data, x, y, axis('values') as ColorAxis));
+data.appendRow(spectrum);
 ```
 
 ## Column files
@@ -401,7 +421,7 @@ A chart becomes a file as in the .NET version, and the display stays as it is:
 ```ts
 const png = await chart.exportPng({ width: 1200, height: 800, dpi: 300 });
 const svg = await chart.exportSvg({ width: 1200, height: 800 });
-const csv = chart.exportCsv();
+const csv = await chart.exportCsv();
 const video = await chart.recordVideo({ duration: 5, step: (frame, seconds) => moveTo(seconds) });
 ```
 

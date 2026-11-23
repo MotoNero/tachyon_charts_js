@@ -125,6 +125,38 @@ function clip(first: number, second: number, paneStart: number, paneLength: numb
   return [f(low), f(high)];
 }
 
+/** The part of a data rectangle inside the pane, in pixels; empty when nothing shows. */
+export function clipRaster(frame: SeriesFrame, x: DoubleRange, y: DoubleRange): PixelRect {
+  const pane = frame.bounds;
+  const [left, right] = clip(frame.x.toPixel(x.min), frame.x.toPixel(x.max), pane.x, pane.width);
+  const [top, bottom] = clip(frame.y.toPixel(y.min), frame.y.toPixel(y.max), pane.y, pane.height);
+  return { x: left, y: top, width: Math.max(f(right - left), 0), height: Math.max(f(bottom - top), 0) };
+}
+
+/**
+ * The part of a data rectangle inside the pane and the section of a texture that belongs there, as Place of the
+ * .NET version: texture coordinates grow with the values, whichever way the axes run; `filledX` and `filledY` are
+ * the parts of the texture that hold data.
+ */
+export function placeRaster(
+  frame: SeriesFrame,
+  x: DoubleRange,
+  y: DoubleRange,
+  filledX: number,
+  filledY: number,
+): { bounds: PixelRect; origin: { x: number; y: number }; size: { x: number; y: number } } {
+  const bounds = clipRaster(frame, x, y);
+  const startX = frame.x.toPixel(x.min);
+  const startY = frame.y.toPixel(y.min);
+  const perPixelX = filledX / (frame.x.toPixel(x.max) - startX);
+  const perPixelY = filledY / (frame.y.toPixel(y.max) - startY);
+  return {
+    bounds,
+    origin: { x: f((bounds.x - startX) * perPixelX), y: f((bounds.y - startY) * perPixelY) },
+    size: { x: f(bounds.width * perPixelX), y: f(bounds.height * perPixelY) },
+  };
+}
+
 /** A grid of values as colors of a color axis. Cells have equal sizes, or edges of their own. */
 export class HeatmapSeries extends ChartSeries {
   /** Whether the colors of neighboring cells blend. */
@@ -318,12 +350,7 @@ export class HeatmapSeries extends ChartSeries {
   }
 
   private clipped(frame: SeriesFrame): PixelRect {
-    const pane = frame.bounds;
-    const x = this.xRange();
-    const y = this.yRange();
-    const [left, right] = clip(frame.x.toPixel(x.min), frame.x.toPixel(x.max), pane.x, pane.width);
-    const [top, bottom] = clip(frame.y.toPixel(y.min), frame.y.toPixel(y.max), pane.y, pane.height);
-    return { x: left, y: top, width: Math.max(f(right - left), 0), height: Math.max(f(bottom - top), 0) };
+    return clipRaster(frame, this.xRange(), this.yRange());
   }
 
   // All values in one texture; the section of it that shows follows the view, as Place of the .NET version.
@@ -338,16 +365,10 @@ export class HeatmapSeries extends ChartSeries {
       this.uploaded = this.data.version;
     }
     this.texture = this.valueTexture;
-    const bounds = this.clipped(frame);
-    const x = this.xRange();
-    const y = this.yRange();
-    const startX = frame.x.toPixel(x.min);
-    const startY = frame.y.toPixel(y.min);
-    const perPixelX = 1 / (frame.x.toPixel(x.max) - startX);
-    const perPixelY = 1 / (frame.y.toPixel(y.max) - startY);
-    this.bounds = bounds;
-    this.sectionOrigin = { x: f((bounds.x - startX) * perPixelX), y: f((bounds.y - startY) * perPixelY) };
-    this.sectionSize = { x: f(bounds.width * perPixelX), y: f(bounds.height * perPixelY) };
+    const placed = placeRaster(frame, this.xRange(), this.yRange(), 1, 1);
+    this.bounds = placed.bounds;
+    this.sectionOrigin = placed.origin;
+    this.sectionSize = placed.size;
   }
 
   // One value per pixel of the visible part, found on the CPU for any edges and axes.

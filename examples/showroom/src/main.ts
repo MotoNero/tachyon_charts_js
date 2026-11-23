@@ -215,9 +215,8 @@ if (chart) {
   onExport('#export-svg', async () => {
     download(await chart.exportSvg(size()), 'svg', 'image/svg+xml');
   });
-  onExport('#export-csv', () => {
-    download(chart.exportCsv(), 'csv', 'text/csv');
-    return Promise.resolve();
+  onExport('#export-csv', async () => {
+    download(await chart.exportCsv(), 'csv', 'text/csv');
   });
   // Three seconds of the chart as it is; a page that streams keeps streaming into the video.
   onExport('#export-video', async () => {
