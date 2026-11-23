@@ -5,6 +5,7 @@ import {
   BandSeries,
   BarSeries,
   ColorAxis,
+  ContourSeries,
   HeatmapData,
   HeatmapSeries,
   SpectrogramData,
@@ -703,6 +704,7 @@ export const pages: readonly Page[] = [
   raster(),
   heatmap(),
   spectrogram(),
+  contour(),
   rasterFromALargeFile(),
   scatterDensityFromAFile(),
   {
@@ -957,6 +959,44 @@ function spectrogram(): Page {
           cancelAnimationFrame(frame);
         },
       };
+    },
+  };
+}
+
+// Height lines of a field of 256 × 256 samples over filled bands, with their values along the lines.
+function contour(): Page {
+  return {
+    id: 'contour',
+    name: 'Contour',
+    group: 'Rasters',
+    hint: 'Wheel: zoom | Drag: pan, the labels move along | Double click: all',
+    configure: (c) => {
+      const size = 256;
+      const values = new Float32Array(size * size);
+      for (let row = 0; row < size; row++) {
+        const y = (row * 6) / size;
+        for (let column = 0; column < size; column++) {
+          const x = (column * 6) / size;
+          values[row * size + column] =
+            Math.sin(x) * Math.cos(y * 1.3) + 0.6 * Math.exp(-((x - 2) * (x - 2) + (y - 4) * (y - 4)));
+        }
+      }
+      const data = new HeatmapData(size, size);
+      data.setValues(values);
+      return c
+        .theme(instrument)
+        .xAxis((a) => a.numeric('x').range(0, 6))
+        .yAxis((a) => a.numeric('y').range(0, 6))
+        .yAxis((a) => a.color('Viridis', 'values'))
+        .addSeries((x, y, axis) => {
+          const series = new ContourSeries(data, x, y, axis('values') as ColorAxis);
+          series.isFilled = true;
+          series.showsLabels = true;
+          series.levels = [-1, -0.75, -0.5, -0.25, 0, 0.25, 0.5, 0.75, 1, 1.25];
+          series.xStep = 6 / size;
+          series.yStep = 6 / size;
+          return series;
+        });
     },
   };
 }

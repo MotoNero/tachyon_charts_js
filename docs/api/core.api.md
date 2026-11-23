@@ -562,6 +562,43 @@ export function computeHistogram(values: Values, rule: BinningRule, parameter?: 
 export function connectRenderWorker(endpoint: RenderEndpoint, onDispose?: () => void): Promise<RemoteRenderDevice | undefined>;
 
 // @public
+export class ContourSeries extends ChartSeries {
+    constructor(
+    data: HeatmapData, xAxis: Axis, yAxis: Axis, axis: ColorAxis);
+    get colorAxis(): ColorAxis;
+    colorRange(): DoubleRange | undefined;
+    get currentLevels(): Float32Array;
+    readonly data: HeatmapData;
+    dataRange(axis: 'x' | 'y'): DoubleRange;
+    draw(commands: CommandList, frame: SeriesFrame): void;
+    gridPoint(column: number, row: number): [number, number];
+    get isFilled(): boolean;
+    set isFilled(value: boolean);
+    get levels(): readonly number[] | undefined;
+    set levels(value: readonly number[] | undefined);
+    get lineColor(): Rgba8;
+    set lineColor(value: Rgba8);
+    get lineThickness(): number;
+    set lineThickness(value: number);
+    prepare(device: RenderDevice, frame: SeriesFrame): void;
+    releaseResources(): void;
+    get segmentCount(): number;
+    get showsLabels(): boolean;
+    set showsLabels(value: boolean);
+    get showsLines(): boolean;
+    set showsLines(value: boolean);
+    get version(): number;
+    get xStart(): number;
+    set xStart(value: number);
+    get xStep(): number;
+    set xStep(value: number);
+    get yStart(): number;
+    set yStart(value: number);
+    get yStep(): number;
+    set yStep(value: number);
+}
+
+// @public
 export class CrosshairModifier extends ChartModifier {
     constructor();
     protected onAttached(interaction: ChartInteraction): void;
@@ -1229,6 +1266,9 @@ export class LogScaling implements AxisScaling {
 export function lowerBound(x: NumberArray, count: number, value: number, first?: number, stride?: number): number;
 
 // @public
+export function marchingSquares(values: Float32Array, width: number, height: number, levels: Float32Array, segments: number[]): void;
+
+// @public
 export type MarkerShape = 'circle' | 'square' | 'triangle' | 'diamond' | 'cross' | 'plus';
 
 // @public
@@ -1332,8 +1372,10 @@ export class OverlayCanvas {
     drawLine(from: Point, to: Point, width: number, color: Rgba8): void;
     drawRectangle(area: DipRect, color: Rgba8): void;
     drawText(text: string, x: number, baseline: number, size: number, color: Rgba8): void;
+    drawTurnedText(text: string, center: Point, angle: number, size: number, color: Rgba8, baselineBelow?: number): void;
     fillPolygon(corners: readonly Point[], color: Rgba8): void;
     fillRectangle(area: DipRect, color: Rgba8): void;
+    fillTriangle(a: Point, b: Point, c: Point, color: Rgba8): void;
     get glyphCount(): number;
     get glyphs(): Float32Array;
     get labelSize(): number;

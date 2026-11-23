@@ -6,6 +6,7 @@ import { resolveTheme, toSurfaceStyle, type ThemeDocument } from '../themes/them
 import type { HitResult, HitTestMode } from '../hit-testing/hit-test';
 import type { Point } from '../input/primitives';
 import { OverlayCanvas, type ChartOverlay } from '../overlays/chart-overlay';
+import { drawContourLabels, hasContourLabels } from '../overlays/contour-labels';
 import { chartText } from '../locale/culture';
 import {
   arrangeChart,
@@ -444,7 +445,8 @@ export class ChartSurface {
 
   private drawOverlays(frame: CommandList, target: RenderTarget): boolean {
     const layout = this.layout;
-    if (this.overlayList.length === 0 || !layout) {
+    const hasLabels = hasContourLabels(this.seriesList);
+    if ((this.overlayList.length === 0 && !hasLabels) || !layout) {
       return false;
     }
     const background = this.surfaceStyle.backgroundColor;
@@ -463,6 +465,9 @@ export class ChartSurface {
       },
       this.labelSize,
     );
+    if (hasLabels) {
+      drawContourLabels(this.canvas, layout, this.seriesList);
+    }
     for (const overlay of this.overlayList) {
       overlay.draw(this.canvas);
       this.canvas.clip = undefined;

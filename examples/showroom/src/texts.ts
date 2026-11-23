@@ -51,6 +51,9 @@ const german: Readonly<Record<string, string>> = {
   Statistics: 'Statistik',
   Heatmap: 'Heatmap',
   Spectrogram: 'Spektrogramm',
+  Contour: 'Höhenlinien',
+  'Wheel: zoom | Drag: pan, the labels move along | Double click: all':
+    'Rad: Zoom | Ziehen: Verschieben, die Beschriftungen wandern mit | Doppelklick: alles',
   Frequency: 'Frequenz',
   'Wheel over the color bar: values': 'Rad über dem Farbbalken: Werte',
   'Wheel: zoom | Drag: pan | Wheel over the color bar: values':

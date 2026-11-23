@@ -258,6 +258,25 @@ builder
 data.appendRow(spectrum);
 ```
 
+### Contours
+
+![Height lines over filled bands with their values along the lines](docs/images/contour.png)
+
+`ContourSeries` draws the isolines of a grid (`HeatmapData`, the samples in the middle of the cells), found with
+marching squares as in the .NET version, optionally over filled bands in the colors of its color axis. With
+`showsLabels` the lines carry their values: along the line, upright, on a plate that hides the line beneath, at most
+one per level and tile of the screen and never on top of each other; zooming and panning move them along.
+
+```ts
+import { ColorAxis, ContourSeries } from '@tachyon-charts/core';
+
+builder
+  .yAxis((a) => a.color('Viridis', 'values'))
+  .addSeries((x, y, axis) =>
+    Object.assign(new ContourSeries(data, x, y, axis('values') as ColorAxis), { isFilled: true, showsLabels: true }),
+  );
+```
+
 ## Column files
 
 `@tachyon-charts/large-data` reads and writes column files (TCOL), the format of the .NET version for data larger than

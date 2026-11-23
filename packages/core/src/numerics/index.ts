@@ -14,3 +14,4 @@ export {
   type Histogram,
   type Values,
 } from './statistics';
+export { marchingSquares } from './marching-squares';

@@ -131,6 +131,43 @@ export class OverlayCanvas {
     );
   }
 
+  /**
+   * Writes a text turned by an angle in radians around its middle, as DrawTurnedText of the .NET version: the
+   * baseline lies 0.3 lines below the middle unless given.
+   */
+  drawTurnedText(text: string, center: Point, angle: number, size: number, color: Rgba8, baselineBelow?: number): void {
+    const first = this.glyphTotal;
+    const width = this.measureWidth(text, size);
+    this.drawText(
+      text,
+      center.x - width / 2,
+      center.y + (baselineBelow ?? f(this.lineHeight(size) * 0.3)),
+      size,
+      color,
+    );
+    const pivotX = f(center.x * this.scale);
+    const pivotY = f(center.y * this.scale);
+    for (let i = first; i < this.glyphTotal; i++) {
+      this.glyphData[i * glyphStride + 10] = angle;
+      this.glyphData[i * glyphStride + 11] = pivotX;
+      this.glyphData[i * glyphStride + 12] = pivotY;
+    }
+  }
+
+  /** Fills a triangle without a soft edge, its corners in device-independent units. */
+  fillTriangle(a: Point, b: Point, c: Point, color: Rgba8): void {
+    const scale = f(this.scale);
+    this.commands?.fillTriangle(
+      f(a.x * scale),
+      f(a.y * scale),
+      f(b.x * scale),
+      f(b.y * scale),
+      f(c.x * scale),
+      f(c.y * scale),
+      color,
+    );
+  }
+
   /** The position of a value along an axis, `undefined` for an axis not in the layout. */
   positionOf(axis: Axis, value: number): number | undefined {
     const placement = this.placementOf(axis);
