@@ -233,6 +233,27 @@ chart.addSeries(series);
 chart.addOverlay(new SmithMarkerOverlay(series, 0));
 ```
 
+## Ternary charts and parallel coordinates
+
+![2000 rows of six measures on parallel axes](docs/images/parallel-coordinates.png)
+
+`TernarySeries` places points of three parts, A at the top, B bottom left and C bottom right; the parts need not add
+up to 1. `TernaryGridOverlay` draws the triangle with lines every 20 % and the names of the corners.
+`ParallelCoordinatesSeries` draws one line per row across one vertical axis per measure, translucent so that the
+density shows; `ParallelAxesOverlay` names the axes with their ranges, and `ParallelAxesModifier` moves an axis
+dragged at its name, keeps only the rows of a range dragged along an axis and shows all rows again on a double click.
+
+```ts
+import { ParallelAxesModifier, ParallelAxesOverlay, ParallelCoordinatesSeries } from '@tachyon-charts/core';
+
+builder
+  .xAxis((a) => a.numeric('x').range(0, 1).hidden())
+  .yAxis((a) => a.numeric('y').range(0, 1).hidden())
+  .addSeries((x, y) => new ParallelCoordinatesSeries(columns, x, y))
+  .addOverlay((chart) => new ParallelAxesOverlay(chart.series[0] as ParallelCoordinatesSeries, names))
+  .addModifier(() => new ParallelAxesModifier());
+```
+
 ## Rasters and colormaps
 
 ![A field of 400 x 300 cells with two peaks and a valley in the colormap Inferno](docs/images/raster.png)

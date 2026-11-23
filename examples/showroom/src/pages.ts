@@ -7,11 +7,16 @@ import {
   ColorAxis,
   ContourSeries,
   PolarGridOverlay,
+  ParallelAxesModifier,
+  ParallelAxesOverlay,
+  ParallelCoordinatesSeries,
   PolarSeries,
   SmithGridOverlay,
   SmithMarkerModifier,
   SmithMarkerOverlay,
   SmithSeries,
+  TernaryGridOverlay,
+  TernarySeries,
   HeatmapData,
   HeatmapSeries,
   SpectrogramData,
@@ -939,6 +944,69 @@ export const pages: readonly Page[] = [
         .addOverlay(() => new SmithGridOverlay())
         .addOverlay((chart) => new SmithMarkerOverlay(chart.series[0] as SmithSeries, count / 2))
         .addModifier(() => new SmithMarkerModifier());
+    },
+  },
+  {
+    id: 'ternary',
+    name: 'Ternary',
+    group: 'Coordinates',
+    hint: 'Three parts of 100 % per point',
+    configure: (c) => {
+      const steps = Array.from({ length: 60 }, (_, i) => i);
+      return c
+        .theme(instrument)
+        .xAxis((a) => a.numeric('x').range(0, 1).hidden())
+        .yAxis((a) => a.numeric('y').range(0, 1).hidden())
+        .addSeries((x, y) =>
+          Object.assign(
+            new TernarySeries(
+              steps.map((i) => 0.2 + (0.5 * i) / 59),
+              steps.map((i) => 0.6 - (0.4 * i) / 59 + 0.1 * Math.sin(i * 0.9)),
+              steps.map((i) => 0.2 + 0.1 * Math.cos(i * 1.7)),
+              x,
+              y,
+            ),
+            { color: { r: 240, g: 130, b: 90, a: 255 } },
+          ),
+        )
+        .addOverlay(() => new TernaryGridOverlay('A', 'B', 'C'));
+    },
+  },
+  {
+    id: 'parallel-coordinates',
+    name: 'Parallel coordinates',
+    group: 'Coordinates',
+    hint: 'Drag at a name: move the axis | Drag along an axis: filter | Double click: all',
+    configure: (c) => {
+      const rows = 2000;
+      const columns: number[][] = [];
+      for (let column = 0; column < 6; column++) {
+        const values: number[] = [];
+        for (let row = 0; row < rows; row++) {
+          const noise = ((row * 2654435761 * (column + 3)) % 1000) / 1000;
+          values.push(column === 1 ? 100 - (columns[0]?.[row] ?? 0) * 0.8 - noise * 20 : noise * 100 * (column + 1));
+        }
+        columns.push(values);
+      }
+      return c
+        .theme(instrument)
+        .xAxis((a) => a.numeric('x').range(0, 1).hidden())
+        .yAxis((a) => a.numeric('y').range(0, 1).hidden())
+        .addSeries((x, y) =>
+          Object.assign(new ParallelCoordinatesSeries(columns, x, y), { color: { r: 80, g: 170, b: 240, a: 50 } }),
+        )
+        .addOverlay(
+          (chart) =>
+            new ParallelAxesOverlay(chart.series[0] as ParallelCoordinatesSeries, [
+              t('Volt'),
+              t('Current'),
+              t('Temp'),
+              t('Pressure'),
+              'Hz',
+              'dB',
+            ]),
+        )
+        .addModifier(() => new ParallelAxesModifier());
     },
   },
   {

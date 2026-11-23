@@ -1006,6 +1006,9 @@ export function formatScientific(value: number, fractionDigits: number, optional
 export function formatTicks(format: NumericLabelFormat, values: readonly number[], step: number): string[];
 
 // @public
+export function formatWithPrefix(value: number, unit: string): string;
+
+// @public
 export interface FoundPoint {
     readonly index: number;
     readonly x: number;
@@ -1447,6 +1450,39 @@ export function packRgba8(color: Rgba8): number;
 export interface PaneHit {
     readonly axes: readonly Axis[];
     readonly bounds: DipRect;
+}
+
+// @public
+export class ParallelAxesModifier extends ChartModifier {
+    constructor();
+    onCaptureLost(): void;
+    onPointer(input: PointerInputEvent): ModifierResult;
+}
+
+// @public
+export class ParallelAxesOverlay extends ChartOverlay {
+    constructor(series: ParallelCoordinatesSeries, names: readonly string[]);
+    draw(canvas: OverlayCanvas): void;
+    get version(): number;
+}
+
+// @public
+export class ParallelCoordinatesSeries extends ChartSeries {
+    constructor(columns: readonly ArrayLike<number>[], xAxis: Axis, yAxis: Axis);
+    get accentColor(): Rgba8;
+    clearFilters(): void;
+    get color(): Rgba8;
+    set color(value: Rgba8);
+    dataRange(): DoubleRange | undefined;
+    draw(commands: CommandList, frame: SeriesFrame): void;
+    filter(column: number): DoubleRange | undefined;
+    moveAxis(from: number, to: number): void;
+    get order(): readonly number[];
+    prepare(device: RenderDevice, frame: SeriesFrame): void;
+    range(column: number): DoubleRange;
+    releaseResources(): void;
+    setFilter(column: number, range: DoubleRange | undefined): void;
+    get version(): number;
 }
 
 // @public
@@ -2179,6 +2215,44 @@ export class SymLogScaling implements AxisScaling {
     forward(value: number): number;
     inverse(value: number): number;
     readonly linearThreshold: number;
+}
+
+// @public
+export class TernaryGridOverlay extends ChartOverlay {
+    constructor(labelA: string, labelB: string, labelC: string);
+    draw(canvas: OverlayCanvas): void;
+}
+
+// @public
+export class TernaryProjection {
+    constructor(
+    centerX: number,
+    top: number,
+    side: number);
+    readonly centerX: number;
+    static fit(x: number, y: number, width: number, height: number): TernaryProjection;
+    get height(): number;
+    readonly side: number;
+    readonly top: number;
+    toPoint(a: number, b: number, c: number): {
+        x: number;
+        y: number;
+    };
+}
+
+// @public
+export class TernarySeries extends ChartSeries {
+    constructor(a: ArrayLike<number>, b: ArrayLike<number>, c: ArrayLike<number>, xAxis: Axis, yAxis: Axis);
+    get accentColor(): Rgba8;
+    get color(): Rgba8;
+    set color(value: Rgba8);
+    dataRange(): DoubleRange | undefined;
+    draw(commands: CommandList, frame: SeriesFrame): void;
+    get pointSize(): number;
+    set pointSize(value: number);
+    prepare(device: RenderDevice, frame: SeriesFrame): void;
+    releaseResources(): void;
+    get version(): number;
 }
 
 // @public
