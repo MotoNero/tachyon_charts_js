@@ -55,6 +55,8 @@ const german: Readonly<Record<string, string>> = {
   Coordinates: 'Koordinaten',
   Polar: 'Polar',
   Radar: 'Radar',
+  Smith: 'Smith',
+  'Drag: move the marker along the curve': 'Ziehen: Markierung entlang der Kurve verschieben',
   Speed: 'Tempo',
   Price: 'Preis',
   Quality: 'Qualität',

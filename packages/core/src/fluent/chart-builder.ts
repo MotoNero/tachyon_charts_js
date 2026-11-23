@@ -11,6 +11,7 @@ import type { LayoutPane } from '../layout/chart-layout';
 import { DoubleRange } from '../numerics/range';
 import type { ChartSeries } from '../pipeline/chart-series';
 import { ChartSurface } from '../pipeline/chart-surface';
+import type { ChartModifier } from '../input/modifier-pipeline';
 import type { ChartOverlay } from '../overlays/chart-overlay';
 import type { MarkerShape } from '../render/commands';
 import type { Rgba8 } from '../render/types';
@@ -132,6 +133,8 @@ export type SeriesDefinition = LineDefinition | ScatterDefinition | CustomSeries
 export interface BuiltChart {
   /** The chart, to render and to change. */
   readonly surface: ChartSurface;
+  /** The modifiers the description adds to the usual ones, such as dragging the marker of a Smith chart. */
+  readonly modifiers: readonly ChartModifier[];
 }
 
 /** The description of a chart, independent of any framework; {@link ChartDefinition.build} makes the chart. */
@@ -153,6 +156,8 @@ export class ChartDefinition {
     readonly theme?: ThemeDocument,
     /** Creates the overlays of the chart, such as the grid of a polar chart. */
     readonly overlays: readonly ((chart: ChartSurface) => ChartOverlay)[] = [],
+    /** Creates the modifiers the chart adds to the usual ones. */
+    readonly modifiers: readonly (() => ChartModifier)[] = [],
   ) {}
 
   /**
@@ -180,7 +185,7 @@ export class ChartDefinition {
     for (const overlay of this.overlays) {
       surface.addOverlay(overlay(surface));
     }
-    return { surface };
+    return { surface, modifiers: this.modifiers.map((modifier) => modifier()) };
   }
 
   // Vertical axes go into the pane they name, from the top.
@@ -562,6 +567,7 @@ export class ChartBuilder {
   private readonly yAxes: AxisDefinition[] = [];
   private readonly seriesList: SeriesDefinition[] = [];
   private readonly overlayList: ((chart: ChartSurface) => ChartOverlay)[] = [];
+  private readonly modifierList: (() => ChartModifier)[] = [];
   private titleText: string | undefined;
   private titleTextFont: TextFont | undefined;
   private axisTextFont: TextFont | undefined;
@@ -659,12 +665,19 @@ export class ChartBuilder {
       this.axisTextFont,
       this.themeDocument,
       [...this.overlayList],
+      [...this.modifierList],
     );
   }
 
   /** Adds an overlay the chart creates once it has its axes and series, such as the grid of a polar chart. */
   addOverlay(factory: (chart: ChartSurface) => ChartOverlay): this {
     this.overlayList.push(factory);
+    return this;
+  }
+
+  /** Adds a modifier to the usual ones of the chart element, such as dragging the marker of a Smith chart. */
+  addModifier(factory: () => ChartModifier): this {
+    this.modifierList.push(factory);
     return this;
   }
 

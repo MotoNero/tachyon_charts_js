@@ -255,6 +255,7 @@ export const BufferUsage: {
 
 // @public
 export interface BuiltChart {
+    readonly modifiers: readonly ChartModifier[];
     readonly surface: ChartSurface;
 }
 
@@ -290,6 +291,7 @@ export class ChangeIndex {
 // @public
 export class ChartBuilder {
     addLine(source: PointSource, configure?: (line: LineBuilder) => unknown): this;
+    addModifier(factory: () => ChartModifier): this;
     addOverlay(factory: (chart: ChartSurface) => ChartOverlay): this;
     addScatter(source: PointSource, configure?: (scatter: ScatterBuilder) => unknown): this;
     addSeries(factory: (xAxis: Axis, yAxis: Axis, axis: (id: string) => Axis) => ChartSeries, xAxis?: string, yAxis?: string): this;
@@ -313,9 +315,11 @@ export class ChartDefinition {
     titleFont?: TextFont | undefined,
     axisFont?: TextFont | undefined,
     theme?: ThemeDocument | undefined,
-    overlays?: readonly ((chart: ChartSurface) => ChartOverlay)[]);
+    overlays?: readonly ((chart: ChartSurface) => ChartOverlay)[],
+    modifiers?: readonly (() => ChartModifier)[]);
     readonly axisFont?: TextFont | undefined;
     build(textEngine: TextEngine): BuiltChart;
+    readonly modifiers: readonly (() => ChartModifier)[];
     readonly overlays: readonly ((chart: ChartSurface) => ChartOverlay)[];
     readonly series: readonly SeriesDefinition[];
     readonly theme?: ThemeDocument | undefined;
@@ -550,6 +554,12 @@ export interface CommandList {
 }
 
 // @public
+export interface Complex {
+    readonly im: number;
+    readonly re: number;
+}
+
+// @public
 export function computeBarEnds(rows: readonly ArrayLike<number>[], layout: BarLayout): {
     lower: Float64Array[];
     upper: Float64Array[];
@@ -603,6 +613,9 @@ export class ContourSeries extends ChartSeries {
 
 // @public
 export function createPolarChart(textEngine: TextEngine, range: DoubleRange, spokes?: readonly string[]): PolarChart;
+
+// @public
+export function createSmithChart(textEngine: TextEngine, referenceImpedance?: number): SmithChart;
 
 // @public
 export class CrosshairModifier extends ChartModifier {
@@ -778,10 +791,16 @@ export class DateTimeAxisTransform {
 export function decimateMinMax(x: NumberArray, y: NumberArray, count: number, pyramid: LodPyramid | undefined, visible: DoubleRange, minima: ColumnArray, maxima: ColumnArray): void;
 
 // @public
+export const defaultReferenceImpedance = 50;
+
+// @public
 export const defaultSurfaceStyle: ChartSurfaceStyle;
 
 // @public
 export function densityBandwidth(values: Values): number;
+
+// @public
+export function describeSmithPoint(impedance: Complex, reflection: Complex): string[];
 
 // @public
 export interface DeviceCapabilities {
@@ -1999,6 +2018,74 @@ export class SharedDataWriter implements DataAppender {
 export function sharedTypeOf(values: NumberArray): SharedArrayType | undefined;
 
 // @public
+export interface SmithChart {
+    readonly chart: ChartSurface;
+    readonly grid: SmithGridOverlay;
+    readonly x: NumericAxis;
+    readonly y: NumericAxis;
+}
+
+// @public
+export class SmithGridOverlay extends ChartOverlay {
+    constructor(referenceImpedance?: number);
+    draw(canvas: OverlayCanvas): void;
+    get showsOhms(): boolean;
+    set showsOhms(value: boolean);
+}
+
+// @public
+export class SmithMarkerModifier extends ChartModifier {
+    constructor();
+    onCaptureLost(): void;
+    onPointer(input: PointerInputEvent): ModifierResult;
+}
+
+// @public
+export class SmithMarkerOverlay extends ChartOverlay {
+    constructor(series: SmithSeries, marked: number);
+    draw(canvas: OverlayCanvas): void;
+    get index(): number;
+    set index(value: number);
+}
+
+// @public
+export class SmithProjection {
+    constructor(
+    centerX: number,
+    centerY: number,
+    radius: number);
+    readonly centerX: number;
+    readonly centerY: number;
+    static fit(x: number, y: number, width: number, height: number): SmithProjection;
+    readonly radius: number;
+    toPoint(reflection: Complex): {
+        x: number;
+        y: number;
+    };
+}
+
+// @public
+export class SmithSeries extends ChartSeries {
+    constructor(resistance: ArrayLike<number>, reactance: ArrayLike<number>, xAxis: Axis, yAxis: Axis,
+    referenceImpedance?: number);
+    get accentColor(): Rgba8;
+    get color(): Rgba8;
+    set color(value: Rgba8);
+    get count(): number;
+    dataRange(): DoubleRange | undefined;
+    draw(commands: CommandList, frame: SeriesFrame): void;
+    impedance(index: number): Complex;
+    invalidate(): void;
+    prepare(device: RenderDevice, frame: SeriesFrame): void;
+    readonly referenceImpedance: number;
+    reflection(index: number): Complex;
+    releaseResources(): void;
+    get thickness(): number;
+    set thickness(value: number);
+    get version(): number;
+}
+
+// @public
 export class SolidFill implements SeriesFill {
     constructor(
     color: Rgba8);
@@ -2202,6 +2289,9 @@ export class TimeZone {
 }
 
 // @public
+export function toImpedance(reflection: Complex): Complex;
+
+// @public
 export interface TooltipData {
     readonly color: Rgba8;
     readonly index: number;
@@ -2222,6 +2312,12 @@ export class TooltipModifier extends ChartModifier {
     protected onDetached(): void;
     onPointer(input: PointerInputEvent): ModifierResult;
 }
+
+// @public
+export function toReflection(impedance: Complex): Complex;
+
+// @public
+export function toStandingWaveRatio(reflection: Complex): number;
 
 // @public
 export function toSurfaceStyle(theme: ThemeDocument): ChartSurfaceStyle;

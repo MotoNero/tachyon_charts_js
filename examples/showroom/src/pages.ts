@@ -8,6 +8,10 @@ import {
   ContourSeries,
   PolarGridOverlay,
   PolarSeries,
+  SmithGridOverlay,
+  SmithMarkerModifier,
+  SmithMarkerOverlay,
+  SmithSeries,
   HeatmapData,
   HeatmapSeries,
   SpectrogramData,
@@ -909,6 +913,32 @@ export const pages: readonly Page[] = [
           }),
         )
         .addOverlay((chart) => new PolarGridOverlay(radialAxis(chart), names));
+    },
+  },
+  {
+    id: 'smith',
+    name: 'Smith',
+    group: 'Coordinates',
+    hint: 'Drag: move the marker along the curve',
+    configure: (c) => {
+      const count = 200;
+      const detuning = Array.from({ length: count }, (_, i) => (i - count / 2) / (count / 2));
+      return c
+        .theme(instrument)
+        .xAxis((a) => a.numeric('x').range(-1, 1).hidden())
+        .yAxis((a) => a.numeric('y').range(-1, 1).hidden())
+        .addSeries(
+          (x, y) =>
+            new SmithSeries(
+              detuning.map((d) => 20 + 10 * d * d),
+              detuning.map((d) => 120 * d),
+              x,
+              y,
+            ),
+        )
+        .addOverlay(() => new SmithGridOverlay())
+        .addOverlay((chart) => new SmithMarkerOverlay(chart.series[0] as SmithSeries, count / 2))
+        .addModifier(() => new SmithMarkerModifier());
     },
   },
   {

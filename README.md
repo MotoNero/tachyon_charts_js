@@ -213,6 +213,26 @@ const { chart, angle, radial } = createPolarChart(textEngine, new DoubleRange(0,
 chart.addSeries(PolarSeries.radar([80, 60, 90], angle, radial));
 ```
 
+## Smith charts
+
+![A series circuit of 20 ohms swept from capacitive to inductive on a Smith chart, one point marked](docs/images/smith.png)
+
+`SmithSeries` draws impedances, given as resistance and reactance in ohms, at their reflection coefficient relative to
+a reference impedance (50 ohms by default). `createSmithChart` sets up hidden axes and a `SmithGridOverlay` of the
+circles of constant resistance and the arcs of constant reactance, normalized or in ohms (`showsOhms`).
+`SmithMarkerOverlay` marks one point with its impedance, reflection coefficient and standing wave ratio;
+`SmithMarkerModifier` moves it to the point next to the pointer while the button is held. With `ChartBuilder`, add the
+modifier with `addModifier`.
+
+```ts
+import { createSmithChart, SmithMarkerOverlay, SmithSeries } from '@tachyon-charts/core';
+
+const { chart, x, y } = createSmithChart(textEngine);
+const series = new SmithSeries(resistance, reactance, x, y);
+chart.addSeries(series);
+chart.addOverlay(new SmithMarkerOverlay(series, 0));
+```
+
 ## Rasters and colormaps
 
 ![A field of 400 x 300 cells with two peaks and a valley in the colormap Inferno](docs/images/raster.png)

@@ -18,6 +18,7 @@ import {
   TextEngine,
   TooltipModifier,
   ZoomPanModifier,
+  type ChartModifier,
   type PixelSize,
   type RenderDevice,
   type SurfaceRenderTarget,
@@ -193,6 +194,8 @@ export class TachyonChartElement extends HTMLElement {
   private content: ChartContent | undefined;
   private chartSurface: ChartSurface | undefined;
   private readonly modifiers = new ModifierPipeline();
+  // The modifiers the description of the chart adds.
+  private ownModifiers: readonly ChartModifier[] = [];
   private target: SurfaceRenderTarget | undefined;
   private device: RenderDevice | undefined;
   private engine: TextEngine | undefined;
@@ -509,12 +512,14 @@ export class TachyonChartElement extends HTMLElement {
     }
     if (content instanceof ChartSurface) {
       this.chartSurface = content;
-    } else if (content instanceof ChartBuilder) {
-      this.chartSurface = content.build(engine).surface;
-    } else if (content instanceof ChartDefinition) {
-      this.chartSurface = content.build(engine).surface;
+      this.ownModifiers = [];
+    } else if (content instanceof ChartBuilder || content instanceof ChartDefinition) {
+      const built = content.build(engine);
+      this.chartSurface = built.surface;
+      this.ownModifiers = built.modifiers;
     } else {
       this.chartSurface = undefined;
+      this.ownModifiers = [];
     }
     this.ownTheme = this.chartSurface?.theme;
     this.applyTheme();
@@ -544,6 +549,7 @@ export class TachyonChartElement extends HTMLElement {
       new KeyboardNavigationModifier(),
       new CrosshairModifier(),
       tooltip,
+      ...this.ownModifiers,
     ]) {
       this.modifiers.add(modifier);
     }
