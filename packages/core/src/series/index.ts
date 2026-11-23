@@ -15,5 +15,7 @@ export {
 } from './ribbon-series';
 export { BarSeries, computeBarEnds, type BarLayout } from './bar-series';
 export { DigitalSeries } from './digital-series';
-export { Colormap, RasterSeries, type RasterExtent } from './raster-series';
+export { Colormap } from './colormap';
+export { RasterSeries, type RasterExtent } from './raster-series';
 export { BoxPlotSeries, SampleSeries, ViolinSeries } from './sample-series';
+export { HeatmapData, HeatmapSeries } from './heatmap-series';

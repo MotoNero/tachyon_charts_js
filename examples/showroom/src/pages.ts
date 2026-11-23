@@ -4,6 +4,9 @@ import {
   AreaSeries,
   BandSeries,
   BarSeries,
+  ColorAxis,
+  HeatmapData,
+  HeatmapSeries,
   BoxPlotSeries,
   computeHistogram,
   SolidFill,
@@ -696,6 +699,7 @@ export const pages: readonly Page[] = [
   recording(),
   digitalChannels(),
   raster(),
+  heatmap(),
   rasterFromALargeFile(),
   scatterDensityFromAFile(),
   {
@@ -911,6 +915,43 @@ export const pages: readonly Page[] = [
 ];
 
 // A raster of 8192 x 6144 cells (200 MB) in OPFS: hills, a lake without values, and fine ripples that only the
+// A grid of 1024 × 1024 values, two waves and a hill with a gap, in the colors of a color axis beside the plot.
+function heatmap(): Page {
+  return {
+    id: 'heatmap',
+    name: 'Heatmap',
+    group: 'Rasters',
+    hint: 'Wheel: zoom | Drag: pan | Wheel over the color bar: values',
+    configure: (c) => {
+      const size = 1024;
+      const values = new Float32Array(size * size);
+      for (let row = 0; row < size; row++) {
+        const y = (row * 8) / size;
+        for (let column = 0; column < size; column++) {
+          const x = (column * 8) / size;
+          const missing = x > 5 && x < 6.5 && y > 1 && y < 2.5;
+          values[row * size + column] = missing
+            ? Number.NaN
+            : Math.sin(x * x * 0.6) * Math.cos(y * 2.1) + Math.exp(-((x - 3) * (x - 3) + (y - 5) * (y - 5)));
+        }
+      }
+      const data = new HeatmapData(size, size);
+      data.setValues(values);
+      return c
+        .theme(instrument)
+        .xAxis((a) => a.numeric('x').range(0, 8))
+        .yAxis((a) => a.numeric('y').range(0, 8))
+        .yAxis((a) => a.color('Inferno', 'values'))
+        .addSeries((x, y, axis) => {
+          const series = new HeatmapSeries(data, x, y, axis('values') as ColorAxis);
+          series.xStep = 8 / size;
+          series.yStep = 8 / size;
+          return series;
+        });
+    },
+  };
+}
+
 // raster itself holds; the stages show the whole of it at once.
 const rasterFile = { path: 'showroom/terrain.tras', width: 8192, height: 6144 };
 

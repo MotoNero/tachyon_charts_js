@@ -89,6 +89,7 @@ export class AxisBuilder {
     constructor(fallbackId: string);
     autoRange(): this;
     category(categories: readonly string[], id?: string): this;
+    color(colormap?: string, id?: string): this;
     crossesAt(value: number): this;
     dateTime(id?: string): this;
     get definition(): AxisDefinition;
@@ -108,6 +109,7 @@ export class AxisBuilder {
 // @public
 export interface AxisDefinition {
     readonly categories: readonly string[];
+    readonly colormap?: string;
     readonly crossesAt?: number;
     readonly id: string;
     readonly isAutoRange: boolean;
@@ -138,7 +140,7 @@ export class AxisDragModifier extends ChartModifier {
 }
 
 // @public
-export type AxisKind = 'numeric' | 'dateTime' | 'log' | 'category';
+export type AxisKind = 'numeric' | 'dateTime' | 'log' | 'category' | 'color';
 
 // @public
 export interface AxisPlacement {
@@ -289,7 +291,7 @@ export class ChangeIndex {
 export class ChartBuilder {
     addLine(source: PointSource, configure?: (line: LineBuilder) => unknown): this;
     addScatter(source: PointSource, configure?: (scatter: ScatterBuilder) => unknown): this;
-    addSeries(factory: (xAxis: Axis, yAxis: Axis) => ChartSeries, xAxis?: string, yAxis?: string): this;
+    addSeries(factory: (xAxis: Axis, yAxis: Axis, axis: (id: string) => Axis) => ChartSeries, xAxis?: string, yAxis?: string): this;
     axisFont(font: TextFont): this;
     build(textEngine: TextEngine): BuiltChart;
     theme(theme: ThemeDocument): this;
@@ -411,6 +413,8 @@ export abstract class ChartSeries {
     xAxis: Axis,
     yAxis: Axis);
     get accentColor(): Rgba8;
+    get colorAxis(): ColorAxis | undefined;
+    colorRange(): DoubleRange | undefined;
     dataRange(_axis: 'x' | 'y'): DoubleRange | undefined;
     abstract draw(commands: CommandList, frame: SeriesFrame): void;
     get drawnPointCount(): number;
@@ -487,6 +491,28 @@ export const chartText: {
 };
 
 // @public
+export class ColorAxis extends Axis {
+    constructor(id: string, position?: AxisPosition);
+    get aboveColor(): Rgba8 | undefined;
+    set aboveColor(value: Rgba8 | undefined);
+    get bandThickness(): number;
+    get belowColor(): Rgba8 | undefined;
+    set belowColor(value: Rgba8 | undefined);
+    get colormap(): Colormap;
+    set colormap(value: Colormap);
+    generateTicks(length: number, measurer: TextMeasurer): TickSet;
+    get isLogarithmic(): boolean;
+    set isLogarithmic(value: boolean);
+    get missingColor(): Rgba8;
+    set missingColor(value: Rgba8);
+    protected normalizeRange(range: DoubleRange): DoubleRange;
+    rasterStyle(): RasterStyle;
+    get scaling(): AxisScaling | undefined;
+    stableLabelLength: number;
+    stableLabelWidth: number;
+}
+
+// @public
 export class Colormap {
     constructor(
     name: string,
@@ -495,6 +521,7 @@ export class Colormap {
     static get builtInNames(): readonly string[];
     readonly entries: readonly Rgba8[];
     readonly name: string;
+    sample(position: number): Rgba8;
     toBytes(): Uint8Array;
 }
 
@@ -579,7 +606,7 @@ export function cultureOf(language: ChartLanguage): Culture;
 
 // @public
 export interface CustomSeriesDefinition extends SeriesDefinitionBase {
-    readonly factory: (xAxis: Axis, yAxis: Axis) => ChartSeries;
+    readonly factory: (xAxis: Axis, yAxis: Axis, axis: (id: string) => Axis) => ChartSeries;
     readonly kind: 'custom';
 }
 
@@ -966,6 +993,48 @@ export interface GridTokens {
     readonly band?: string;
     readonly major?: string;
     readonly minor?: string;
+}
+
+// @public
+export class HeatmapData {
+    constructor(
+    width: number,
+    height: number);
+    at(column: number, row: number): number;
+    readonly height: number;
+    setValues(values: ArrayLike<number>): void;
+    get valueRange(): DoubleRange | undefined;
+    get values(): Float32Array;
+    get version(): number;
+    readonly width: number;
+}
+
+// @public
+export class HeatmapSeries extends ChartSeries {
+    constructor(
+    data: HeatmapData, xAxis: Axis, yAxis: Axis, axis: ColorAxis);
+    get colorAxis(): ColorAxis;
+    colorRange(): DoubleRange | undefined;
+    readonly data: HeatmapData;
+    dataRange(axis: 'x' | 'y'): DoubleRange;
+    draw(commands: CommandList): void;
+    get drawnPointCount(): number;
+    isInterpolated: boolean;
+    prepare(device: RenderDevice, frame: SeriesFrame): void;
+    releaseResources(): void;
+    get version(): number;
+    get xEdges(): readonly number[] | undefined;
+    set xEdges(value: readonly number[] | undefined);
+    get xStart(): number;
+    set xStart(value: number);
+    get xStep(): number;
+    set xStep(value: number);
+    get yEdges(): readonly number[] | undefined;
+    set yEdges(value: readonly number[] | undefined);
+    get yStart(): number;
+    set yStart(value: number);
+    get yStep(): number;
+    set yStep(value: number);
 }
 
 // @public

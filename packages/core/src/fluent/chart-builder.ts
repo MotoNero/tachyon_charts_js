@@ -2,6 +2,7 @@
 // camelCase). Themes, interactions, legends and the color axis join with the tasks that bring them.
 import type { Axis, AxisPosition } from '../axes/axis';
 import { CategoryAxis } from '../axes/category-axis';
+import { ColorAxis } from '../axes/color-axis';
 import { DateTimeAxis } from '../axes/date-time-axis';
 import { LogAxis, type NonPositiveValues } from '../axes/log-axis';
 import { NumericAxis } from '../axes/numeric-axis';
@@ -13,12 +14,13 @@ import { ChartSurface } from '../pipeline/chart-surface';
 import type { MarkerShape } from '../render/commands';
 import type { Rgba8 } from '../render/types';
 import { LineSeries } from '../series/line-series';
+import { Colormap } from '../series/colormap';
 import { ScatterSeries } from '../series/scatter-series';
 import type { TextEngine, TextFont } from '../text/engine';
 import type { ThemeDocument } from '../themes/theme-document';
 
 /** The kinds of axes a description can ask for. */
-export type AxisKind = 'numeric' | 'dateTime' | 'log' | 'category';
+export type AxisKind = 'numeric' | 'dateTime' | 'log' | 'category' | 'color';
 
 /** The description of an axis. */
 export interface AxisDefinition {
@@ -56,6 +58,8 @@ export interface AxisDefinition {
   readonly nonPositive: NonPositiveValues;
   /** The value that values at or below zero stick to on a logarithmic axis. */
   readonly logFloor?: number;
+  /** The name of the built-in colormap of a color axis. */
+  readonly colormap?: string;
 }
 
 /** What all descriptions of series share. */
@@ -117,7 +121,7 @@ export interface CustomSeriesDefinition extends SeriesDefinitionBase {
   /** Marks a series the application creates. */
   readonly kind: 'custom';
   /** Creates the series for the axes the chart gives it. */
-  readonly factory: (xAxis: Axis, yAxis: Axis) => ChartSeries;
+  readonly factory: (xAxis: Axis, yAxis: Axis, axis: (id: string) => Axis) => ChartSeries;
 }
 
 /** The description of a series. */
@@ -163,7 +167,7 @@ export class ChartDefinition {
     for (const description of this.series) {
       const x = find(xAxes, description.xAxisId, 'X');
       const y = find(yAxes, description.yAxisId, 'Y');
-      const series = createSeries(description, x, y);
+      const series = createSeries(description, x, y, (id) => find([...xAxes, ...yAxes], id, 'X or Y'));
       // A series made by a factory may name itself; a name from the description wins.
       if (description.name !== undefined) {
         series.name = description.name;
@@ -202,6 +206,13 @@ function createAxis(definition: AxisDefinition, fallback: AxisPosition): Axis {
     case 'category':
       axis = new CategoryAxis(definition.id, position, definition.categories);
       break;
+    case 'color': {
+      // Beside the plot, on the right unless the definition says left.
+      const color = new ColorAxis(definition.id, definition.position ?? 'right');
+      color.colormap = Colormap.builtIn(definition.colormap ?? 'Viridis');
+      axis = color;
+      break;
+    }
     case 'log': {
       const log = new LogAxis(definition.id, position);
       log.base = definition.logBase;
@@ -239,7 +250,7 @@ function find(axes: readonly Axis[], id: string | undefined, kind: string): Axis
   return axis;
 }
 
-function createSeries(definition: SeriesDefinition, x: Axis, y: Axis): ChartSeries {
+function createSeries(definition: SeriesDefinition, x: Axis, y: Axis, axis: (id: string) => Axis): ChartSeries {
   switch (definition.kind) {
     case 'line': {
       const line = new LineSeries(definition.source, x, y);
@@ -264,7 +275,7 @@ function createSeries(definition: SeriesDefinition, x: Axis, y: Axis): ChartSeri
       return scatter;
     }
     default:
-      return definition.factory(x, y);
+      return definition.factory(x, y, axis);
   }
 }
 
@@ -312,6 +323,14 @@ export class AxisBuilder {
   /** The smallest value of a logarithmic axis that clamps. */
   floor(floor: number): this {
     return this.change({ logFloor: floor });
+  }
+
+  /**
+   * A color axis beside the plot: the value scale of a heatmap, with a color bar. Put it into the pane of the heatmap
+   * after its Y axis.
+   */
+  color(colormap = 'Viridis', id?: string): this {
+    return this.change({ kind: 'color', id: id ?? this.current.id, colormap, isAutoRange: true });
   }
 
   /** An axis with named places. */
@@ -593,8 +612,15 @@ export class ChartBuilder {
     return this;
   }
 
-  /** Adds a series the application creates, such as an area or bars, for the axes the chart gives it. */
-  addSeries(factory: (xAxis: Axis, yAxis: Axis) => ChartSeries, xAxis?: string, yAxis?: string): this {
+  /**
+   * Adds a series the application creates, such as an area or bars, for the axes the chart gives it; `axis` finds any
+   * other axis by name, such as the color axis of a heatmap.
+   */
+  addSeries(
+    factory: (xAxis: Axis, yAxis: Axis, axis: (id: string) => Axis) => ChartSeries,
+    xAxis?: string,
+    yAxis?: string,
+  ): this {
     this.seriesList.push({
       kind: 'custom',
       factory,

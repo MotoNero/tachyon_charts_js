@@ -217,6 +217,27 @@ builder.addSeries((x, y) => {
 });
 ```
 
+### Heatmaps and color axes
+
+![A heatmap of 4096 × 4096 cells with a gap, colored by Inferno, with the color bar of its axis](docs/images/heatmap.png)
+
+`HeatmapSeries` shows a grid of values (`HeatmapData`) in the colors of a `ColorAxis`: a color bar beside the plot
+with the ticks of the values, which follows the data, can be logarithmic, and has colors for missing values and values
+outside its range. Cells have equal steps or edges of their own. With equal cells on linear axes the GPU picks the cells
+from one texture of all values, so that zooming and panning upload nothing; other grids and logarithmic axes are
+sampled per pixel. Zooming the plot leaves the color axis alone; the wheel over the color bar changes its range.
+
+```ts
+import { ColorAxis, HeatmapData, HeatmapSeries } from '@tachyon-charts/core';
+
+const data = new HeatmapData(4096, 4096);
+data.setValues(values);
+builder
+  .yAxis((a) => a.numeric('y'))
+  .yAxis((a) => a.color('Inferno', 'values'))
+  .addSeries((x, y, axis) => new HeatmapSeries(data, x, y, axis('values') as ColorAxis));
+```
+
 ## Column files
 
 `@tachyon-charts/large-data` reads and writes column files (TCOL), the format of the .NET version for data larger than

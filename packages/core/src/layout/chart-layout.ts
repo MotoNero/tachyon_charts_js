@@ -1,5 +1,6 @@
 // Arranges titles, axes and panes in the size of a chart (ChartLayout of the .NET version).
 import type { Axis, TextMeasurer } from '../axes/axis';
+import { ColorAxis } from '../axes/color-axis';
 import type { PixelRect } from '../render/types';
 
 /** A rectangle in device-independent units. */
@@ -124,6 +125,9 @@ interface Distances {
 }
 
 const noRoom: ReservedRoom = { left: 0, top: 0, right: 0, bottom: 0 };
+
+// The label a color axis keeps room for.
+const reservedColorLabel = '-0.0000';
 
 /**
  * Arranges titles, axes and panes in the size of a chart. The height of horizontal axes does not depend on the width,
@@ -255,6 +259,16 @@ function verticalThickness(axis: Axis, length: number, measurer: TextMeasurer, d
   let labelWidth = 0;
   for (const tick of axis.generateTicks(length, measurer).major) {
     labelWidth = Math.max(labelWidth, measurer.measureWidth(tick.label));
+  }
+  // The plot must not move while a color range changes: room for longer labels is there from the start, and the
+  // width stays frozen until the axis follows the data again.
+  if (axis instanceof ColorAxis) {
+    labelWidth =
+      !axis.isAutoRange && axis.stableLabelLength === length
+        ? axis.stableLabelWidth
+        : Math.max(labelWidth, measurer.measureWidth(reservedColorLabel));
+    axis.stableLabelWidth = labelWidth;
+    axis.stableLabelLength = length;
   }
   return (
     axis.bandThickness +

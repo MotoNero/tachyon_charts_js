@@ -1,5 +1,6 @@
 // The root of a chart: axes, panes and series, drawn in the passes of a frame (ChartSurface of the .NET version).
 import type { Axis, TickSet } from '../axes/axis';
+import { ColorAxis } from '../axes/color-axis';
 import { DateTimeAxis } from '../axes/date-time-axis';
 import { resolveTheme, toSurfaceStyle, type ThemeDocument } from '../themes/theme';
 import type { HitResult, HitTestMode } from '../hit-testing/hit-test';
@@ -28,6 +29,7 @@ const axisTitleInset = 7;
 const defaultLabelSize = 11;
 const defaultTitleSize = 14;
 const autoRangePadding = 0.05;
+const colorBarSegments = 64;
 const defaultTick: Rgba8 = { r: 150, g: 160, b: 175, a: 255 };
 const defaultText: Rgba8 = { r: 200, g: 208, b: 220, a: 255 };
 
@@ -62,6 +64,7 @@ export class ChartSurface {
   private readonly gridRects: PixelRect[] = [];
   private readonly borderRects: PixelRect[] = [];
   private readonly tickRects: PixelRect[] = [];
+  private readonly colorBars: { bounds: PixelRect; top: Rgba8; bottom: Rgba8 }[] = [];
   private glyphs = new Float32Array(512 * glyphStride);
   private glyphCount = 0;
   private overlayList: ChartOverlay[] = [];
@@ -405,6 +408,9 @@ export class ChartSurface {
       }
       // Overlay pass: tick marks, the preview of a zoom, the overlays and all text.
       fill(frame, this.tickRects, this.tickColor);
+      for (const bar of this.colorBars) {
+        frame.fillLinearGradient(bar.bounds, bar.top, bar.bottom, true);
+      }
       this.drawZoomRectangle(frame, target.dpiScale);
       const usedCanvas = this.drawOverlays(frame, target);
       if (this.glyphCount > 0) {
@@ -573,20 +579,20 @@ export class ChartSurface {
   private fitAxis(axis: Axis): void {
     let min = Number.POSITIVE_INFINITY;
     let max = Number.NEGATIVE_INFINITY;
+    // A color axis and an axis of a raster fit flush: a margin would only show a gap.
+    let isFlush = axis.isHorizontal || axis instanceof ColorAxis;
     for (const series of this.seriesList) {
-      if (!series.isVisible || (series.xAxis !== axis && series.yAxis !== axis)) {
-        continue;
-      }
-      const range = series.dataRange(series.xAxis === axis ? 'x' : 'y');
+      const range = this.rangeFor(series, axis);
       if (range && !range.isEmpty) {
         min = Math.min(min, range.min);
         max = Math.max(max, range.max);
+        isFlush ||= series.colorAxis !== undefined;
       }
     }
     if (min > max) {
       return;
     }
-    const padding = axis.isHorizontal ? 0 : autoRangePadding;
+    const padding = isFlush ? 0 : autoRangePadding;
     const last = this.fitted.get(axis);
     if (last?.min === min && last.max === max && last.padding === padding && last.version === axis.version) {
       return;
@@ -600,6 +606,20 @@ export class ChartSurface {
     this.fitted.set(axis, { min, max, padding, version: axis.version });
   }
 
+  // What a series adds to the range of an axis: its values for its color axis, its data for its X or Y axis.
+  private rangeFor(series: ChartSeries, axis: Axis): DoubleRange | undefined {
+    if (!series.isVisible) {
+      return undefined;
+    }
+    if (axis instanceof ColorAxis) {
+      return series.colorAxis === axis ? series.colorRange() : undefined;
+    }
+    if (series.xAxis !== axis && series.yAxis !== axis) {
+      return undefined;
+    }
+    return series.dataRange(series.xAxis === axis ? 'x' : 'y');
+  }
+
   private arrange(target: RenderTarget): void {
     const scale = target.dpiScale;
     this.arrangeScale = scale;
@@ -611,6 +631,7 @@ export class ChartSurface {
     this.gridRects.length = 0;
     this.borderRects.length = 0;
     this.tickRects.length = 0;
+    this.colorBars.length = 0;
     this.glyphCount = 0;
     for (const pane of layout.panes) {
       const pixels = pane.toPixels(scale);
@@ -649,6 +670,9 @@ export class ChartSurface {
     const length = isHorizontal ? bounds.width : bounds.height;
     const transform = axis.createTransform(isHorizontal ? bounds.x : bounds.y, length);
     const drawsGrid = this.ownsGrid(axis);
+    if (axis instanceof ColorAxis) {
+      bounds = this.placeColorBar(axis, bounds, scale);
+    }
     const ticks = axis.generateTicks(length, this.measurer);
     for (const tick of ticks.major) {
       const position = transform.toPixel(tick.value);
@@ -704,9 +728,36 @@ export class ChartSurface {
     return own ? axis.createTransform(own.bounds.y, own.bounds.height).toPixel(other.axis.crossesAt) : Number.NaN;
   }
 
-  // The first axis of the other direction.
+  // The first axis of the other direction; a color axis has no other.
   private static other(axis: Axis, layout: ChartLayoutResult): AxisPlacement | undefined {
-    return layout.axes.find((placement) => placement.axis.isHorizontal !== axis.isHorizontal);
+    return layout.axes.find(
+      (placement) => placement.axis.isHorizontal !== axis.isHorizontal && !(placement.axis instanceof ColorAxis),
+    );
+  }
+
+  // The color bar beside the plot; ticks and labels start after it.
+  private placeColorBar(axis: ColorAxis, bounds: DipRect, scale: number): DipRect {
+    const band = axis.bandThickness;
+    if (axis.position === 'left') {
+      this.addColorBar(axis, new DipRect(bounds.right - band, bounds.y, band, bounds.height), scale);
+      return new DipRect(bounds.x, bounds.y, bounds.width - band, bounds.height);
+    }
+    this.addColorBar(axis, new DipRect(bounds.x, bounds.y, band, bounds.height), scale);
+    return new DipRect(bounds.x + band, bounds.y, bounds.width - band, bounds.height);
+  }
+
+  // Segments of linear gradients, linear in the scale of the axis like the raster; the top is the end of the map.
+  private addColorBar(axis: ColorAxis, bar: DipRect, scale: number): void {
+    for (let i = 0; i < colorBarSegments; i++) {
+      const top = 1 - i / colorBarSegments;
+      const bottom = 1 - (i + 1) / colorBarSegments;
+      const segment = new DipRect(bar.x, bar.y + (1 - top) * bar.height, bar.width, bar.height / colorBarSegments);
+      this.colorBars.push({
+        bounds: segment.toPixels(scale),
+        top: axis.colormap.sample(top),
+        bottom: axis.colormap.sample(bottom),
+      });
+    }
   }
 
   private arrangeTick(axis: Axis, label: string, position: number, bounds: DipRect, scale: number): void {

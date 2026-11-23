@@ -49,6 +49,9 @@ const german: Readonly<Record<string, string>> = {
   Tiles: 'Kacheln',
   'Points and areas': 'Punkte und Flächen',
   Statistics: 'Statistik',
+  Heatmap: 'Heatmap',
+  'Wheel: zoom | Drag: pan | Wheel over the color bar: values':
+    'Rad: Zoom | Ziehen: Verschieben | Rad über dem Farbbalken: Werte',
   Histogram: 'Histogramm',
   'Box and violin': 'Box und Violine',
   Normal: 'Normal',

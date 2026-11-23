@@ -1,5 +1,6 @@
 // The base of all series and the frame a series draws in (ChartSeries and SeriesFrame of the .NET version).
 import type { Axis } from '../axes/axis';
+import type { ColorAxis } from '../axes/color-axis';
 import type { FoundPoint, HitTestMode } from '../hit-testing/types';
 import type { DoubleRange } from '../numerics/range';
 import type { LinearAxisTransform } from '../numerics/transform';
@@ -67,6 +68,16 @@ export abstract class ChartSeries {
   /** The color that stands for this series in labels. */
   get accentColor(): Rgba8 {
     return { r: 150, g: 160, b: 175, a: 255 };
+  }
+
+  /** The color axis whose colors the series shows, for rasters such as heatmaps; undefined for other series. */
+  get colorAxis(): ColorAxis | undefined {
+    return undefined;
+  }
+
+  /** The range of the values the colors show, for a color axis that follows the data; undefined without values. */
+  colorRange(): DoubleRange | undefined {
+    return undefined;
   }
 
   /** Grows with every change that needs a new frame. */

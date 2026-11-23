@@ -1,6 +1,7 @@
 // What modifiers do to a chart: hit tests on its layout and changes of its axes (ChartInteraction and ZoomHistory of the
 // .NET version). JavaScript has one thread per page, so changes run at once unless a dispatcher is given.
 import type { Axis } from '../axes/axis';
+import { ColorAxis } from '../axes/color-axis';
 import type { AxisPlacement, DipRect } from '../layout/chart-layout';
 import type { DoubleRange } from '../numerics/range';
 import type { ChartSurface } from '../pipeline/chart-surface';
@@ -184,7 +185,8 @@ export class ChartInteraction {
     if (!layout || index < 0) {
       return undefined;
     }
-    return { bounds: layout.panes[index] as DipRect, axes: this.chart.panes[index]?.axes ?? [] };
+    const axes = (this.chart.panes[index]?.axes ?? []).filter((axis) => !(axis instanceof ColorAxis));
+    return { bounds: layout.panes[index] as DipRect, axes };
   }
 
   /** The axis under a position. */

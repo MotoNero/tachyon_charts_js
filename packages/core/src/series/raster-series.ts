@@ -1,62 +1,13 @@
 // Values on a grid of cells, colored by a table, as the raster drawing of the .NET version: the values go to the GPU
 // as one texture of floats, the colormap as a row of colors, and the shader looks up each pixel. Only the part of the
 // raster inside the plot is drawn, through the section of the texture.
-import { builtInColormapEntries } from '../generated/colormaps';
+import { Colormap } from './colormap';
 import { DoubleRange } from '../numerics/range';
 import { ChartSeries, type SeriesFrame } from '../pipeline/chart-series';
 import type { CommandList, RasterReduction, RasterStyle } from '../render/commands';
 import type { RenderDevice } from '../render/device';
 import type { GpuTexture } from '../render/resources';
-import { parseColor, type PixelRect, type Rgba8 } from '../render/types';
-
-/** A table of colors from low to high values. */
-export class Colormap {
-  /**
-   * @param name - The name.
-   * @param entries - The colors from the lowest value to the highest, at least two.
-   */
-  constructor(
-    /** The name. */
-    readonly name: string,
-    /** The colors from the lowest value to the highest. */
-    readonly entries: readonly Rgba8[],
-  ) {
-    if (entries.length < 2) {
-      throw new RangeError('A colormap needs at least two colors.');
-    }
-  }
-
-  /** The names of the built-in colormaps, those of the .NET version: Viridis, Inferno, Magma, Plasma, Turbo, Grayscale. */
-  static get builtInNames(): readonly string[] {
-    return Object.keys(builtInColormapEntries);
-  }
-
-  /**
-   * A built-in colormap by its name, in any case.
-   * @throws RangeError for an unknown name.
-   */
-  static builtIn(name: string): Colormap {
-    const key = Object.keys(builtInColormapEntries).find((candidate) => candidate.toLowerCase() === name.toLowerCase());
-    const text = key === undefined ? undefined : builtInColormapEntries[key];
-    if (key === undefined || text === undefined) {
-      throw new RangeError(`There is no colormap "${name}".`);
-    }
-    const entries: Rgba8[] = [];
-    for (let at = 0; at < text.length; at += 9) {
-      entries.push(parseColor(text.slice(at, at + 9)));
-    }
-    return new Colormap(key, entries);
-  }
-
-  /** The colors as bytes, red, green, blue and alpha, for a texture one row high. */
-  toBytes(): Uint8Array {
-    const bytes = new Uint8Array(this.entries.length * 4);
-    this.entries.forEach((color, i) => {
-      bytes.set([color.r, color.g, color.b, color.a], i * 4);
-    });
-    return bytes;
-  }
-}
+import type { PixelRect, Rgba8 } from '../render/types';
 
 /** Where a grid of cells lies on the axes: the edges of its first and last cells. */
 export interface RasterExtent {
