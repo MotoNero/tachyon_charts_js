@@ -111,6 +111,11 @@ export class TernarySeries extends ChartSeries {
     return this.fill;
   }
 
+  /** {@inheritDoc ChartSeries.onPalette} */
+  override onPalette(palette: readonly Rgba8[]): void {
+    this.color = palette[0] as Rgba8;
+  }
+
   /** {@inheritDoc ChartSeries.version} */
   get version(): number {
     return this.changes;
@@ -239,6 +244,11 @@ export class ParallelCoordinatesSeries extends ChartSeries {
   /** {@inheritDoc ChartSeries.accentColor} */
   override get accentColor(): Rgba8 {
     return { ...this.stroke, a: 255 };
+  }
+
+  /** {@inheritDoc ChartSeries.onPalette} */
+  override onPalette(palette: readonly Rgba8[]): void {
+    this.color = { ...(palette[0] as Rgba8), a: this.stroke.a };
   }
 
   /** {@inheritDoc ChartSeries.version} */

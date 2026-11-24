@@ -153,6 +153,11 @@ export class SmithSeries extends ChartSeries {
     return this.stroke;
   }
 
+  /** {@inheritDoc ChartSeries.onPalette} */
+  override onPalette(palette: readonly Rgba8[]): void {
+    this.color = palette[0] as Rgba8;
+  }
+
   /** {@inheritDoc ChartSeries.version} */
   get version(): number {
     return this.changes;

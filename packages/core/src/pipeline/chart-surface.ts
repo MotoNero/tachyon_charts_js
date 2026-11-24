@@ -56,6 +56,8 @@ export class ChartSurface {
   private readonly measurer: TextEngineMeasurer;
   private seriesList: ChartSeries[] = [];
   private frames: SeriesFrame[] = [];
+  private palette: readonly Rgba8[] = [];
+  private paletteKey = '[]';
   private titleText: string | undefined;
   private titleTextFont: TextFont | undefined;
   private surfaceStyle: ChartSurfaceStyle = defaultSurfaceStyle;
@@ -189,7 +191,16 @@ export class ChartSurface {
   }
 
   set theme(value: ThemeDocument | undefined) {
-    this.applyTheme(value === undefined ? undefined : resolveTheme(value));
+    const resolved = value === undefined ? undefined : resolveTheme(value);
+    this.applyTheme(resolved);
+    // Series without colors of their own take those of a new palette, as OnPalette of the .NET version.
+    const palette = (resolved?.palette ?? []).map((text) => parseColor(text));
+    const key = JSON.stringify(palette);
+    if (key !== this.paletteKey) {
+      this.paletteKey = key;
+      this.palette = palette;
+      this.applyPalette();
+    }
     this.structure++;
   }
 
@@ -233,6 +244,7 @@ export class ChartSurface {
     }
     this.seriesList = [...this.seriesList, series];
     this.structure++;
+    this.applyPalette();
   }
 
   /** Removes a series; returns whether it was there. */
@@ -509,6 +521,14 @@ export class ChartSurface {
     const dx = frame.x.toPixel(point.x) - pixelX;
     const dy = mode === 'nearestX' ? 0 : frame.y.toPixel(point.y) - pixelY;
     return { ...point, series, distance: Math.hypot(dx, dy) / scale };
+  }
+
+  private applyPalette(): void {
+    if (this.palette.length > 0) {
+      for (const series of this.seriesList) {
+        series.onPalette(this.palette);
+      }
+    }
   }
 
   private applyTheme(theme: ThemeDocument | undefined): void {

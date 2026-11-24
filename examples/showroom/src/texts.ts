@@ -61,6 +61,10 @@ const german: Readonly<Record<string, string>> = {
   Oscilloscope: 'Oszilloskop',
   Spectrum: 'Spektrum',
   'Network analyzer': 'Netzwerkanalysator',
+  'Sweep monitor': 'Monitor, überschreibend',
+  'Stepping monitor': 'Monitor, seitenweise',
+  'The trace writes from the left over the previous one | Wheel on an axis: zoom the values':
+    'Die Spur schreibt von links über die vorige | Rad auf einer Achse: Werte zoomen',
   'Drag a marker: move it | Ctrl+click: add or remove a marker | Wheel: zoom | Drag: pan':
     'Marker ziehen: verschieben | Strg+Klick: Marker dazu oder weg | Rad: Zoom | Ziehen: verschieben',
   'Wheel: frequency | Left: dB/div | Ctrl+wheel: reference | Drag: pan | Click: marker | Ctrl+click: add or remove a marker | Double click: peak':

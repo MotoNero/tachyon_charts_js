@@ -19,6 +19,8 @@ import {
   ScopeDisplay,
   ScopeTrigger,
   spectrum,
+  sweep,
+  SweepData,
   SpectrumDisplay,
   SmithGridOverlay,
   SmithMarkerModifier,
@@ -50,6 +52,7 @@ import {
   StackedAreaSeries,
   type DigitalSource,
   type LimitLine,
+  type SweepMode,
   type ThemeDocument,
   type Axis,
   type ChartSurface,
@@ -353,6 +356,75 @@ function networkPage(): Page {
       networkAnalyzer(c, display, 1e9, 2e9, -70, 5)
         .theme(instrument)
         .addModifier(() => new NetworkMarkerModifier(display));
+    },
+  };
+}
+
+// A patient monitor at 25 000 samples per second: two ECG leads, the pulse and the breath, written into a window of
+// six seconds, as the sweep and stepping monitors of the .NET showroom.
+function monitorBell(x: number, center: number, width: number): number {
+  return Math.exp(-((x - center) * (x - center)) / (2 * width * width));
+}
+
+function monitorPage(mode: SweepMode): Page {
+  const rate = 25_000;
+  const window = 6;
+  const names = ['ECG I', 'ECG II', 'Pleth', 'Resp'];
+  const ranges = [
+    new DoubleRange(-0.6, 1.4),
+    new DoubleRange(-0.6, 1.4),
+    new DoubleRange(-0.1, 1.1),
+    new DoubleRange(-1.2, 1.2),
+  ];
+  const data = new SweepData(names.length, rate * (window + 1), window);
+  data.mode = mode;
+  const block = rate / 100;
+  const times = new Float64Array(block);
+  const values = new Float32Array(block * names.length);
+  const fill = (first: number): void => {
+    for (let i = 0; i < block; i++) {
+      const t = (first + i) / rate;
+      times[i] = t;
+      const beat = ((t * 72) / 60) % 1;
+      const ecg =
+        0.12 * monitorBell(beat, 0.18, 0.025) -
+        0.15 * monitorBell(beat, 0.36, 0.008) +
+        monitorBell(beat, 0.39, 0.01) -
+        0.25 * monitorBell(beat, 0.42, 0.01) +
+        0.3 * monitorBell(beat, 0.62, 0.045);
+      const pulse = (beat + 0.85) % 1;
+      values[i * 4] = ecg;
+      values[i * 4 + 1] = ecg * 0.8 + 0.05 * Math.sin(t * 2 * Math.PI * 0.3);
+      values[i * 4 + 2] = 0.9 * monitorBell(pulse, 0.25, 0.07) + 0.3 * monitorBell(pulse, 0.5, 0.06);
+      values[i * 4 + 3] = Math.sin(t * 2 * Math.PI * 0.25);
+    }
+  };
+  return {
+    id: mode === 'sweep' ? 'sweep' : 'stepping',
+    name: mode === 'sweep' ? 'Sweep monitor' : 'Stepping monitor',
+    group: 'Instruments',
+    hint: 'The trace writes from the left over the previous one | Wheel on an axis: zoom the values',
+    configure: (c) => {
+      sweep(c.title(mode === 'sweep' ? 'Sweep' : 'Stepping').theme(instrument), data, ranges, names);
+    },
+    start: () => {
+      // Blocks of 10 ms on a clock, so that the sample rate holds however the timer runs.
+      const begin = performance.now();
+      let written = 0;
+      data.clear();
+      const timer = setInterval(() => {
+        const due = Math.trunc(((performance.now() - begin) / 1000) * rate);
+        while (written + block <= due) {
+          fill(written);
+          data.append(times, values);
+          written += block;
+        }
+      }, 10);
+      return {
+        dispose: () => {
+          clearInterval(timer);
+        },
+      };
     },
   };
 }
@@ -1167,6 +1239,8 @@ export const pages: readonly Page[] = [
   oscilloscopePage(),
   spectrumPage(),
   networkPage(),
+  monitorPage('sweep'),
+  monitorPage('stepping'),
   {
     id: 'logarithmic-axis',
     name: 'Logarithmic axis',

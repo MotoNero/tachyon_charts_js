@@ -429,6 +429,7 @@ export abstract class ChartSeries {
     get isVisible(): boolean;
     set isVisible(value: boolean);
     name: string | undefined;
+    onPalette(_palette: readonly Rgba8[]): void;
     prepare(_device: RenderDevice, _frame: SeriesFrame): void;
     prepareData(_frame: SeriesFrame): void;
     releaseResources(): void;
@@ -1574,6 +1575,7 @@ export class ParallelCoordinatesSeries extends ChartSeries {
     draw(commands: CommandList, frame: SeriesFrame): void;
     filter(column: number): DoubleRange | undefined;
     moveAxis(from: number, to: number): void;
+    onPalette(palette: readonly Rgba8[]): void;
     get order(): readonly number[];
     prepare(device: RenderDevice, frame: SeriesFrame): void;
     range(column: number): DoubleRange;
@@ -2321,6 +2323,7 @@ export class SmithSeries extends ChartSeries {
     draw(commands: CommandList, frame: SeriesFrame): void;
     impedance(index: number): Complex;
     invalidate(): void;
+    onPalette(palette: readonly Rgba8[]): void;
     prepare(device: RenderDevice, frame: SeriesFrame): void;
     readonly referenceImpedance: number;
     reflection(index: number): Complex;
@@ -2476,6 +2479,53 @@ export interface SurfaceTokens {
 }
 
 // @public
+export function sweep(builder: ChartBuilder, data: SweepData, ranges: readonly DoubleRange[], titles?: readonly string[]): ChartBuilder;
+
+// @public
+export class SweepData {
+    constructor(
+    channels: number,
+    capacity: number, window: number);
+    append(times: number | ArrayLike<number>, values: ArrayLike<number>): void;
+    readonly capacity: number;
+    readonly channels: number;
+    clear(): void;
+    // @internal
+    collect(channel: number, columns: number, low: Float32Array, high: Float32Array): number;
+    get gapShare(): number;
+    set gapShare(value: number);
+    get head(): number;
+    get mode(): SweepMode;
+    set mode(value: SweepMode);
+    get version(): number;
+    get window(): number;
+    set window(value: number);
+}
+
+// @public
+export type SweepMode = 'sweep' | 'stepping';
+
+// @public
+export class SweepSeries extends ChartSeries {
+    constructor(
+    data: SweepData,
+    channel: number, xAxis: Axis, yAxis: Axis);
+    get accentColor(): Rgba8;
+    readonly channel: number;
+    get color(): Rgba8;
+    set color(value: Rgba8);
+    readonly data: SweepData;
+    dataRange(): DoubleRange | undefined;
+    draw(commands: CommandList, frame: SeriesFrame): void;
+    onPalette(palette: readonly Rgba8[]): void;
+    prepare(device: RenderDevice, frame: SeriesFrame): void;
+    releaseResources(): void;
+    get thickness(): number;
+    set thickness(value: number);
+    get version(): number;
+}
+
+// @public
 export class SymLogScaling implements AxisScaling {
     constructor(
     base: number,
@@ -2517,6 +2567,7 @@ export class TernarySeries extends ChartSeries {
     set color(value: Rgba8);
     dataRange(): DoubleRange | undefined;
     draw(commands: CommandList, frame: SeriesFrame): void;
+    onPalette(palette: readonly Rgba8[]): void;
     get pointSize(): number;
     set pointSize(value: number);
     prepare(device: RenderDevice, frame: SeriesFrame): void;

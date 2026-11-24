@@ -324,6 +324,25 @@ element.chart = networkAnalyzer(new ChartBuilder(), display, 1e9, 2e9, -70, 5).a
 );
 ```
 
+## Sweep and stepping monitors
+
+![Two ECG leads, the pulse and the breath of a patient monitor, the trace writing over the previous page](docs/images/sweep.png)
+
+`SweepData` keeps samples of several channels in a ring and shows them in a window of fixed length, as a patient
+monitor does: in `sweep` mode the trace writes from the left over the previous page with a small gap ahead of it, in
+`stepping` mode the window starts empty when the trace reaches the right edge. `SweepSeries` draws one channel with
+the lowest and highest value of each pixel column, so steep edges such as the QRS complex stay whole at any rate.
+`sweep(builder, data, ranges, titles)` describes one pane per channel. Series such as these, Smith, ternary and
+parallel coordinates take their colors from the palette of the theme.
+
+```ts
+import { ChartBuilder, DoubleRange, sweep, SweepData } from '@tachyon-charts/core';
+
+const data = new SweepData(2, 25_000 * 7, 6); // two channels, seven seconds of samples, a window of six
+element.chart = sweep(new ChartBuilder(), data, [new DoubleRange(-0.6, 1.4), new DoubleRange(-1, 1)], ['ECG', 'Resp']);
+data.append(times, values); // values of all channels, sample after sample
+```
+
 ## Rasters and colormaps
 
 ![A field of 400 x 300 cells with two peaks and a valley in the colormap Inferno](docs/images/raster.png)

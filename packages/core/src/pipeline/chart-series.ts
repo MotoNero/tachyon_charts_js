@@ -65,6 +65,15 @@ export abstract class ChartSeries {
     return this.states;
   }
 
+  /**
+   * Takes the colors of a new theme. Series whose colors the application sets leave this alone; special chart types
+   * without a color choice of their own follow the theme.
+   * @param _palette - The colors of the theme, at least one.
+   */
+  onPalette(_palette: readonly Rgba8[]): void {
+    // Most series keep their colors.
+  }
+
   /** The color that stands for this series in labels. */
   get accentColor(): Rgba8 {
     return { r: 150, g: 160, b: 175, a: 255 };
