@@ -8,6 +8,9 @@ import {
   ContourSeries,
   PolarGridOverlay,
   FrequencyMask,
+  networkAnalyzer,
+  NetworkDisplay,
+  NetworkMarkerModifier,
   oscilloscope,
   ParallelAxesModifier,
   ParallelAxesOverlay,
@@ -46,6 +49,7 @@ import {
   resolveTheme,
   StackedAreaSeries,
   type DigitalSource,
+  type LimitLine,
   type ThemeDocument,
   type Axis,
   type ChartSurface,
@@ -307,6 +311,48 @@ function spectrumPage(): Page {
           clearInterval(timer);
         },
       };
+    },
+  };
+}
+
+// A network analyzer with a band-pass filter that keeps to its limits; markers can be dragged and toggled, as the
+// interactive network analyzer of the .NET showroom.
+function networkPage(): Page {
+  return {
+    id: 'network',
+    name: 'Network analyzer',
+    group: 'Instruments',
+    hint: 'Drag a marker: move it | Ctrl+click: add or remove a marker | Wheel: zoom | Drag: pan',
+    configure: (c) => {
+      const display = new NetworkDisplay();
+      const transmission = display.addTrace('S21');
+      const reflection = display.addTrace('S11');
+      const count = 801;
+      const frequencies = Float64Array.from({ length: count }, (_, i) => 1e9 + (i * 1e9) / (count - 1));
+      const responses = Array.from(frequencies, (frequency) => 1 / (1 + ((frequency - 1.5e9) / 1.2e8) ** 6));
+      transmission.setSweep(
+        frequencies,
+        responses.map((response) => ({ re: Math.max(Math.sqrt(response), 1e-4), im: 0 })),
+      );
+      reflection.setSweep(
+        frequencies,
+        responses.map((response) => ({ re: Math.max(Math.sqrt(1 - response), 0.03), im: 0 })),
+      );
+      const limit = (kind: 'maximum' | 'minimum', from: number, to: number, level: number): LimitLine => ({
+        kind,
+        startFrequency: from,
+        startLevel: level,
+        stopFrequency: to,
+        stopLevel: level,
+      });
+      transmission.addLimit(limit('minimum', 1.45e9, 1.55e9, -1));
+      transmission.addLimit(limit('maximum', 1e9, 1.15e9, -20));
+      reflection.addLimit(limit('maximum', 1.47e9, 1.53e9, -20));
+      display.addMarker(1.5e9);
+      display.addMarker(1.7e9);
+      networkAnalyzer(c, display, 1e9, 2e9, -70, 5)
+        .theme(instrument)
+        .addModifier(() => new NetworkMarkerModifier(display));
     },
   };
 }
@@ -1120,6 +1166,7 @@ export const pages: readonly Page[] = [
   },
   oscilloscopePage(),
   spectrumPage(),
+  networkPage(),
   {
     id: 'logarithmic-axis',
     name: 'Logarithmic axis',

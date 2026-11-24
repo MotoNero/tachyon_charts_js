@@ -301,6 +301,29 @@ element.chart = spectrum(new ChartBuilder(), display);
 display.setTrace(frequencies, levels); // for every new trace
 ```
 
+## Network analyzer
+
+![S21 and S11 of a band-pass filter with limit lines, markers and their table](docs/images/network.png)
+
+`NetworkDisplay` holds the traces of a network analyzer, such as S21 and S11, as complex responses over frequency,
+shown as magnitude in dB or as phase in degrees. Each trace has limit lines, slanted or flat, below or above which it
+has to stay, and reports PASS or FAIL; markers read every trace at their frequency. `networkAnalyzer(builder,
+display, start, stop, minimum, maximum)` describes the chart with frequency in hertz and the level in dB;
+`NetworkMarkerModifier` drags a marker, Ctrl+click adds or removes one.
+
+```ts
+import { ChartBuilder, networkAnalyzer, NetworkDisplay, NetworkMarkerModifier } from '@tachyon-charts/core';
+
+const display = new NetworkDisplay();
+const s21 = display.addTrace('S21');
+s21.setSweep(frequencies, responses); // responses as { re, im }
+s21.addLimit({ kind: 'minimum', startFrequency: 1.45e9, startLevel: -1, stopFrequency: 1.55e9, stopLevel: -1 });
+display.addMarker(1.5e9);
+element.chart = networkAnalyzer(new ChartBuilder(), display, 1e9, 2e9, -70, 5).addModifier(
+  () => new NetworkMarkerModifier(display),
+);
+```
+
 ## Rasters and colormaps
 
 ![A field of 400 x 300 cells with two peaks and a valley in the colormap Inferno](docs/images/raster.png)

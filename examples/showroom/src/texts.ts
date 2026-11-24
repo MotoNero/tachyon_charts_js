@@ -60,6 +60,9 @@ const german: Readonly<Record<string, string>> = {
   Instruments: 'Instrumente',
   Oscilloscope: 'Oszilloskop',
   Spectrum: 'Spektrum',
+  'Network analyzer': 'Netzwerkanalysator',
+  'Drag a marker: move it | Ctrl+click: add or remove a marker | Wheel: zoom | Drag: pan':
+    'Marker ziehen: verschieben | Strg+Klick: Marker dazu oder weg | Rad: Zoom | Ziehen: verschieben',
   'Wheel: frequency | Left: dB/div | Ctrl+wheel: reference | Drag: pan | Click: marker | Ctrl+click: add or remove a marker | Double click: peak':
     'Rad: Frequenz | Links: dB/div | Strg+Rad: Referenz | Ziehen: verschieben | Klick: Marker | Strg+Klick: Marker dazu oder weg | Doppelklick: Spitze',
   'Drag at the left: channel | at the right: trigger | else: time | Wheel: time/div | Left, on V/div or Ctrl+wheel: volts/div':

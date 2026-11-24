@@ -1199,6 +1199,15 @@ export interface LayoutPane {
 }
 
 // @public
+export interface LimitLine {
+    readonly kind: 'maximum' | 'minimum';
+    readonly startFrequency: number;
+    readonly startLevel: number;
+    readonly stopFrequency: number;
+    readonly stopLevel: number;
+}
+
+// @public
 export class LinearAxisTransform {
     constructor(data: DoubleRange, pixelAtMin: number, pixelAtMax: number, scaling?: AxisScaling | undefined);
     get isLinear(): boolean;
@@ -1399,6 +1408,54 @@ export class ModifierPipeline {
 export type ModifierResult = 'ignored' | 'handled' | 'capture' | 'release';
 
 // @public
+export function networkAnalyzer(builder: ChartBuilder, display: NetworkDisplay, start: number, stop: number, minimum: number, maximum: number): ChartBuilder;
+
+// @public
+export class NetworkDisplay {
+    constructor(
+    format?: NetworkFormat);
+    addMarker(frequency: number): void;
+    addTrace(name: string): NetworkTrace;
+    get areLimitsActive(): boolean;
+    readonly format: NetworkFormat;
+    get markers(): readonly number[];
+    moveMarker(index: number, frequency: number): void;
+    removeMarker(index: number): void;
+    toLevel(value: Complex): number;
+    // @internal
+    touch(): void;
+    get traces(): readonly NetworkTrace[];
+    get version(): number;
+}
+
+// @public
+export type NetworkFormat = 'logMagnitude' | 'phase' | 'smith';
+
+// @public
+export class NetworkMarkerModifier extends ChartModifier {
+    constructor(display: NetworkDisplay);
+    static readonly defaultPriority = 22;
+    onCaptureLost(): void;
+    onPointer(input: PointerInputEvent): ModifierResult;
+}
+
+// @public
+export class NetworkTrace {
+    // @internal
+    constructor(display: NetworkDisplay,
+    name: string, color: Rgba8);
+    addLimit(limit: LimitLine): void;
+    get color(): Rgba8;
+    set color(value: Rgba8);
+    readonly data: DataSource;
+    get limits(): readonly LimitLine[];
+    readonly name: string;
+    get passes(): boolean;
+    read(frequency: number): Complex | undefined;
+    setSweep(frequencies: ArrayLike<number>, values: readonly Complex[]): void;
+}
+
+// @public
 export function niceStep(length: number, targetIntervals: number): number;
 
 // @public
@@ -1536,6 +1593,9 @@ export function parseThemeColor(text: string): Rgba8;
 
 // @public
 export function parseThemeGradient(text: string): ThemeGradient;
+
+// @public
+export function passesLimit(limit: LimitLine, frequency: number, level: number): boolean;
 
 // @public
 export class PersistenceBuffer {

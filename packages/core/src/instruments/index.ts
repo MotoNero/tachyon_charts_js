@@ -4,3 +4,12 @@ export { colormapFromColors, PersistenceBuffer } from './scope-persistence';
 export { oscilloscope, ScopeModifier } from './scope-chart';
 export * from './spectrum-display';
 export { isOnMask, spectrum, SpectrumModifier } from './spectrum-chart';
+export {
+  networkAnalyzer,
+  NetworkDisplay,
+  NetworkMarkerModifier,
+  NetworkTrace,
+  passesLimit,
+  type LimitLine,
+  type NetworkFormat,
+} from './network-display';
