@@ -44,3 +44,14 @@ export {
   VolumeProfileSeries,
   type ProfileSide,
 } from './volume-profile-series';
+export {
+  gantt,
+  GanttData,
+  ganttLineNames,
+  GanttModifier,
+  GanttSeries,
+  type GanttLine,
+  type GanttRow,
+  type GanttState,
+  type GanttTask,
+} from './gantt-series';

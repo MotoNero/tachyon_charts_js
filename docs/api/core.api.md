@@ -1132,6 +1132,92 @@ export class FrequencyMask {
 }
 
 // @public
+export function gantt(builder: ChartBuilder, data: GanttData, configure?: (series: GanttSeries) => void): ChartBuilder;
+
+// @public
+export class GanttData {
+    add(task: GanttTask): number;
+    addRow(name: string, group?: string): number;
+    at(index: number): GanttTask;
+    get count(): number;
+    get current(): GanttState;
+    isCollapsed(group: string): boolean;
+    link(from: number, to: number): void;
+    get rows(): readonly GanttRow[];
+    setCollapsed(group: string, isCollapsed: boolean): void;
+    get version(): number;
+}
+
+// @public
+export interface GanttLine {
+    readonly group: string | undefined;
+    readonly isCollapsed: boolean;
+    readonly isGroup: boolean;
+    readonly name: string;
+    readonly row: number;
+}
+
+// @public
+export function ganttLineNames(data: GanttData): string[];
+
+// @public
+export class GanttModifier extends ChartModifier {
+    constructor();
+    onPointer(input: PointerInputEvent): ModifierResult;
+}
+
+// @public
+export interface GanttRow {
+    readonly group?: string;
+    readonly name: string;
+}
+
+// @public
+export class GanttSeries extends ChartSeries {
+    constructor(
+    data: GanttData, xAxis: Axis, yAxis: Axis);
+    get accentColor(): Rgba8;
+    get barHeight(): number;
+    set barHeight(value: number);
+    // @internal
+    colorOf(task: GanttTask): Rgba8;
+    readonly data: GanttData;
+    dataRange(axis: 'x' | 'y'): DoubleRange | undefined;
+    draw(commands: CommandList, frame: SeriesFrame): void;
+    // @internal
+    findLine(layout: ChartLayoutResult, y: number): number;
+    // @internal
+    findTask(layout: ChartLayoutResult, position: Point): number;
+    get hoveredTask(): number;
+    set hoveredTask(value: number);
+    onPalette(palette: readonly Rgba8[]): void;
+    prepare(_device: RenderDevice, frame: SeriesFrame): void;
+    get version(): number;
+}
+
+// @public
+export interface GanttState {
+    readonly byRow: readonly (readonly number[])[];
+    readonly groupSpans: readonly (readonly [number, number])[];
+    readonly hasMilestones: readonly boolean[];
+    readonly lineOfRow: readonly number[];
+    readonly lines: readonly GanttLine[];
+    readonly links: readonly (readonly [number, number])[];
+    readonly longest: readonly number[];
+    readonly tasks: readonly GanttTask[];
+    readonly version: number;
+}
+
+// @public
+export interface GanttTask {
+    readonly color?: Rgba8;
+    readonly end: number;
+    readonly label?: string;
+    readonly row: number;
+    readonly start: number;
+}
+
+// @public
 export interface GestureInputEvent {
     readonly delta: Point;
     readonly kind: 'pan' | 'pinch';

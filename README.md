@@ -419,6 +419,26 @@ builder.yAxis((a) => a.numeric('y').range(0, 1010).breaks(new DoubleRange(45, 96
 builder.xAxis((a) => a.dateTime('time').autoRange().gaps(TimeGapMap.weekends(first, last, 'Europe/Berlin')));
 ```
 
+## Gantt charts
+
+![A test plan of three stations with linked steps, group bars and two milestones](docs/images/gantt.png)
+
+`GanttData` holds rows in groups, tasks from start to end, milestones where start and end are equal, and
+dependencies. `GanttSeries` draws the tasks as bars in their rows, each group as a thin bar over its span above its
+rows, milestones as diamonds; bars narrower than a pixel merge, so 100 000 tasks stay fast. `gantt(builder, data)` puts
+the lines on an inverted category axis and adds the labels inside the bars, the arrows of the dependencies, the start,
+end and duration of the task under the pointer, and a click on a group that collapses or opens it.
+
+```ts
+import { ChartBuilder, gantt, GanttData, ZoomPanModifier } from '@tachyon-charts/core';
+
+const data = new GanttData();
+const row = data.addRow('Cold start', 'Climate chamber');
+const first = data.add({ row, start: Date.UTC(2026, 2, 2), end: Date.UTC(2026, 2, 4), label: 'Cold start' });
+const builder = new ChartBuilder().xAxis((a) => a.dateTime('time').autoRange());
+element.chart = gantt(builder, data).addModifier(() => new ZoomPanModifier());
+```
+
 ## Rasters and colormaps
 
 ![A field of 400 x 300 cells with two peaks and a valley in the colormap Inferno](docs/images/raster.png)

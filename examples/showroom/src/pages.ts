@@ -55,6 +55,8 @@ import {
   ChartBuilder,
   rgba,
   findBuiltInTheme,
+  gantt,
+  GanttData,
   linkDataSource,
   parseThemeColor,
   resolveTheme,
@@ -357,6 +359,78 @@ function marketProfilePage(): Page {
         .addModifier(() => new CrosshairModifier());
     },
   };
+}
+
+// The test plan of three stations with linked steps and two milestones, and a test hall of 100 stations with 1000 tests
+// each, as the Gantt pages of the .NET showroom.
+const ganttDay = 86_400_000;
+const ganttStart = Date.UTC(2026, 2, 2);
+
+function testPlan(): GanttData {
+  const data = new GanttData();
+  const at = (days: number): number => ganttStart + days * ganttDay;
+  const plan: [string, [string, number, number][]][] = [
+    [
+      'Climate chamber',
+      [
+        ['Prepare', 0, 1.5],
+        ['Cold start', 1.5, 2],
+        ['Heat soak', 3.5, 3],
+        ['Report', 6.5, 1],
+      ],
+    ],
+    [
+      'Vibration',
+      [
+        ['Fixture', 2, 1],
+        ['Sine sweep', 3, 2.5],
+        ['Random', 5.5, 3],
+      ],
+    ],
+    [
+      'EMC',
+      [
+        ['Setup', 6, 1],
+        ['Emission', 7, 2],
+        ['Immunity', 9, 2.5],
+        ['Report', 11.5, 1],
+      ],
+    ],
+  ];
+  let previous = -1;
+  for (const [station, steps] of plan) {
+    for (const [step, from, days] of steps) {
+      const row = data.addRow(t(step), t(station));
+      const task = data.add({ row, start: at(from), end: at(from + days), label: t(step) });
+      if (previous >= 0) {
+        data.link(previous, task);
+      }
+      previous = task;
+    }
+  }
+  const gates = data.addRow(t('Milestones'));
+  data.add({ row: gates, start: at(6.5), end: at(6.5), label: t('Climate done') });
+  data.add({ row: gates, start: at(12.5), end: at(12.5), label: t('Release') });
+  return data;
+}
+
+function testHall(): GanttData {
+  const data = new GanttData();
+  for (let station = 0; station < 100; station++) {
+    const row = data.addRow(`Station ${String(station + 1)}`, `Hall ${String(Math.trunc(station / 10) + 1)}`);
+    let time = Math.random() * 2;
+    for (let test = 0; test < 1000; test++) {
+      const length = 0.05 + Math.random() * 0.6;
+      data.add({
+        row,
+        start: ganttStart + time * ganttDay,
+        end: ganttStart + (time + length) * ganttDay,
+        label: `Test ${String(test + 1)}`,
+      });
+      time += length + Math.random() * 0.2;
+    }
+  }
+  return data;
 }
 
 // An oscilloscope with free-running signals at 30 records per second; only the trigger makes the picture stand
@@ -1401,6 +1475,30 @@ export const pages: readonly Page[] = [
       pie(c.title(t('Power mix')), pieValues, pieNames, (series) => {
         series.innerRadius = 0.55;
       });
+    },
+  },
+  {
+    id: 'gantt',
+    name: 'Gantt',
+    group: 'Business',
+    hint: 'Wheel: zoom | Drag: pan | Click on a group: collapse or expand | Pointer: start, end and duration',
+    configure: (c) => {
+      gantt(
+        c.title(t('Test plan')).xAxis((a) => a.dateTime('time').autoRange()),
+        testPlan(),
+      ).addModifier(() => new ZoomPanModifier());
+    },
+  },
+  {
+    id: 'gantt-test-hall',
+    name: 'Gantt, 100 000 tasks',
+    group: 'Business',
+    hint: 'Wheel: zoom | Drag: pan | Click on a group: collapse or expand | Pointer: start, end and duration',
+    configure: (c) => {
+      gantt(
+        c.title(t('Test hall: 100 stations, 100 000 tests')).xAxis((a) => a.dateTime('time').autoRange()),
+        testHall(),
+      ).addModifier(() => new ZoomPanModifier());
     },
   },
   candlesPage(),
