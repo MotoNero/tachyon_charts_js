@@ -5,7 +5,7 @@ import { ChartModifier, type ModifierResult } from '../input/modifier-pipeline';
 import type { PointerInputEvent } from '../input/primitives';
 import { DipRect } from '../layout/chart-layout';
 import { invariantCulture } from '../locale/culture';
-import { formatFixed, formatGeneral } from '../locale/format';
+import { formatFixed, formatWithPrefix } from '../locale/format';
 import { roundHalfEven } from '../numerics/nice';
 import { DoubleRange } from '../numerics/range';
 import { ParallelCoordinatesSeries, TernaryProjection } from '../series/scientific-series';
@@ -17,7 +17,6 @@ const ternaryLabelSize = 12;
 const parallelLabelSize = 11;
 const headerHeight = 34;
 const reach = 14;
-const prefixes = ['p', 'n', 'µ', 'm', '', 'k', 'M', 'G'];
 
 /** The triangle of a ternary chart with lines every 20 % and the names of its corners. */
 export class TernaryGridOverlay extends ChartOverlay {
@@ -72,22 +71,6 @@ export class TernaryGridOverlay extends ChartOverlay {
     canvas.drawText(this.labelB, centered(this.labelB, left.x), below(left.y), ternaryLabelSize, text);
     canvas.drawText(this.labelC, centered(this.labelC, right.x), below(right.y), ternaryLabelSize, text);
   }
-}
-
-/** A value with an SI prefix and three significant digits, as an instrument shows it: 1.5 k, 250 m. */
-export function formatWithPrefix(value: number, unit: string): string {
-  if (!Number.isFinite(value)) {
-    return '---';
-  }
-  if (value === 0) {
-    return '0 ' + unit;
-  }
-  // Rounded first: 999.9 reads 1 k, not 1000.
-  const rounded = Number(formatGeneral(value, 3, invariantCulture));
-  const power = Math.min(Math.max(Math.floor(Math.log10(Math.abs(rounded)) / 3), -4), 3);
-  const scaled = rounded / 1000 ** power;
-  const digits = formatFixed(scaled, 2, invariantCulture).replace(/\.?0+$/, '');
-  return `${digits} ${prefixes[power + 4] ?? ''}${unit}`;
 }
 
 /** One vertical axis per measure of parallel coordinates, with name, range and filter. */

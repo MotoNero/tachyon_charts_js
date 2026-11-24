@@ -16,3 +16,4 @@ export * from './input';
 export * from './overlays';
 export * from './hit-testing';
 export * from './themes';
+export * from './instruments';

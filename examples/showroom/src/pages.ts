@@ -7,10 +7,13 @@ import {
   ColorAxis,
   ContourSeries,
   PolarGridOverlay,
+  oscilloscope,
   ParallelAxesModifier,
   ParallelAxesOverlay,
   ParallelCoordinatesSeries,
   PolarSeries,
+  ScopeDisplay,
+  ScopeTrigger,
   SmithGridOverlay,
   SmithMarkerModifier,
   SmithMarkerOverlay,
@@ -200,6 +203,64 @@ async function writeSampleCsv(progress: (share: number) => void): Promise<void> 
     progress(size / sampleCsv.size);
   }
   await stream.close();
+}
+
+// An oscilloscope with free-running signals at 30 records per second; only the trigger makes the picture stand
+// still, as the interactive oscilloscope of the .NET showroom.
+function scopeSignal(kind: number, time: number): number {
+  const angle = 2 * Math.PI * 1000 * time;
+  switch (kind) {
+    case 0:
+      return 1.5 * Math.sin(angle);
+    case 1:
+      return Math.sin(angle) >= 0 ? 1 : -1;
+    case 2:
+      return 2 * Math.exp(-Math.abs((((time + 0.01) * 1000) % 1) * 6)) * Math.cos(angle * 12);
+    default:
+      return (2 / Math.PI) * Math.asin(Math.sin(angle));
+  }
+}
+
+function oscilloscopePage(): Page {
+  const display = new ScopeDisplay();
+  display.timePerDivision = 5e-4;
+  display.triggerLevel = 0.5;
+  for (let i = 0; i < 4; i++) {
+    const channel = display.addChannel();
+    channel.voltsPerDivision = i === 0 ? 1 : 0.5;
+    channel.position = 3 - i * 2;
+  }
+  const trigger = new ScopeTrigger(display);
+  const count = 20_000;
+  const interval = 1e-6;
+  const channels = display.channels.map(() => new Float32Array(count));
+  return {
+    id: 'oscilloscope',
+    name: 'Oscilloscope',
+    group: 'Instruments',
+    hint: 'Drag at the left: channel | at the right: trigger | else: time | Wheel: time/div | Left, on V/div or Ctrl+wheel: volts/div',
+    configure: (c) => {
+      oscilloscope(c, display).theme(instrument);
+    },
+    start: () => {
+      const acquire = (): void => {
+        const shift = Math.random() / 1000;
+        channels.forEach((values, c) => {
+          for (let i = 0; i < count; i++) {
+            values[i] = scopeSignal(c, i * interval - 0.01 + shift);
+          }
+        });
+        trigger.process(interval, channels);
+      };
+      acquire();
+      const timer = setInterval(acquire, 1000 / 30);
+      return {
+        dispose: () => {
+          clearInterval(timer);
+        },
+      };
+    },
+  };
 }
 
 // A recording of a million values per second into a ring of 8 files of 16 Mi values in OPFS: the line shows the last
@@ -1009,6 +1070,7 @@ export const pages: readonly Page[] = [
         .addModifier(() => new ParallelAxesModifier());
     },
   },
+  oscilloscopePage(),
   {
     id: 'logarithmic-axis',
     name: 'Logarithmic axis',

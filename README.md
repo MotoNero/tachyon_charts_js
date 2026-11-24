@@ -254,6 +254,31 @@ builder
   .addModifier(() => new ParallelAxesModifier());
 ```
 
+## Oscilloscope
+
+![Four channels of an oscilloscope with graticule, scales, trigger markers and measurements](docs/images/oscilloscope.png)
+
+`ScopeDisplay` holds the state of an oscilloscope: channels with volts per division and position, time per division,
+time offset, trigger level and persistence (off, variable, infinite or color grade). Each channel measures its
+waveform: peak to peak, RMS, mean and frequency. `ScopeTrigger` finds a rising, falling or either edge with
+hysteresis in a record of samples, in auto, normal or single mode, and shows the record with the edge at time 0.
+`oscilloscope(builder, display)` describes the chart: the graticule with ten by eight divisions, scales and
+measurements in the chart language, markers of the channels and the trigger. Dragging at the left moves a channel,
+at the right the trigger level, elsewhere the time; the wheel steps the time base 1-2-5, over a scale, at the left
+edge or with Ctrl the volts per division.
+
+```ts
+import { ChartBuilder, oscilloscope, ScopeDisplay, ScopeTrigger } from '@tachyon-charts/core';
+
+const display = new ScopeDisplay();
+display.timePerDivision = 5e-4;
+display.addChannel();
+const trigger = new ScopeTrigger(display);
+element.chart = oscilloscope(new ChartBuilder(), display);
+// For every record of samples, one microsecond apart:
+trigger.process(1e-6, [samples]);
+```
+
 ## Rasters and colormaps
 
 ![A field of 400 x 300 cells with two peaks and a valley in the colormap Inferno](docs/images/raster.png)

@@ -57,6 +57,10 @@ const german: Readonly<Record<string, string>> = {
   Radar: 'Radar',
   Smith: 'Smith',
   Ternary: 'Ternär',
+  Instruments: 'Instrumente',
+  Oscilloscope: 'Oszilloskop',
+  'Drag at the left: channel | at the right: trigger | else: time | Wheel: time/div | Left, on V/div or Ctrl+wheel: volts/div':
+    'Ziehen links: Kanal | rechts: Trigger | sonst: Zeit | Rad: Zeit/div | Links, auf V/div oder Strg+Rad: Volt/div',
   Volt: 'Volt',
   Current: 'Strom',
   Temp: 'Temp',

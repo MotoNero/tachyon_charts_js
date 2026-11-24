@@ -58,6 +58,55 @@ export function cultureOf(language: ChartLanguage): Culture {
 /** The culture the .NET version calls invariant: English numbers, used where the language must not change a text. */
 export const invariantCulture: Culture = cultures.english;
 
+/** The texts of instruments and other chart parts that follow the language. */
+export type ChartTextKey =
+  | 'mean'
+  | 'maskFail'
+  | 'pass'
+  | 'fail'
+  | 'triggered'
+  | 'waiting'
+  | 'stopped'
+  | 'auto'
+  | 'azimuth'
+  | 'elevation'
+  | 'gain'
+  | 'value'
+  | 'loading';
+
+const texts: Record<ChartLanguage, Record<ChartTextKey, string>> = {
+  english: {
+    mean: 'Mean',
+    maskFail: 'Mask FAIL',
+    pass: 'PASS',
+    fail: 'FAIL',
+    triggered: "Trig'd",
+    waiting: 'Wait',
+    stopped: 'Stop',
+    auto: 'Auto',
+    azimuth: 'Azimuth',
+    elevation: 'Elevation',
+    gain: 'Gain',
+    value: 'Value',
+    loading: 'Loading',
+  },
+  german: {
+    mean: 'Mittel',
+    maskFail: 'Maske verletzt',
+    pass: 'OK',
+    fail: 'FEHLER',
+    triggered: 'Ausgelöst',
+    waiting: 'Warten',
+    stopped: 'Stopp',
+    auto: 'Auto',
+    azimuth: 'Azimut',
+    elevation: 'Elevation',
+    gain: 'Gewinn',
+    value: 'Wert',
+    loading: 'Laden',
+  },
+};
+
 let current: ChartLanguage = 'english';
 let changes = 0;
 const listeners = new Set<() => void>();
@@ -82,6 +131,10 @@ export const chartText = {
   /** The culture of the current language. */
   get culture(): Culture {
     return cultures[current];
+  },
+  /** A text in the current language, or in the given one. */
+  text(key: ChartTextKey, language: ChartLanguage = current): string {
+    return texts[language][key];
   },
   /** Grows with every change of the language. */
   get version(): number {

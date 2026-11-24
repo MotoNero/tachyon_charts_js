@@ -542,14 +542,15 @@ export class TachyonChartElement extends HTMLElement {
     tooltip.onChanged = (data: TooltipData | undefined) => {
       this.dispatchEvent(new CustomEvent('tachyon-tooltip', { detail: data }));
     };
+    // The modifiers of the description come first: an instrument takes the wheel and the pointer before zooming.
     for (const modifier of [
+      ...this.ownModifiers,
       new ZoomPanModifier(),
       new RubberBandZoomModifier(),
       new AxisDragModifier(),
       new KeyboardNavigationModifier(),
       new CrosshairModifier(),
       tooltip,
-      ...this.ownModifiers,
     ]) {
       this.modifiers.add(modifier);
     }

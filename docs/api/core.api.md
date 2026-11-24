@@ -493,9 +493,13 @@ export interface ChartSurfaceStyle {
 export const chartText: {
     language: ChartLanguage;
     readonly culture: Culture;
+    text(key: ChartTextKey, language?: ChartLanguage): string;
     readonly version: number;
     onChange(listener: () => void): () => void;
 };
+
+// @public
+export type ChartTextKey = 'mean' | 'maskFail' | 'pass' | 'fail' | 'triggered' | 'waiting' | 'stopped' | 'auto' | 'azimuth' | 'elevation' | 'gain' | 'value' | 'loading';
 
 // @public
 export class ColorAxis extends Axis {
@@ -531,6 +535,9 @@ export class Colormap {
     sample(position: number): Rgba8;
     toBytes(): Uint8Array;
 }
+
+// @public
+export function colormapFromColors(name: string, stops: readonly Rgba8[]): Colormap;
 
 // @public
 export type ColumnArray = Float64Array | Float32Array;
@@ -988,6 +995,9 @@ export function findBuiltInTheme(name: string): ThemeDocument | undefined;
 export function findNearest(source: PointSource, origin: number, frame: SeriesFrame, pixelX: number, pixelY: number, maximumDistance: number, mode: HitTestMode): FoundPoint | undefined;
 
 // @public
+export function findTriggerEdge(samples: ArrayLike<number>, level: number, hysteresis: number, slope: TriggerSlope, start?: number): number;
+
+// @public
 export function finiteSorted(values: Values): Float64Array;
 
 // @public
@@ -1006,7 +1016,7 @@ export function formatScientific(value: number, fractionDigits: number, optional
 export function formatTicks(format: NumericLabelFormat, values: readonly number[], step: number): string[];
 
 // @public
-export function formatWithPrefix(value: number, unit: string): string;
+export function formatWithPrefix(value: number, unit: string, culture?: Culture): string;
 
 // @public
 export interface FoundPoint {
@@ -1319,6 +1329,9 @@ export interface MarkerStyle {
 export function matchesKey(binding: KeyBinding, input: KeyInputEvent): boolean;
 
 // @public
+export function measureWaveform(time: ArrayLike<number>, values: ArrayLike<number> & Iterable<number>): ScopeMeasurements;
+
+// @public
 export const meshVertexStride = 3;
 
 // @public
@@ -1389,6 +1402,9 @@ export interface NumericLabelFormat {
 export interface OffscreenRenderTarget extends RenderTarget {
     readPixels(): Promise<Uint8Array>;
 }
+
+// @public
+export function oscilloscope(builder: ChartBuilder, display: ScopeDisplay): ChartBuilder;
 
 // @public
 export class OverlayCanvas {
@@ -1496,6 +1512,20 @@ export function parseThemeColor(text: string): Rgba8;
 
 // @public
 export function parseThemeGradient(text: string): ThemeGradient;
+
+// @public
+export class PersistenceBuffer {
+    constructor(
+    width: number,
+    height: number);
+    add(points: Float32Array, count: number): void;
+    clear(): void;
+    fade(factor: number): void;
+    readonly height: number;
+    readonly hits: Float32Array;
+    get maximum(): number;
+    readonly width: number;
+}
 
 // @public
 export class PixelLine {
@@ -1943,6 +1973,101 @@ export class ScatterSeries extends ChartSeries {
 export type Scheduler = (job: () => void) => void;
 
 // @public
+export class ScopeChannel {
+    // @internal
+    constructor(display: ScopeDisplay,
+    number: number, color: Rgba8);
+    get acquisitionCount(): number;
+    // @internal
+    get axisId(): string;
+    // @internal
+    get color(): Rgba8;
+    set color(value: Rgba8);
+    readonly data: DataSource;
+    // @internal
+    isUnbounded: boolean;
+    get measurements(): ScopeMeasurements;
+    readonly number: number;
+    get position(): number;
+    set position(value: number);
+    // @internal
+    range(): DoubleRange;
+    // @internal
+    readout: {
+        left: number;
+        right: number;
+        top: number;
+        bottom: number;
+    };
+    setWaveform(time: ArrayLike<number>, volts: ArrayLike<number>): void;
+    get voltsPerDivision(): number;
+    set voltsPerDivision(value: number);
+}
+
+// @public
+export class ScopeDisplay {
+    addChannel(): ScopeChannel;
+    get channels(): readonly ScopeChannel[];
+    clearPersistence(): void;
+    get persistence(): ScopePersistence;
+    set persistence(value: ScopePersistence);
+    get persistenceSeconds(): number;
+    set persistenceSeconds(value: number);
+    get scaleVersion(): number;
+    get timeOffset(): number;
+    set timeOffset(value: number);
+    get timePerDivision(): number;
+    set timePerDivision(value: number);
+    timeRange(): DoubleRange;
+    // @internal
+    touch(): void;
+    // @internal
+    touchScale(): void;
+    get triggerLevel(): number;
+    set triggerLevel(value: number);
+    triggerStatus: ChartTextKey | undefined;
+    get version(): number;
+}
+
+// @public
+export const scopeHorizontalDivisions = 10;
+
+// @public
+export interface ScopeMeasurements {
+    readonly frequency: number;
+    readonly maximum: number;
+    readonly mean: number;
+    readonly minimum: number;
+    readonly rms: number;
+}
+
+// @public
+export class ScopeModifier extends ChartModifier {
+    constructor(display: ScopeDisplay);
+    onCaptureLost(): void;
+    onPointer(input: PointerInputEvent): ModifierResult;
+    onWheel(input: WheelInputEvent): ModifierResult;
+}
+
+// @public
+export type ScopePersistence = 'off' | 'variable' | 'infinite' | 'colorGrade';
+
+// @public
+export class ScopeTrigger {
+    constructor(display: ScopeDisplay);
+    arm(): void;
+    holdoffSeconds: number;
+    mode: TriggerMode;
+    process(sampleInterval: number, channels: readonly ArrayLike<number>[]): TriggerState;
+    slope: TriggerSlope;
+    source: number;
+    get state(): TriggerState;
+}
+
+// @public
+export const scopeVerticalDivisions = 8;
+
+// @public
 export function selectLttb(x: NumberArray, y: NumberArray, indices: Int32Array, start?: number, end?: number): number;
 
 // @public
@@ -2189,6 +2314,9 @@ export class StackedAreaSeries extends RibbonSeries {
 export function stackLayers(layers: readonly ArrayLike<number>[], isPercent: boolean): Float64Array[];
 
 // @public
+export function stepOneTwoFive(value: number, steps: number): number;
+
+// @public
 export interface SurfaceHandle {
     readonly canvas: unknown;
     readonly kind: 'canvas';
@@ -2395,6 +2523,15 @@ export function toStandingWaveRatio(reflection: Complex): number;
 
 // @public
 export function toSurfaceStyle(theme: ThemeDocument): ChartSurfaceStyle;
+
+// @public
+export type TriggerMode = 'auto' | 'normal' | 'single';
+
+// @public
+export type TriggerSlope = 'rising' | 'falling' | 'either';
+
+// @public
+export type TriggerState = 'triggered' | 'auto' | 'waiting' | 'stopped';
 
 // @public
 export function upperBound(x: NumberArray, count: number, value: number): number;

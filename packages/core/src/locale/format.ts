@@ -1,6 +1,6 @@
 // Numbers written as the .NET version writes them, so that labels read the same in both: the standard formats F<n>
 // and G<n> and the custom scientific formats of the axes, in the culture of the chart.
-import type { Culture } from './culture';
+import { chartText, invariantCulture, type Culture } from './culture';
 
 function localize(text: string, culture: Culture): string {
   return culture.decimalSeparator === '.' ? text : text.replace('.', culture.decimalSeparator);
@@ -149,4 +149,45 @@ function withoutTrailingZeros(digits: string): string {
     end--;
   }
   return digits.slice(0, end);
+}
+
+const prefixes = ['p', 'n', 'µ', 'm', '', 'k', 'M', 'G'];
+
+/**
+ * A value with an SI prefix and three significant digits, as an instrument shows it: 1.5 k, 250 m; `---` for a value
+ * that is not finite. The culture is that of the chart language unless given.
+ */
+export function formatWithPrefix(value: number, unit: string, culture: Culture = chartText.culture): string {
+  if (!Number.isFinite(value)) {
+    return '---';
+  }
+  if (value === 0) {
+    return '0 ' + unit;
+  }
+  // Rounded first: 999.9 reads 1 k, not 1000.
+  const rounded = Number(formatGeneral(value, 3, invariantCulture));
+  const power = Math.min(Math.max(Math.floor(Math.log10(Math.abs(rounded)) / 3), -4), 3);
+  const scaled = rounded / 1000 ** power;
+  let digits = formatFixed(scaled, 2, invariantCulture).replace(/\.?0+$/, '');
+  if (digits === '-0') {
+    digits = '0';
+  }
+  const text = digits.replace('-', culture.negativeSign).replace('.', culture.decimalSeparator);
+  return `${text} ${prefixes[power + 4] ?? ''}${unit}`;
+}
+
+/** The value of the 1-2-5 sequence of an instrument, `steps` places above (positive) or below the given one. */
+export function stepOneTwoFive(value: number, steps: number): number {
+  const exponent = Math.floor(Math.log10(value));
+  const mantissa = value / 10 ** exponent;
+  let position = 0;
+  if (mantissa >= 4.99) {
+    position = 2;
+  } else if (mantissa >= 1.99) {
+    position = 1;
+  }
+  const index = exponent * 3 + position + steps;
+  const decade = Math.floor(index / 3);
+  const digit = [1, 2, 5][index - decade * 3] ?? 1;
+  return digit * 10 ** decade;
 }
