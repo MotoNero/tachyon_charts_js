@@ -24,3 +24,13 @@ export {
   type LineDash,
 } from './annotations';
 export { AnnotationEditModifier } from './annotation-edit';
+export {
+  Drawing,
+  DrawingLayer,
+  DrawingModifier,
+  drawingKinds,
+  drawingPointCount,
+  drawings,
+  type DrawingKind,
+  type DrawingPoint,
+} from './drawings';

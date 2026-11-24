@@ -1154,6 +1154,82 @@ export class DoubleRange {
 }
 
 // @public
+export class Drawing {
+    constructor(
+    kind: DrawingKind, points: readonly DrawingPoint[]);
+    color: Rgba8;
+    readonly kind: DrawingKind;
+    get points(): readonly DrawingPoint[];
+    // @internal
+    setPoints(points: readonly DrawingPoint[]): void;
+    thickness: number;
+}
+
+// @public
+export type DrawingKind = (typeof drawingKinds)[number];
+
+// @public
+export const drawingKinds: readonly ["trendLine", "fibonacciRetracement", "fibonacciExtension", "trendChannel", "pitchfork", "elliottWave", "xabcd", "headAndShoulders", "brush"];
+
+// @public
+export class DrawingLayer extends ChartOverlay {
+    constructor(
+    xAxis: Axis,
+    yAxis: Axis);
+    add(drawing: Drawing): void;
+    clear(): void;
+    color: Rgba8;
+    // @internal
+    get draft(): readonly DrawingPoint[];
+    draw(canvas: OverlayCanvas): void;
+    get drawings(): readonly Drawing[];
+    load(json: string): void;
+    // @internal
+    map(layout: ChartLayoutResult, point: DrawingPoint): Point | undefined;
+    // @internal
+    notifyCompleted(drawing: Drawing): void;
+    onCompleted: ((drawing: Drawing) => void) | undefined;
+    remove(drawing: Drawing): boolean;
+    save(): string;
+    get selected(): Drawing | undefined;
+    set selected(value: Drawing | undefined);
+    // @internal
+    setDraft(points: readonly DrawingPoint[], preview: DrawingPoint | undefined): void;
+    get tool(): DrawingKind | undefined;
+    set tool(value: DrawingKind | undefined);
+    // @internal
+    touch(): void;
+    // @internal
+    unmap(layout: ChartLayoutResult, position: Point): DrawingPoint | undefined;
+    get version(): number;
+    readonly xAxis: Axis;
+    readonly yAxis: Axis;
+}
+
+// @public
+export class DrawingModifier extends ChartModifier {
+    constructor(fixedLayer?: DrawingLayer | undefined);
+    static readonly defaultPriority = 30;
+    onCaptureLost(): void;
+    onKey(input: KeyInputEvent): ModifierResult;
+    onPointer(input: PointerInputEvent): ModifierResult;
+    tolerance: number;
+    usesNumberKeys: boolean;
+}
+
+// @public
+export interface DrawingPoint {
+    readonly x: number;
+    readonly y: number;
+}
+
+// @public
+export function drawingPointCount(kind: DrawingKind): number;
+
+// @public
+export function drawings(builder: ChartBuilder, created?: (layer: DrawingLayer) => void): ChartBuilder;
+
+// @public
 export interface EffectTokens {
     readonly glow?: GlowTokens;
     readonly seriesOpacity?: number;

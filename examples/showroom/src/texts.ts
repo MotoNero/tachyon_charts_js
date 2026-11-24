@@ -61,6 +61,7 @@ const german: Readonly<Record<string, string>> = {
   Legends: 'Legenden',
   Annotations: 'Annotationen',
   'Upper limit': 'Obergrenze',
+  'Drawing tools': 'Zeichenwerkzeuge',
   Trigger: 'Trigger',
   Window: 'Fenster',
   Peak: 'Spitze',

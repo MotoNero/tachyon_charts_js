@@ -500,6 +500,27 @@ builder
   .addModifier(() => new AnnotationEditModifier());
 ```
 
+## Drawing tools
+
+![Candles with a Fibonacci retracement, a trend channel, a pitchfork and an XABCD pattern](docs/images/drawings.png)
+
+`drawings(builder)` adds a `DrawingLayer` with the tools of technical analysis and the `DrawingModifier` that draws
+with them: keys 1 to 9 choose trend line, Fibonacci retracement, Fibonacci extension, trend channel, pitchfork, Elliott
+wave, XABCD pattern, head and shoulders and brush; clicks place the points, the brush follows a drag. A drag on a
+drawing moves it, on a point of the chosen one moves the point; Delete removes it, Escape or 0 stops the tool, and
+every change is a step of the undo chain (Ctrl+Z with `KeyboardNavigationModifier`). `save()` writes the drawings as
+JSON and `load()` reads them back, in the same format as the .NET version.
+
+```ts
+import { candles, Drawing, drawings, KeyboardNavigationModifier } from '@tachyon-charts/core';
+
+candles(builder, prices);
+drawings(builder, (layer) => {
+  layer.add(new Drawing('trendLine', [{ x: start, y: 98 }, { x: end, y: 104 }]));
+  layer.onCompleted = () => localStorage.setItem('drawings', layer.save());
+}).addModifier(() => new KeyboardNavigationModifier());
+```
+
 ## Rasters and colormaps
 
 ![A field of 400 x 300 cells with two peaks and a valley in the colormap Inferno](docs/images/raster.png)

@@ -75,6 +75,10 @@ import {
   type LimitLine,
   type SweepMode,
   type Rgba8,
+  type DrawingPoint,
+  Drawing,
+  drawings,
+  KeyboardNavigationModifier,
   type ThemeDocument,
   type Axis,
   type ChartSurface,
@@ -239,6 +243,71 @@ async function writeSampleCsv(progress: (share: number) => void): Promise<void> 
 
 const pieValues = [32, 18, 15, 14, 9, 6, 3, 1.5, 1, 0.5];
 const pieNames = ['Wind', 'Solar', 'Gas', 'Coal', 'Biomass', 'Hydro', 'Nuclear', 'Oil', 'Other', 'Geothermal'];
+
+// A share price of 160 days with drawing tools: keys 1 to 9 choose a tool, as the drawing tools page of the .NET
+// showroom; the drawings of the first gallery picture are there from the start.
+function drawingToolsPage(): Page {
+  const day = 86_400_000;
+  const prices = new CandleData(160);
+  let price = 100;
+  for (let i = 0; i < 160; i++) {
+    const open = price;
+    let high = open;
+    let low = open;
+    for (let step = 0; step < 8; step++) {
+      price *= 1 + (Math.random() - 0.5) * 0.012;
+      high = Math.max(high, price);
+      low = Math.min(low, price);
+    }
+    prices.append(Date.UTC(2024, 0, 2) + day * i, open, high, low, price, 10_000);
+  }
+  const at = (index: number, isHigh: boolean): DrawingPoint => {
+    const candle = prices.at(index);
+    return { x: candle.time, y: isHigh ? candle.high : candle.low };
+  };
+  const colored = (drawing: Drawing, color: Rgba8): Drawing => Object.assign(drawing, { color });
+  return {
+    id: 'drawing-tools',
+    name: 'Drawing tools',
+    group: 'Business',
+    hint: 'Keys 1 to 9: trend line, Fibonacci, extension, channel, pitchfork, Elliott, XABCD, head and shoulders, brush | Click: place points | Drag: move a drawing or its point | Delete | Ctrl+Z: undo | Esc, 0: stop',
+    configure: (c) => {
+      c.title(t('Drawing tools'))
+        .xAxis((a) => a.dateTime('time'))
+        .yAxis((a) => a.numeric('price').title(t('Price')).autoRange());
+      candles(c, prices);
+      drawings(c, (layer) => {
+        layer.add(new Drawing('fibonacciRetracement', [at(10, false), at(45, true)]));
+        layer.add(
+          colored(new Drawing('trendChannel', [at(60, false), at(95, false), at(75, true)]), {
+            r: 76,
+            g: 201,
+            b: 240,
+            a: 255,
+          }),
+        );
+        layer.add(
+          colored(new Drawing('pitchfork', [at(100, false), at(112, true), at(122, false)]), {
+            r: 6,
+            g: 214,
+            b: 160,
+            a: 255,
+          }),
+        );
+        layer.add(
+          colored(new Drawing('xabcd', [at(125, true), at(132, false), at(139, true), at(146, false), at(155, true)]), {
+            r: 247,
+            g: 37,
+            b: 133,
+            a: 255,
+          }),
+        );
+      })
+        .addModifier(() => new ZoomPanModifier())
+        .addModifier(() => new KeyboardNavigationModifier());
+    },
+  };
+}
 
 // A share price of 250 days in candles and volume; the last day trades live, now and then a new day starts, as the
 // candles page of the .NET showroom.
@@ -1676,6 +1745,7 @@ export const pages: readonly Page[] = [
     },
   },
   candlesPage(),
+  drawingToolsPage(),
   marketProfilePage(),
   candlesWithoutWeekendsPage(),
   {
