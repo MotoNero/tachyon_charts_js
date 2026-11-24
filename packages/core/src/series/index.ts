@@ -26,3 +26,14 @@ export * from './smith-series';
 export * from './scientific-series';
 export * from './sweep-series';
 export { pie, PieModifier, PieSeries, type PieLabels, type PieSlices } from './pie-series';
+export {
+  CandleData,
+  CandleModifier,
+  candles,
+  CandleSeries,
+  volume,
+  VolumeSeries,
+  type Candle,
+  type CandleLook,
+  type CandleStyle,
+} from './candle-series';

@@ -11,6 +11,9 @@ import {
   networkAnalyzer,
   NetworkDisplay,
   NetworkMarkerModifier,
+  CandleData,
+  candles,
+  CrosshairModifier,
   oscilloscope,
   pie,
   ParallelAxesModifier,
@@ -21,6 +24,7 @@ import {
   ScopeTrigger,
   spectrum,
   sweep,
+  volume,
   SweepData,
   SpectrumDisplay,
   SmithGridOverlay,
@@ -219,6 +223,57 @@ async function writeSampleCsv(progress: (share: number) => void): Promise<void> 
 
 const pieValues = [32, 18, 15, 14, 9, 6, 3, 1.5, 1, 0.5];
 const pieNames = ['Wind', 'Solar', 'Gas', 'Coal', 'Biomass', 'Hydro', 'Nuclear', 'Oil', 'Other', 'Geothermal'];
+
+// A share price of 250 days in candles and volume; the last day trades live, now and then a new day starts, as the
+// candles page of the .NET showroom.
+function candlesPage(): Page {
+  const day = 86_400_000;
+  const data = new CandleData(250);
+  let price = 100;
+  for (let i = 0; i < 250; i++) {
+    const open = price;
+    let high = open;
+    let low = open;
+    for (let step = 0; step < 8; step++) {
+      price *= 1 + (Math.random() - 0.5) * 0.012;
+      high = Math.max(high, price);
+      low = Math.min(low, price);
+    }
+    const traded = Math.round(5000 + Math.random() * 20000 * (1 + (Math.abs(price - open) / open) * 50));
+    data.append(Date.UTC(2024, 0, 2) + day * i, open, high, low, price, traded);
+  }
+  return {
+    id: 'candles',
+    name: 'Candles',
+    group: 'Business',
+    hint: 'Wheel: zoom | Drag: pan | Pointer: open, high, low, close and volume | Double click: all',
+    configure: (c) => {
+      c.title(t('Share price, the last day trades live'))
+        .xAxis((a) => a.dateTime('time'))
+        .yAxis((a) => a.numeric('price').title(t('Price')).autoRange())
+        .yAxis((a) => a.numeric('volume').title(t('Volume')).autoRange().pane(1, 0.3));
+      candles(c, data, undefined, 'price');
+      volume(c, data, 'volume')
+        .addModifier(() => new ZoomPanModifier())
+        .addModifier(() => new CrosshairModifier());
+    },
+    start: () => {
+      const timer = setInterval(() => {
+        const last = data.at(data.count - 1);
+        const traded = last.close * (1 + (Math.random() - 0.5) * 0.004);
+        data.addTick(traded, Math.round(Math.random() * 400));
+        if (Math.random() < 0.04) {
+          data.append(last.time + day, traded, traded, traded, traded, 0);
+        }
+      }, 200);
+      return {
+        dispose: () => {
+          clearInterval(timer);
+        },
+      };
+    },
+  };
+}
 
 // An oscilloscope with free-running signals at 30 records per second; only the trigger makes the picture stand
 // still, as the interactive oscilloscope of the .NET showroom.
@@ -1264,6 +1319,7 @@ export const pages: readonly Page[] = [
       });
     },
   },
+  candlesPage(),
   oscilloscopePage(),
   spectrumPage(),
   networkPage(),

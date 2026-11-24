@@ -62,6 +62,11 @@ const german: Readonly<Record<string, string>> = {
   Pie: 'Torte',
   Donut: 'Ring',
   'Power mix': 'Strommix',
+  Candles: 'Kerzen',
+  'Share price, the last day trades live': 'Aktienkurs, der letzte Tag handelt live',
+  Volume: 'Volumen',
+  'Wheel: zoom | Drag: pan | Pointer: open, high, low, close and volume | Double click: all':
+    'Rad: Zoom | Ziehen: verschieben | Zeiger: Eröffnung, Hoch, Tief, Schluss und Volumen | Doppelklick: alles',
   'Pointer: name, value and share | Click: pull a slice out, again: back':
     'Zeiger: Name, Wert und Anteil | Klick: Stück herausziehen, nochmals: zurück',
   Oscilloscope: 'Oszilloskop',

@@ -263,6 +263,91 @@ export interface BuiltChart {
 export const builtInThemes: readonly ThemeDocument[];
 
 // @public
+export interface Candle {
+    readonly close: number;
+    readonly high: number;
+    readonly low: number;
+    readonly open: number;
+    readonly time: number;
+    readonly volume: number;
+}
+
+// @public
+export class CandleData {
+    constructor(capacity?: number);
+    addTick(price: number, volume?: number): void;
+    append(time: number, open: number, high: number, low: number, close: number, volume?: number): void;
+    at(index: number): Candle;
+    clear(): void;
+    // @internal
+    close: Float64Array;
+    get count(): number;
+    // @internal
+    findFirst(time: number): number;
+    // @internal
+    high: Float64Array;
+    // @internal
+    highestHigh: number;
+    // @internal
+    low: Float64Array;
+    // @internal
+    lowestLow: number;
+    // @internal
+    mostVolume: number;
+    // @internal
+    open: Float64Array;
+    // @internal
+    get priceRange(): DoubleRange;
+    // @internal
+    time: Float64Array;
+    updateLast(open: number, high: number, low: number, close: number, volume?: number): void;
+    get version(): number;
+    // @internal
+    volumes: Float64Array;
+}
+
+// @public
+export interface CandleLook {
+    readonly body: Rgba8;
+    readonly isHollow?: boolean;
+    readonly line: Rgba8;
+}
+
+// @public
+export class CandleModifier extends ChartModifier {
+    onPointer(input: PointerInputEvent): ModifierResult;
+}
+
+// @public
+export function candles(builder: ChartBuilder, data: CandleData, configure?: (series: CandleSeries) => void, yAxis?: string): ChartBuilder;
+
+// @public
+export class CandleSeries extends ChartSeries {
+    constructor(
+    data: CandleData, xAxis: Axis, yAxis: Axis);
+    get accentColor(): Rgba8;
+    get bodyWidth(): number;
+    set bodyWidth(value: number);
+    readonly data: CandleData;
+    dataRange(axis: 'x' | 'y'): DoubleRange | undefined;
+    draw(commands: CommandList, frame: SeriesFrame): void;
+    get falling(): CandleLook;
+    set falling(value: CandleLook);
+    findPoint(frame: SeriesFrame, pixelX: number, _pixelY: number, maximumDistance: number): FoundPoint | undefined;
+    get hoveredIndex(): number;
+    set hoveredIndex(value: number);
+    prepare(_device: RenderDevice, frame: SeriesFrame): void;
+    get rising(): CandleLook;
+    set rising(value: CandleLook);
+    get style(): CandleStyle;
+    set style(value: CandleStyle);
+    get version(): number;
+}
+
+// @public
+export type CandleStyle = 'candles' | 'ohlc';
+
+// @public
 export function canShareMemory(): boolean;
 
 // @public
@@ -2802,6 +2887,26 @@ export const version = "0.1.0-dev";
 // @public
 export class ViolinSeries extends SampleSeries {
     protected build(frame: SeriesFrame): void;
+}
+
+// @public
+export function volume(builder: ChartBuilder, data: CandleData, yAxis?: string): ChartBuilder;
+
+// @public
+export class VolumeSeries extends ChartSeries {
+    constructor(
+    data: CandleData, xAxis: Axis, yAxis: Axis);
+    get accentColor(): Rgba8;
+    readonly data: CandleData;
+    dataRange(axis: 'x' | 'y'): DoubleRange | undefined;
+    draw(commands: CommandList, frame: SeriesFrame): void;
+    get fallingColor(): Rgba8;
+    set fallingColor(value: Rgba8);
+    findPoint(frame: SeriesFrame, pixelX: number, _pixelY: number, maximumDistance: number): FoundPoint | undefined;
+    prepare(_device: RenderDevice, frame: SeriesFrame): void;
+    get risingColor(): Rgba8;
+    set risingColor(value: Rgba8);
+    get version(): number;
 }
 
 // @public

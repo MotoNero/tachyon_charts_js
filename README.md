@@ -361,6 +361,31 @@ element.chart = pie(new ChartBuilder().title('Power mix'), [32, 18, 15], ['Wind'
 });
 ```
 
+## Candles and OHLC bars
+
+![A share price of 90 days as candles with volume below](docs/images/candles.png)
+
+`CandleData` keeps the open, high, low, close and volume of each period in the order of time; the last candle can
+change while its period runs (`updateLast`, `addTick`). `CandleSeries` draws them as candles, hollow or filled, or as
+OHLC bars; zoomed out, periods narrower than three pixels merge into one column, so the high and the low of every
+period stay visible. `VolumeSeries` draws the volume in the colors of the candles. `candles(builder, data)` adds a
+readout of the candle under the pointer, or of the last one.
+
+```ts
+import { CandleData, candles, ChartBuilder, CrosshairModifier, volume, ZoomPanModifier } from '@tachyon-charts/core';
+
+const data = new CandleData();
+data.append(Date.UTC(2024, 0, 2), 100, 101.2, 99.5, 100.8, 18_000);
+const builder = new ChartBuilder()
+  .xAxis((a) => a.dateTime('time'))
+  .yAxis((a) => a.numeric('price').autoRange())
+  .yAxis((a) => a.numeric('volume').autoRange().pane(1, 0.3));
+candles(builder, data, (series) => (series.style = 'candles'), 'price');
+element.chart = volume(builder, data, 'volume')
+  .addModifier(() => new ZoomPanModifier())
+  .addModifier(() => new CrosshairModifier());
+```
+
 ## Rasters and colormaps
 
 ![A field of 400 x 300 cells with two peaks and a valley in the colormap Inferno](docs/images/raster.png)
