@@ -1,7 +1,7 @@
 // The base of all series and the frame a series draws in (ChartSeries and SeriesFrame of the .NET version).
 import type { Axis } from '../axes/axis';
 import type { ColorAxis } from '../axes/color-axis';
-import type { FoundPoint, HitTestMode } from '../hit-testing/types';
+import type { FoundPoint, HitTestMode, SelectionArea } from '../hit-testing/types';
 import type { DoubleRange } from '../numerics/range';
 import type { LinearAxisTransform } from '../numerics/transform';
 import type { CommandList } from '../render/commands';
@@ -131,6 +131,19 @@ export abstract class ChartSeries {
     _maximumDistance: number,
     _mode: HitTestMode,
   ): FoundPoint | undefined {
+    return undefined;
+  }
+
+  /**
+   * Adds the numbers of the points that lie in an area of the frame, in physical pixels; nothing for series without
+   * points to select.
+   */
+  collectPoints(_frame: SeriesFrame, _area: SelectionArea, _indices: number[]): void {
+    // Series without single points have nothing to select.
+  }
+
+  /** A point by its number, X relative to the origin of a time axis; `undefined` for none. */
+  readPoint(_index: number): { x: number; y: number } | undefined {
     return undefined;
   }
 

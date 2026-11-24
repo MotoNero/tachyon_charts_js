@@ -34,3 +34,5 @@ export {
   type DrawingKind,
   type DrawingPoint,
 } from './drawings';
+export { SelectionModifier, SelectionOverlay, type SelectionMode } from './selection';
+export { MeasureCursorModifier, MeasureResult } from './measure-cursor';

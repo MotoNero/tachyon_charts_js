@@ -1,7 +1,14 @@
 // One marker for every finite point of a data source (ScatterSeries of the .NET version, without the density map,
 // which comes with the color axis).
 import type { Axis } from '../axes/axis';
-import { findNearest, type FoundPoint, type HitTestMode } from '../hit-testing/hit-test';
+import {
+  collectSourcePoints,
+  findNearest,
+  readSourcePoint,
+  type FoundPoint,
+  type HitTestMode,
+  type SelectionArea,
+} from '../hit-testing/hit-test';
 import { emptySnapshot, type DataSnapshot, type PointSource } from '../data/source';
 import type { DoubleRange } from '../numerics/range';
 import type { AxisScaling } from '../numerics/scaling';
@@ -151,6 +158,16 @@ export class ScatterSeries extends ChartSeries {
     mode: HitTestMode,
   ): FoundPoint | undefined {
     return findNearest(this.source, originOf(this.xAxis), frame, pixelX, pixelY, maximumDistance, mode);
+  }
+
+  /** {@inheritDoc ChartSeries.collectPoints} */
+  override collectPoints(frame: SeriesFrame, area: SelectionArea, indices: number[]): void {
+    collectSourcePoints(this.source, originOf(this.xAxis), frame, area, indices);
+  }
+
+  /** {@inheritDoc ChartSeries.readPoint} */
+  override readPoint(index: number): { x: number; y: number } | undefined {
+    return readSourcePoint(this.source, originOf(this.xAxis), index);
   }
 
   /** {@inheritDoc ChartSeries.dataRange} */

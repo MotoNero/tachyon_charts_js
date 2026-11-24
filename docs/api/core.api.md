@@ -648,6 +648,7 @@ export abstract class ChartSeries {
     xAxis: Axis,
     yAxis: Axis);
     get accentColor(): Rgba8;
+    collectPoints(_frame: SeriesFrame, _area: SelectionArea, _indices: number[]): void;
     get colorAxis(): ColorAxis | undefined;
     colorRange(): DoubleRange | undefined;
     dataRange(_axis: 'x' | 'y'): DoubleRange | undefined;
@@ -662,6 +663,10 @@ export abstract class ChartSeries {
     onPalette(_palette: readonly Rgba8[]): void;
     prepare(_device: RenderDevice, _frame: SeriesFrame): void;
     prepareData(_frame: SeriesFrame): void;
+    readPoint(_index: number): {
+        x: number;
+        y: number;
+    } | undefined;
     releaseResources(): void;
     get stateVersion(): number;
     takeSnapshot(): void;
@@ -691,10 +696,12 @@ export class ChartSurface {
     get overlays(): readonly ChartOverlay[];
     get panes(): readonly LayoutPane[];
     prepareData(): void;
+    readPoints(selection: readonly SeriesSelection[]): SelectedPoint[];
     releaseDevice(device: RenderDevice): void;
     removeOverlay(overlay: ChartOverlay): boolean;
     removeSeries(series: ChartSeries): boolean;
     render(device: RenderDevice, target: RenderTarget): void;
+    selectPoints(outline: readonly Point[]): SeriesSelection[];
     get series(): readonly ChartSeries[];
     get style(): ChartSurfaceStyle;
     set style(value: ChartSurfaceStyle);
@@ -732,6 +739,9 @@ export const chartText: {
 
 // @public
 export type ChartTextKey = 'mean' | 'maskFail' | 'pass' | 'fail' | 'triggered' | 'waiting' | 'stopped' | 'auto' | 'azimuth' | 'elevation' | 'gain' | 'value' | 'loading';
+
+// @public
+export function collectSourcePoints(source: PointSource, origin: number, frame: SeriesFrame, area: SelectionArea, indices: number[]): void;
 
 // @public
 export class ColorAxis extends Axis {
@@ -1768,6 +1778,7 @@ export class LineSeries extends ChartSeries {
     constructor(
     source: PointSource, xAxis: Axis, yAxis: Axis);
     get accentColor(): Rgba8;
+    collectPoints(frame: SeriesFrame, area: SelectionArea, indices: number[]): void;
     get color(): Rgba8;
     set color(value: Rgba8);
     get dashPattern(): readonly number[] | undefined;
@@ -1787,6 +1798,10 @@ export class LineSeries extends ChartSeries {
     set isStep(value: boolean);
     prepare(device: RenderDevice, frame: SeriesFrame): void;
     prepareData(frame: SeriesFrame): void;
+    readPoint(index: number): {
+        x: number;
+        y: number;
+    } | undefined;
     releaseResources(): void;
     get resampling(): ResamplingMode;
     set resampling(value: ResamplingMode);
@@ -1889,6 +1904,38 @@ export interface MaskViolation {
 
 // @public
 export function matchesKey(binding: KeyBinding, input: KeyInputEvent): boolean;
+
+// @public
+export class MeasureCursorModifier extends ChartModifier {
+    constructor();
+    static readonly defaultPriority = 23;
+    grabDistance: number;
+    modifierKey: number;
+    protected onAttached(interaction: ChartInteraction): void;
+    onCaptureLost(): void;
+    onChanged: ((result: MeasureResult | undefined) => void) | undefined;
+    protected onDetached(interaction: ChartInteraction): void;
+    onKey(input: KeyInputEvent): ModifierResult;
+    onPointer(input: PointerInputEvent): ModifierResult;
+    get result(): MeasureResult | undefined;
+}
+
+// @public
+export class MeasureResult {
+    constructor(
+    x1: number,
+    y1: number,
+    x2: number,
+    y2: number);
+    get deltaX(): number;
+    get deltaY(): number;
+    get frequency(): number | undefined;
+    get slope(): number | undefined;
+    readonly x1: number;
+    readonly x2: number;
+    readonly y1: number;
+    readonly y2: number;
+}
 
 // @public
 export function measureWaveform(time: ArrayLike<number>, values: ArrayLike<number> & Iterable<number>): ScopeMeasurements;
@@ -2497,6 +2544,12 @@ export interface RasterStyle {
 }
 
 // @public
+export function readSourcePoint(source: PointSource, origin: number, index: number): {
+    x: number;
+    y: number;
+} | undefined;
+
+// @public
 export class RemoteRenderDevice implements RenderDevice {
     constructor(endpoint: RenderEndpoint, capabilities: DeviceCapabilities, onDispose?: (() => void) | undefined);
     beginFrame(target: RenderTarget): CommandList;
@@ -2688,6 +2741,7 @@ export class ScatterSeries extends ChartSeries {
     set borderColor(value: Rgba8);
     get borderThickness(): number;
     set borderThickness(value: number);
+    collectPoints(frame: SeriesFrame, area: SelectionArea, indices: number[]): void;
     get color(): Rgba8;
     set color(value: Rgba8);
     dataRange(axis: 'x' | 'y'): DoubleRange | undefined;
@@ -2700,6 +2754,10 @@ export class ScatterSeries extends ChartSeries {
     get pointSizes(): ArrayLike<number> | undefined;
     set pointSizes(value: ArrayLike<number> | undefined);
     prepare(device: RenderDevice): void;
+    readPoint(index: number): {
+        x: number;
+        y: number;
+    } | undefined;
     releaseResources(): void;
     get shape(): MarkerShape;
     set shape(value: MarkerShape);
@@ -2809,6 +2867,70 @@ export class ScopeTrigger {
 export const scopeVerticalDivisions = 8;
 
 // @public
+export interface SelectedPoint {
+    readonly series: ChartSeries;
+    readonly x: number;
+    readonly y: number;
+}
+
+// @public
+export class SelectionArea {
+    constructor(
+    left: number,
+    top: number,
+    right: number,
+    bottom: number,
+    polygon?: readonly {
+        readonly x: number;
+        readonly y: number;
+    }[]);
+    readonly bottom: number;
+    contains(x: number, y: number): boolean;
+    static fromPolygon(outline: readonly {
+        readonly x: number;
+        readonly y: number;
+    }[]): SelectionArea;
+    readonly left: number;
+    readonly polygon: readonly {
+        readonly x: number;
+        readonly y: number;
+    }[];
+    readonly right: number;
+    readonly top: number;
+}
+
+// @public
+export type SelectionMode = 'point' | 'rectangle' | 'lasso';
+
+// @public
+export class SelectionModifier extends ChartModifier {
+    constructor();
+    clear(): void;
+    clickDistance: number;
+    static readonly defaultPriority = 22;
+    mode: SelectionMode;
+    modifierKey: number;
+    protected onAttached(interaction: ChartInteraction): void;
+    onCaptureLost(): void;
+    protected onDetached(interaction: ChartInteraction): void;
+    onKey(input: KeyInputEvent): ModifierResult;
+    onPointer(input: PointerInputEvent): ModifierResult;
+    onSelectionChanged: ((selection: readonly SeriesSelection[]) => void) | undefined;
+    readonly overlay: SelectionOverlay;
+    get selection(): readonly SeriesSelection[];
+}
+
+// @public
+export class SelectionOverlay extends ChartOverlay {
+    color: Rgba8;
+    draw(canvas: OverlayCanvas): void;
+    // @internal
+    get markedPoints(): number;
+    setOutline(outline: readonly Point[]): void;
+    setPoints(points: readonly SelectedPoint[]): void;
+}
+
+// @public
 export function selectLttb(x: NumberArray, y: NumberArray, indices: Int32Array, start?: number, end?: number): number;
 
 // @public
@@ -2850,6 +2972,12 @@ export class SeriesResampler {
     get pyramidByteCount(): number;
     resample(visible: DoubleRange, mode: ResamplingMode, minima: ColumnArray, maxima: ColumnArray, indices: Int32Array): ResampleResult;
     updateNow(): void;
+}
+
+// @public
+export interface SeriesSelection {
+    readonly indices: readonly number[];
+    readonly series: ChartSeries;
 }
 
 // @public

@@ -3,7 +3,7 @@ import type { Axis, TickSet } from '../axes/axis';
 import { ColorAxis } from '../axes/color-axis';
 import { DateTimeAxis } from '../axes/date-time-axis';
 import { resolveTheme, toSurfaceStyle, type ThemeDocument } from '../themes/theme';
-import type { HitResult, HitTestMode } from '../hit-testing/hit-test';
+import { SelectionArea, type HitResult, type HitTestMode } from '../hit-testing/hit-test';
 import type { Point } from '../input/primitives';
 import { OverlayCanvas, type ChartOverlay } from '../overlays/chart-overlay';
 import { drawAxisBreaks, hasAxisBreaks } from '../overlays/axis-break-marks';
@@ -26,6 +26,24 @@ import { parseColor, type PixelRect, type Rgba8 } from '../render/types';
 import type { TextEngine, TextFont } from '../text/engine';
 import { SeriesFrame, type ChartSeries } from './chart-series';
 import { defaultSurfaceStyle, type ChartSurfaceStyle } from './chart-surface-style';
+
+/** The points of one series that a selection took, by their numbers in the source. */
+export interface SeriesSelection {
+  /** The series. */
+  readonly series: ChartSeries;
+  /** The numbers of the points. */
+  readonly indices: readonly number[];
+}
+
+/** A selected point with its series, X relative to the origin of a time axis. */
+export interface SelectedPoint {
+  /** The series. */
+  readonly series: ChartSeries;
+  /** The X value. */
+  readonly x: number;
+  /** The Y value. */
+  readonly y: number;
+}
 
 const axisTitleInset = 7;
 const defaultLabelSize = 11;
@@ -320,6 +338,48 @@ export class ChartSurface {
       }
     }
     return hits;
+  }
+
+  /**
+   * The points of the visible series inside an outline of at least three corners, in device-independent units;
+   * nothing before the first frame.
+   * @throws RangeError for fewer than three corners.
+   */
+  selectPoints(outline: readonly Point[]): SeriesSelection[] {
+    if (outline.length < 3) {
+      throw new RangeError(`An outline needs at least three corners, not ${String(outline.length)}.`);
+    }
+    const result: SeriesSelection[] = [];
+    this.seriesList.forEach((series, i) => {
+      const frame = this.frames[i];
+      if (!series.isVisible || !frame) {
+        return;
+      }
+      const scale = frame.dpiScale;
+      const area = SelectionArea.fromPolygon(
+        outline.map((point) => ({ x: Math.fround(point.x * scale), y: Math.fround(point.y * scale) })),
+      );
+      const indices: number[] = [];
+      series.collectPoints(frame, area, indices);
+      if (indices.length > 0) {
+        result.push({ series, indices });
+      }
+    });
+    return result;
+  }
+
+  /** The values of selected points, X relative to the origin of a time axis; points no longer there are left out. */
+  readPoints(selection: readonly SeriesSelection[]): SelectedPoint[] {
+    const points: SelectedPoint[] = [];
+    for (const item of selection) {
+      for (const index of item.indices) {
+        const point = item.series.readPoint(index);
+        if (point) {
+          points.push({ series: item.series, x: point.x, y: point.y });
+        }
+      }
+    }
+    return points;
   }
 
   /** Lets go of what the chart keeps on a device that goes away, such as one of an export: its copy of the glyph atlas. */

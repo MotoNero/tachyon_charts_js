@@ -1,6 +1,13 @@
 // A line through the points of a data source (LineSeries and SnapshotLinePath of the .NET version).
 import type { Axis } from '../axes/axis';
-import { findNearest, type FoundPoint, type HitTestMode } from '../hit-testing/hit-test';
+import {
+  collectSourcePoints,
+  findNearest,
+  readSourcePoint,
+  type FoundPoint,
+  type HitTestMode,
+  type SelectionArea,
+} from '../hit-testing/hit-test';
 import { DateTimeAxis } from '../axes/date-time-axis';
 import { emptySnapshot, type DataSnapshot, type PointSource } from '../data/source';
 import { DoubleRange } from '../numerics/range';
@@ -200,6 +207,16 @@ export class LineSeries extends ChartSeries {
     mode: HitTestMode,
   ): FoundPoint | undefined {
     return findNearest(this.source, originOf(this.xAxis), frame, pixelX, pixelY, maximumDistance, mode);
+  }
+
+  /** {@inheritDoc ChartSeries.collectPoints} */
+  override collectPoints(frame: SeriesFrame, area: SelectionArea, indices: number[]): void {
+    collectSourcePoints(this.source, originOf(this.xAxis), frame, area, indices);
+  }
+
+  /** {@inheritDoc ChartSeries.readPoint} */
+  override readPoint(index: number): { x: number; y: number } | undefined {
+    return readSourcePoint(this.source, originOf(this.xAxis), index);
   }
 
   /** {@inheritDoc ChartSeries.dataRange} */

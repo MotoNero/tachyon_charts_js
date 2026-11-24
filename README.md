@@ -790,6 +790,26 @@ pipeline.add(new CrosshairModifier());
 bindChartInput(canvas, pipeline);
 ```
 
+## Selecting and measuring
+
+![Points of a scatter chart marked inside a lasso](docs/images/selection.png)
+![Two measuring cursors on a sine with the distances in X and Y, the frequency and the slope](docs/images/measure-cursors.png)
+
+`SelectionModifier` selects points while Shift is held: in a rectangle, in a drawn lasso (`mode = 'lasso'`) or the
+nearest one to a click (`'point'`); it marks them and reports them by series and number (`selection`,
+`onSelectionChanged`), Escape takes the selection back. `chart.selectPoints(outline)` and `chart.readPoints(selection)`
+do the same from code. `MeasureCursorModifier` places two cursors with Alt and a drag and shows ΔX, ΔY, 1/ΔX and the
+slope beside them; a drag near a cursor moves it, Escape hides both. While Ctrl and a drag zoom into a rectangle, the
+chart shows the rectangle as a preview (`chart.zoomRectangle`).
+
+```ts
+const selection = new SelectionModifier();
+selection.mode = 'lasso';
+selection.onSelectionChanged = (items) => console.log(chart.readPoints(items));
+pipeline.add(selection);
+pipeline.add(new MeasureCursorModifier());
+```
+
 ## Themes
 
 ![The theme preview in the light theme: a line and markers with titled axes](docs/images/theme-light.png)

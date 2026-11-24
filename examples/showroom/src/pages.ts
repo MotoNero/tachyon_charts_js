@@ -79,6 +79,11 @@ import {
   Drawing,
   drawings,
   KeyboardNavigationModifier,
+  RubberBandZoomModifier,
+  AxisDragModifier,
+  LegendModifier,
+  SelectionModifier,
+  MeasureCursorModifier,
   type ThemeDocument,
   type Axis,
   type ChartSurface,
@@ -243,6 +248,64 @@ async function writeSampleCsv(progress: (share: number) => void): Promise<void> 
 
 const pieValues = [32, 18, 15, 14, 9, 6, 3, 1.5, 1, 0.5];
 const pieNames = ['Wind', 'Solar', 'Gas', 'Coal', 'Biomass', 'Hydro', 'Nuclear', 'Oil', 'Other', 'Geothermal'];
+
+// A live line of 50 000 points per second beside a fixed one, with all interactions of the chart: zooming, panning,
+// the rubber band, dragging axes, crosshair, tooltip, legend, keys, selecting points and measuring, as the live chart
+// page of the .NET showroom.
+function liveChartPage(): Page {
+  const perSecond = 50_000;
+  const fixed = new DataSource(2000);
+  for (let i = 0; i < 2000; i++) {
+    const x = i * 0.01;
+    fixed.append(x, Math.sin(x) + 0.3 * Math.sin(x * 7));
+  }
+  const live = new FifoDataSource(perSecond * 20);
+  return {
+    id: 'live-chart',
+    name: 'Live chart (interactive)',
+    group: 'Interactive',
+    hint: 'Wheel: zoom | Drag: pan | Ctrl+drag: zoom into a rectangle | Shift+drag: select points | Alt+drag: measure | Double click: all',
+    configure: (c) => {
+      c.title(t('Live: 50,000 points per second'))
+        .xAxis((a) => a.numeric('x').title(t('Time in s')).autoRange())
+        .yAxis((a) => a.numeric('y').title(t('Value')).range(-2, 2))
+        .addLine(fixed, (s) => s.name(t('Fixed')).stroke({ r: 80, g: 170, b: 240, a: 255 }).thickness(2))
+        .addLine(live, (s) => s.name('Live').stroke({ r: 240, g: 130, b: 90, a: 255 }).thickness(1))
+        .addModifier(() => new ZoomPanModifier())
+        .addModifier(() => new RubberBandZoomModifier())
+        .addModifier(() => new AxisDragModifier())
+        .addModifier(() => new CrosshairModifier())
+        .addModifier(() => new TooltipModifier())
+        .addModifier(() => new LegendModifier())
+        .addModifier(() => new KeyboardNavigationModifier())
+        .addModifier(() => new SelectionModifier())
+        .addModifier(() => new MeasureCursorModifier());
+    },
+    start: () => {
+      const x = new Float64Array(500);
+      const y = new Float64Array(500);
+      const begin = performance.now();
+      let written = 0;
+      const timer = setInterval(() => {
+        // Blocks of 500 points: blocks are much cheaper than single points.
+        while (written + x.length <= ((performance.now() - begin) / 1000) * perSecond) {
+          for (let i = 0; i < x.length; i++) {
+            const time = (written + i) / perSecond;
+            x[i] = time;
+            y[i] = Math.sin(time * 2) * Math.cos(time * 0.3) + (Math.random() - 0.5) * 0.2;
+          }
+          live.append(x, y);
+          written += x.length;
+        }
+      }, 10);
+      return {
+        dispose: () => {
+          clearInterval(timer);
+        },
+      };
+    },
+  };
+}
 
 // A share price of 160 days with drawing tools: keys 1 to 9 choose a tool, as the drawing tools page of the .NET
 // showroom; the drawings of the first gallery picture are there from the start.
@@ -1746,6 +1809,7 @@ export const pages: readonly Page[] = [
   },
   candlesPage(),
   drawingToolsPage(),
+  liveChartPage(),
   marketProfilePage(),
   candlesWithoutWeekendsPage(),
   {
