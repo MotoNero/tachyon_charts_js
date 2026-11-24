@@ -59,6 +59,9 @@ const german: Readonly<Record<string, string>> = {
   Ternary: 'Ternär',
   Instruments: 'Instrumente',
   Oscilloscope: 'Oszilloskop',
+  Spectrum: 'Spektrum',
+  'Wheel: frequency | Left: dB/div | Ctrl+wheel: reference | Drag: pan | Click: marker | Ctrl+click: add or remove a marker | Double click: peak':
+    'Rad: Frequenz | Links: dB/div | Strg+Rad: Referenz | Ziehen: verschieben | Klick: Marker | Strg+Klick: Marker dazu oder weg | Doppelklick: Spitze',
   'Drag at the left: channel | at the right: trigger | else: time | Wheel: time/div | Left, on V/div or Ctrl+wheel: volts/div':
     'Ziehen links: Kanal | rechts: Trigger | sonst: Zeit | Rad: Zeit/div | Links, auf V/div oder Strg+Rad: Volt/div',
   Volt: 'Volt',

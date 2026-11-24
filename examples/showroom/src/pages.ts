@@ -7,6 +7,7 @@ import {
   ColorAxis,
   ContourSeries,
   PolarGridOverlay,
+  FrequencyMask,
   oscilloscope,
   ParallelAxesModifier,
   ParallelAxesOverlay,
@@ -14,6 +15,8 @@ import {
   PolarSeries,
   ScopeDisplay,
   ScopeTrigger,
+  spectrum,
+  SpectrumDisplay,
   SmithGridOverlay,
   SmithMarkerModifier,
   SmithMarkerOverlay,
@@ -254,6 +257,51 @@ function oscilloscopePage(): Page {
       };
       acquire();
       const timer = setInterval(acquire, 1000 / 30);
+      return {
+        dispose: () => {
+          clearInterval(timer);
+        },
+      };
+    },
+  };
+}
+
+// A spectrum analyzer with 30 traces per second of noise and three carriers below a passing mask, as the interactive
+// spectrum of the .NET showroom.
+function spectrumPage(): Page {
+  const display = new SpectrumDisplay();
+  display.mask = new FrequencyMask([0, 3e6, 3.2e6, 1e7], [-5, -5, -9, -9]);
+  display.showsDensity = true;
+  display.setView(0, 1e7, 0);
+  const frequencies = Float64Array.from({ length: 1500 }, (_, i) => (i * 1e7) / 1499);
+  const levels = new Float32Array(frequencies.length);
+  const carriers: readonly [number, number][] = [
+    [2e6, -12],
+    [4.5e6, -30],
+    [7e6, -22],
+  ];
+  return {
+    id: 'spectrum',
+    name: 'Spectrum',
+    group: 'Instruments',
+    hint: 'Wheel: frequency | Left: dB/div | Ctrl+wheel: reference | Drag: pan | Click: marker | Ctrl+click: add or remove a marker | Double click: peak',
+    configure: (c) => {
+      spectrum(c, display).theme(instrument);
+    },
+    start: () => {
+      const deliver = (): void => {
+        for (let i = 0; i < levels.length; i++) {
+          let level = -70 + 6 * Math.random();
+          for (const [center, height] of carriers) {
+            const distance = ((frequencies[i] as number) - center) / 8e4;
+            level = Math.max(level, height - distance * distance * 6 + Math.random());
+          }
+          levels[i] = level;
+        }
+        display.setTrace(frequencies, levels);
+      };
+      deliver();
+      const timer = setInterval(deliver, 1000 / 30);
       return {
         dispose: () => {
           clearInterval(timer);
@@ -1071,6 +1119,7 @@ export const pages: readonly Page[] = [
     },
   },
   oscilloscopePage(),
+  spectrumPage(),
   {
     id: 'logarithmic-axis',
     name: 'Logarithmic axis',

@@ -279,6 +279,28 @@ element.chart = oscilloscope(new ChartBuilder(), display);
 trigger.process(1e-6, [samples]);
 ```
 
+## Spectrum analyzer
+
+![A spectrum of noise and three carriers with the density of 60 traces, a mask and the peak marker](docs/images/spectrum.png)
+
+`SpectrumDisplay` holds the state of a spectrum analyzer: span, reference level and dB per division, the trace and
+its max hold, the density of all traces so far, the marker on the peak or at a frequency, up to five further markers,
+and a `FrequencyMask` whose worst violation it reports. Each trace also goes into a history of 1024 columns by
+400 rows. `spectrum(builder, display)` describes the chart with graticule, mask, markers and readouts; the wheel
+zooms the frequencies, at the left edge it steps the dB per division and with Ctrl the reference level; dragging
+moves the frequencies or, at the mask, the mask; a click sets the marker, Ctrl+click adds or removes one.
+
+```ts
+import { ChartBuilder, FrequencyMask, spectrum, SpectrumDisplay } from '@tachyon-charts/core';
+
+const display = new SpectrumDisplay();
+display.mask = new FrequencyMask([0, 3e6, 3.2e6, 1e7], [-5, -5, -25, -25]);
+display.showsDensity = true;
+display.setView(0, 1e7, 0);
+element.chart = spectrum(new ChartBuilder(), display);
+display.setTrace(frequencies, levels); // for every new trace
+```
+
 ## Rasters and colormaps
 
 ![A field of 400 x 300 cells with two peaks and a valley in the colormap Inferno](docs/images/raster.png)

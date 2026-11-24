@@ -995,6 +995,9 @@ export function findBuiltInTheme(name: string): ThemeDocument | undefined;
 export function findNearest(source: PointSource, origin: number, frame: SeriesFrame, pixelX: number, pixelY: number, maximumDistance: number, mode: HitTestMode): FoundPoint | undefined;
 
 // @public
+export function findSpectrumPeak(frequencies: ArrayLike<number>, levels: ArrayLike<number>): SpectrumPoint;
+
+// @public
 export function findTriggerEdge(samples: ArrayLike<number>, level: number, hysteresis: number, slope: TriggerSlope, start?: number): number;
 
 // @public
@@ -1023,6 +1026,16 @@ export interface FoundPoint {
     readonly index: number;
     readonly x: number;
     readonly y: number;
+}
+
+// @public
+export class FrequencyMask {
+    constructor(frequencies: ArrayLike<number>, levels: ArrayLike<number>);
+    check(frequencies: ArrayLike<number>, levels: ArrayLike<number>): MaskViolation | undefined;
+    get frequencies(): readonly number[];
+    get levels(): readonly number[];
+    limit(frequency: number): number;
+    shift(level: number): FrequencyMask;
 }
 
 // @public
@@ -1151,6 +1164,9 @@ export function insertCrossings(x: ArrayLike<number>, first: ArrayLike<number>, 
 
 // @public
 export const invariantCulture: Culture;
+
+// @public
+export function isOnMask(display: SpectrumDisplay, pane: DipRect, position: Point): boolean;
 
 // @public
 export interface KeyBinding {
@@ -1323,6 +1339,14 @@ export interface MarkerStyle {
     readonly scaleY?: number;
     readonly shape: MarkerShape;
     readonly sizeScale?: number;
+}
+
+// @public
+export interface MaskViolation {
+    readonly frequency: number;
+    readonly level: number;
+    readonly limit: number;
+    readonly pointCount: number;
 }
 
 // @public
@@ -2294,6 +2318,63 @@ export class SpectrogramSeries extends ChartSeries {
     set yStart(value: number);
     get yStep(): number;
     set yStep(value: number);
+}
+
+// @public
+export function spectrum(builder: ChartBuilder, display: SpectrumDisplay): ChartBuilder;
+
+// @public
+export class SpectrumDisplay {
+    constructor();
+    addMarker(frequency: number): void;
+    clearMaxHold(): void;
+    get extraMarkers(): readonly number[];
+    readonly history: SpectrogramData;
+    get historyStart(): number;
+    get historyStop(): number;
+    // @internal
+    readonly hold: ScopeChannel;
+    get lastViolation(): MaskViolation | undefined;
+    get markerFrequency(): number | undefined;
+    set markerFrequency(value: number | undefined);
+    get markerPoint(): SpectrumPoint;
+    get mask(): FrequencyMask | undefined;
+    set mask(value: FrequencyMask | undefined);
+    onMaskViolated: ((violation: MaskViolation) => void) | undefined;
+    get peak(): SpectrumPoint;
+    get perDivision(): number;
+    readPoint(frequency: number): SpectrumPoint;
+    get referenceLevel(): number;
+    removeMarker(frequency: number, tolerance: number): boolean;
+    // @internal
+    readonly scope: ScopeDisplay;
+    setTrace(frequencies: ArrayLike<number>, levels: ArrayLike<number>): void;
+    setView(start: number, stop: number, referenceLevel: number, perDivision?: number): void;
+    get showsAxes(): boolean;
+    set showsAxes(value: boolean);
+    get showsDensity(): boolean;
+    set showsDensity(value: boolean);
+    get showsMaxHold(): boolean;
+    set showsMaxHold(value: boolean);
+    get start(): number;
+    get stop(): number;
+    // @internal
+    readonly trace: ScopeChannel;
+    get version(): number;
+}
+
+// @public
+export class SpectrumModifier extends ChartModifier {
+    constructor(display: SpectrumDisplay);
+    onCaptureLost(): void;
+    onPointer(input: PointerInputEvent): ModifierResult;
+    onWheel(input: WheelInputEvent): ModifierResult;
+}
+
+// @public
+export interface SpectrumPoint {
+    readonly frequency: number;
+    readonly level: number;
 }
 
 // @public
