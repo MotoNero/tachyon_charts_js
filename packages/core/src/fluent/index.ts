@@ -2,6 +2,7 @@ export {
   AxisBuilder,
   ChartBuilder,
   ChartDefinition,
+  LegendBuilder,
   LineBuilder,
   ScatterBuilder,
   type AxisDefinition,

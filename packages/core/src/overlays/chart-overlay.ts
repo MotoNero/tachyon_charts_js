@@ -1,6 +1,6 @@
 // Things drawn above the series and the surface they draw on (ChartOverlay and OverlayCanvas of the .NET version).
 import type { Axis } from '../axes/axis';
-import { DipRect, type AxisPlacement, type ChartLayoutResult } from '../layout/chart-layout';
+import { DipRect, type AxisPlacement, type ChartLayoutResult, type ReservedRoom } from '../layout/chart-layout';
 import { glyphStride, meshVertexStride, type CommandList } from '../render/commands';
 import { packRgba8, type Rgba8 } from '../render/types';
 import type { TextEngine } from '../text/engine';
@@ -20,6 +20,17 @@ export abstract class ChartOverlay {
 
   /** Draws the overlay. */
   abstract draw(canvas: OverlayCanvas): void;
+
+  /**
+   * The room the overlay takes at the edges of the chart, outside the plot, such as a legend beside it; none by
+   * default.
+   */
+  reservedRoom(_measurer: {
+    readonly lineHeight: number;
+    measureWidth(text: string): number;
+  }): ReservedRoom | undefined {
+    return undefined;
+  }
 
   /** Asks for a new frame. */
   protected changed(): void {
@@ -45,6 +56,14 @@ export interface OverlayColors {
 
 /** The surface of overlays. Coordinates are device-independent units relative to the chart. */
 export class OverlayCanvas {
+  /** The height of the whole chart in device-independent units. */
+  chartHeight = 0;
+
+  /** The width of the whole chart in device-independent units. */
+  get chartWidth(): number {
+    return this.width;
+  }
+
   /** Nothing is drawn outside of it; everywhere when left out. */
   clip: DipRect | undefined;
   private commands: CommandList | undefined;

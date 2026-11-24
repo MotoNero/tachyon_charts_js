@@ -46,6 +46,8 @@ export class DataRanges {
   }
 }
 
+const highlightGrowth = 1.5;
+
 /**
  * A line through the points of a data source. NaN and ±∞ interrupt it. Dense data is reduced to the extremes per
  * pixel column, so every peak stays visible. Dispose the series when it is no longer drawn.
@@ -72,6 +74,7 @@ export class LineSeries extends ChartSeries {
   private builtData = -1;
   private builtOptions = -1;
   private builtFrame: SeriesFrame | undefined;
+  private styledHighlight = false;
   private uploadPending = false;
   private readonly gpu = new VertexBuffer();
   private style: PolylineStyle | undefined;
@@ -220,19 +223,24 @@ export class LineSeries extends ChartSeries {
   /** {@inheritDoc ChartSeries.prepare} */
   override prepare(device: RenderDevice, frame: SeriesFrame): void {
     this.prepareData(frame);
-    if (!this.uploadPending) {
+    // A highlighted line grows by 1.5 units, as in the .NET version; the style follows without a new upload.
+    if (!this.uploadPending && this.styledHighlight === this.isHighlighted) {
       return;
     }
-    this.uploadPending = false;
-    const line = this.result;
-    if (line.count > 0) {
-      this.gpu.ensure(device, line.count * 8).write(0, line.data.subarray(0, line.count * 2));
+    if (this.uploadPending) {
+      this.uploadPending = false;
+      const line = this.result;
+      if (line.count > 0) {
+        this.gpu.ensure(device, line.count * 8).write(0, line.data.subarray(0, line.count * 2));
+      }
     }
+    this.styledHighlight = this.isHighlighted;
+    const thickness = this.isHighlighted ? this.lineThickness + highlightGrowth : this.lineThickness;
     // The own glow of the line, otherwise the one of the theme.
     const radius = this.glow === undefined ? frame.glowRadius : f(this.glow * frame.dpiScale);
     const intensity = this.glow === undefined ? frame.glowIntensity : this.intensity;
     this.style = {
-      widthInPixels: f(this.lineThickness * frame.dpiScale),
+      widthInPixels: f(thickness * frame.dpiScale),
       color: this.lineColor,
       clip: frame.bounds,
       ...(radius > 0 ? { glowRadius: f(radius), glowIntensity: f(intensity) } : {}),

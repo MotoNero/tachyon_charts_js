@@ -386,6 +386,7 @@ export class ChartBuilder {
     addSeries(factory: (xAxis: Axis, yAxis: Axis, axis: (id: string) => Axis) => ChartSeries, xAxis?: string, yAxis?: string): this;
     axisFont(font: TextFont): this;
     build(textEngine: TextEngine): BuiltChart;
+    legend(configure?: (legend: LegendBuilder) => unknown): this;
     theme(theme: ThemeDocument): this;
     title(title: string): this;
     titleFont(font: TextFont): this;
@@ -500,6 +501,10 @@ export abstract class ChartModifier {
 export abstract class ChartOverlay {
     protected changed(): void;
     abstract draw(canvas: OverlayCanvas): void;
+    reservedRoom(_measurer: {
+        readonly lineHeight: number;
+        measureWidth(text: string): number;
+    }): ReservedRoom | undefined;
     get version(): number;
 }
 
@@ -515,6 +520,8 @@ export abstract class ChartSeries {
     abstract draw(commands: CommandList, frame: SeriesFrame): void;
     get drawnPointCount(): number;
     findPoint(_frame: SeriesFrame, _pixelX: number, _pixelY: number, _maximumDistance: number, _mode: HitTestMode): FoundPoint | undefined;
+    get isHighlighted(): boolean;
+    set isHighlighted(value: boolean);
     get isVisible(): boolean;
     set isVisible(value: boolean);
     name: string | undefined;
@@ -546,6 +553,7 @@ export class ChartSurface {
     hitTestAll(position: Point, maximumDistance: number, mode: HitTestMode): HitResult[];
     get horizontalAxes(): readonly Axis[];
     invalidate(): void;
+    invalidateLayout(): void;
     get overlays(): readonly ChartOverlay[];
     get panes(): readonly LayoutPane[];
     prepareData(): void;
@@ -1380,6 +1388,57 @@ export interface LayoutPane {
 }
 
 // @public
+export class LegendBuilder {
+    // @internal
+    names: readonly string[] | undefined;
+    place(placement: LegendPlacement): this;
+    // @internal
+    placement: LegendPlacement;
+    series(...names: string[]): this;
+    title(title: string): this;
+    // @internal
+    titleText: string | undefined;
+}
+
+// @public
+export class LegendModifier extends ChartModifier {
+    constructor();
+    static readonly defaultPriority = 35;
+    protected onAttached(interaction: ChartInteraction): void;
+    protected onDetached(interaction: ChartInteraction): void;
+    onPointer(input: PointerInputEvent): ModifierResult;
+    get overlay(): LegendOverlay | undefined;
+}
+
+// @public
+export class LegendOverlay extends ChartOverlay {
+    constructor(chart: ChartSurface);
+    draw(canvas: OverlayCanvas): void;
+    get placement(): LegendPlacement;
+    set placement(value: LegendPlacement);
+    refresh(): void;
+    reservedRoom(measurer: {
+        readonly lineHeight: number;
+        measureWidth(text: string): number;
+    }): ReservedRoom | undefined;
+    get rows(): readonly LegendRow[];
+    get seriesNames(): readonly string[] | undefined;
+    set seriesNames(value: readonly string[] | undefined);
+    get title(): string | undefined;
+    set title(value: string | undefined);
+    get version(): number;
+}
+
+// @public
+export type LegendPlacement = 'topRight' | 'topLeft' | 'bottomRight' | 'bottomLeft' | 'right' | 'left' | 'top' | 'bottom';
+
+// @public
+export interface LegendRow {
+    readonly bounds: DipRect;
+    readonly series: ChartSeries;
+}
+
+// @public
 export interface LimitLine {
     readonly kind: 'maximum' | 'minimum';
     readonly startFrequency: number;
@@ -1678,6 +1737,8 @@ export function oscilloscope(builder: ChartBuilder, display: ScopeDisplay): Char
 export class OverlayCanvas {
     constructor(textEngine: TextEngine);
     begin(commands: CommandList, layout: ChartLayoutResult, scale: number, chartWidth: number, colors: OverlayColors, labelSize: number): void;
+    chartHeight: number;
+    get chartWidth(): number;
     clip: DipRect | undefined;
     get colors(): OverlayColors;
     drawLabel(text: string, x: number, y: number, background: Rgba8, foreground: Rgba8): DipRect;

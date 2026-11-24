@@ -459,6 +459,21 @@ builder.addSeries((x, y, axis) => Object.assign(new HeatmapSeries(data, x, y, ax
 polygons(builder, [region], (series) => (series.fillAlpha = 0));
 ```
 
+## Legends
+
+![A test bench with a legend of temperatures in the plot and a legend of pressures below it](docs/images/legends.png)
+
+`legend(configure)` adds a legend of all series or of the named ones, with a title if wanted, in a corner of the plot
+or beside, above or below it, where it takes room from the plot; a chart can have several. The pointer on a row
+highlights its series, a line grows by 1.5 units, and a click switches the series off and on. `LegendModifier` does
+this for a chart without a description, and adds a legend in the top right corner if the chart has none.
+
+```ts
+builder
+  .legend((l) => l.title('Temperatures').series('Inlet', 'Core', 'Outlet').place('topLeft'))
+  .legend((l) => l.title('Pressures').series('Pump', 'Filter', 'Valve').place('bottom'));
+```
+
 ## Rasters and colormaps
 
 ![A field of 400 x 300 cells with two peaks and a valley in the colormap Inferno](docs/images/raster.png)

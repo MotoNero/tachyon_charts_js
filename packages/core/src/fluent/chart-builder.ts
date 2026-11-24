@@ -14,6 +14,7 @@ import type { ChartSeries } from '../pipeline/chart-series';
 import { ChartSurface } from '../pipeline/chart-surface';
 import type { ChartModifier } from '../input/modifier-pipeline';
 import type { ChartOverlay } from '../overlays/chart-overlay';
+import { LegendModifier, LegendOverlay, type LegendPlacement } from '../overlays/legend';
 import type { MarkerShape } from '../render/commands';
 import type { Rgba8 } from '../render/types';
 import { LineSeries } from '../series/line-series';
@@ -589,6 +590,7 @@ export class ChartBuilder {
   private readonly seriesList: SeriesDefinition[] = [];
   private readonly overlayList: ((chart: ChartSurface) => ChartOverlay)[] = [];
   private readonly modifierList: (() => ChartModifier)[] = [];
+  private hasLegendModifier = false;
   private titleText: string | undefined;
   private titleTextFont: TextFont | undefined;
   private axisTextFont: TextFont | undefined;
@@ -690,6 +692,24 @@ export class ChartBuilder {
     );
   }
 
+  /**
+   * Adds a legend of all series, or of those named, in a corner of the plot or beside it, and the modifier that
+   * highlights a series under the pointer and switches it off and on with a click.
+   */
+  legend(configure?: (legend: LegendBuilder) => unknown): this {
+    const legend = new LegendBuilder();
+    configure?.(legend);
+    const { placement, titleText, names } = legend;
+    this.overlayList.push((chart) =>
+      Object.assign(new LegendOverlay(chart), { placement, title: titleText, seriesNames: names }),
+    );
+    if (!this.hasLegendModifier) {
+      this.hasLegendModifier = true;
+      this.modifierList.push(() => new LegendModifier());
+    }
+    return this;
+  }
+
   /** Adds an overlay the chart creates once it has its axes and series, such as the grid of a polar chart. */
   addOverlay(factory: (chart: ChartSurface) => ChartOverlay): this {
     this.overlayList.push(factory);
@@ -715,4 +735,32 @@ function describe(configure: (axis: AxisBuilder) => unknown, fallbackId: string)
   const builder = new AxisBuilder(fallbackId);
   configure(builder);
   return builder.definition;
+}
+
+/** Describes a legend. */
+export class LegendBuilder {
+  /** @internal The placement. */
+  placement: LegendPlacement = 'topRight';
+  /** @internal The title. */
+  titleText: string | undefined;
+  /** @internal The names of the series shown. */
+  names: readonly string[] | undefined;
+
+  /** Where the legend stands; the top right corner of the plot by default. */
+  place(placement: LegendPlacement): this {
+    this.placement = placement;
+    return this;
+  }
+
+  /** A title above the rows. */
+  title(title: string): this {
+    this.titleText = title;
+    return this;
+  }
+
+  /** The names of the series the legend shows; all when not called. */
+  series(...names: string[]): this {
+    this.names = names;
+    return this;
+  }
 }

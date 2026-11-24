@@ -67,6 +67,7 @@ import {
   type DigitalSource,
   type LimitLine,
   type SweepMode,
+  type Rgba8,
   type ThemeDocument,
   type Axis,
   type ChartSurface,
@@ -363,6 +364,20 @@ function marketProfilePage(): Page {
     },
   };
 }
+
+// A test bench of three temperatures and three pressures with a legend each, as the several legends page of the .NET
+// showroom.
+function benchCurve(seed: number, level: number, swing: number): DataSource {
+  const data = new DataSource(601);
+  for (let i = 0; i <= 600; i++) {
+    const time = i * 0.1;
+    data.append(time, level + swing * Math.sin(time * 0.15 + seed) + swing * 0.3 * Math.sin(time * 0.9 + seed * 2));
+  }
+  return data;
+}
+
+const legendHint =
+  'Click in a legend: switch a series off and on | Pointer on a legend: highlight the series | Wheel: zoom | Drag: pan';
 
 // The shapes of the polygon pages of the .NET showroom: rings, a star, wobbly areas and a field of hexagons.
 function polygonCircle(cx: number, cy: number, radius: number, corners: number): PolygonRing {
@@ -1656,6 +1671,82 @@ export const pages: readonly Page[] = [
   candlesPage(),
   marketProfilePage(),
   candlesWithoutWeekendsPage(),
+  {
+    id: 'legend',
+    name: 'Legend',
+    group: 'Legends',
+    hint: legendHint,
+    configure: (c) => {
+      c.title(t('Measurements'))
+        .xAxis((a) => a.numeric('t').title(t('Time in s')).range(0, 60))
+        .yAxis((a) => a.numeric('y').range(0, 120));
+      ['Inlet', 'Core', 'Outlet'].forEach((name, i) => {
+        const stroke = [
+          { r: 80, g: 170, b: 240, a: 255 },
+          { r: 240, g: 130, b: 90, a: 255 },
+          { r: 110, g: 210, b: 130, a: 255 },
+        ][i] as Rgba8;
+        c.addLine(benchCurve(i, 40 + i * 25, 8), (line) => line.name(t(name)).stroke(stroke).thickness(1.5));
+      });
+      c.legend()
+        .addModifier(() => new ZoomPanModifier())
+        .addModifier(() => new CrosshairModifier());
+    },
+  },
+  {
+    id: 'several-legends',
+    name: 'Several legends',
+    group: 'Legends',
+    hint: legendHint,
+    configure: (c) => {
+      const temperatures = [t('Inlet'), t('Core'), t('Outlet')];
+      const pressures = [t('Pump'), t('Filter'), t('Valve')];
+      const colors = [
+        { r: 255, g: 190, b: 11, a: 255 },
+        { r: 251, g: 86, b: 7, a: 255 },
+        { r: 247, g: 37, b: 133, a: 255 },
+        { r: 76, g: 201, b: 240, a: 255 },
+        { r: 58, g: 134, b: 255, a: 255 },
+        { r: 6, g: 214, b: 160, a: 255 },
+      ];
+      c.title(t('Test bench'))
+        .xAxis((a) => a.numeric('t').title(t('Time in s')).range(0, 60))
+        .yAxis((a) => a.numeric('temperature').title(t('Temperature in °C')).range(0, 120))
+        .yAxis((a) => a.numeric('pressure').title(t('Pressure in bar')).range(0, 12).position('right'));
+      temperatures.forEach((name, i) => {
+        c.addLine(benchCurve(i, 40 + i * 25, 8), (line) =>
+          line
+            .name(name)
+            .stroke(colors[i] as (typeof colors)[number])
+            .thickness(1.5)
+            .yAxis('temperature'),
+        );
+      });
+      pressures.forEach((name, i) => {
+        c.addLine(benchCurve(i + 3, 3 + i * 2.5, 0.8), (line) =>
+          line
+            .name(name)
+            .stroke(colors[i + 3] as (typeof colors)[number])
+            .thickness(1.5)
+            .yAxis('pressure'),
+        );
+      });
+      c.legend((l) =>
+        l
+          .title(t('Temperatures'))
+          .series(...temperatures)
+          .place('topLeft'),
+      )
+        .legend((l) =>
+          l
+            .title(t('Pressures'))
+            .series(...pressures)
+            .place('bottom'),
+        )
+        .addModifier(() => new ZoomPanModifier())
+        .addModifier(() => new CrosshairModifier());
+    },
+  },
   oscilloscopePage(),
   spectrumPage(),
   networkPage(),

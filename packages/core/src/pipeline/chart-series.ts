@@ -33,6 +33,7 @@ export class SeriesFrame {
  */
 export abstract class ChartSeries {
   private visible = true;
+  private standsOut = false;
   private states = 0;
   /** The name shown in rollovers and legends. */
   name: string | undefined;
@@ -56,6 +57,18 @@ export abstract class ChartSeries {
   set isVisible(value: boolean) {
     if (value !== this.visible) {
       this.visible = value;
+      this.states++;
+    }
+  }
+
+  /** Whether the series stands out from the others, as a legend does with the series under the pointer. */
+  get isHighlighted(): boolean {
+    return this.standsOut;
+  }
+
+  set isHighlighted(value: boolean) {
+    if (value !== this.standsOut) {
+      this.standsOut = value;
       this.states++;
     }
   }

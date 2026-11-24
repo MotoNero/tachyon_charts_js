@@ -268,6 +268,7 @@ export class ChartSurface {
     if (!this.overlayList.includes(overlay)) {
       this.overlayList = [...this.overlayList, overlay];
       this.overlayChanges++;
+      this.structure++;
     }
   }
 
@@ -278,6 +279,7 @@ export class ChartSurface {
     }
     this.overlayList = this.overlayList.filter((item) => item !== overlay);
     this.overlayChanges++;
+    this.structure++;
     return true;
   }
 
@@ -328,6 +330,11 @@ export class ChartSurface {
   /** Asks for a new frame, for changes the chart cannot see. */
   invalidate(): void {
     this.invalidated = true;
+  }
+
+  /** Lays the chart out anew with the next frame, for changes of the room overlays take at the edges. */
+  invalidateLayout(): void {
+    this.structure++;
   }
 
   /** Whether anything changed since the last frame. */
@@ -482,6 +489,7 @@ export class ChartSurface {
       },
       this.labelSize,
     );
+    this.canvas.chartHeight = target.size.height / target.dpiScale;
     if (hasBreaks) {
       drawAxisBreaks(this.canvas, layout);
     }
@@ -493,6 +501,26 @@ export class ChartSurface {
       this.canvas.clip = undefined;
     }
     return true;
+  }
+
+  // Overlays outside the plot, such as legends, take room at the edges.
+  private withRoom(): ChartLayoutOptions {
+    let left = 0;
+    let top = 0;
+    let right = 0;
+    let bottom = 0;
+    for (const overlay of this.overlayList) {
+      const room = overlay.reservedRoom(this.measurer);
+      if (room) {
+        left += room.left;
+        top += room.top;
+        right += room.right;
+        bottom += room.bottom;
+      }
+    }
+    return left + top + right + bottom === 0
+      ? this.options
+      : { ...this.options, reserved: { left, top, right, bottom } };
   }
 
   private sumOverlayVersions(): number {
@@ -657,7 +685,7 @@ export class ChartSurface {
     const scale = target.dpiScale;
     this.arrangeScale = scale;
     const size = { width: target.size.width / scale, height: target.size.height / scale };
-    const layout = arrangeChart(size, this.titleText, this.horizontal, this.paneList, this.measurer, this.options);
+    const layout = arrangeChart(size, this.titleText, this.horizontal, this.paneList, this.measurer, this.withRoom());
     this.paneRects.length = 0;
     this.bandRects.length = 0;
     this.minorGridRects.length = 0;
