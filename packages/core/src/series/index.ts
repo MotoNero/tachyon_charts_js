@@ -37,3 +37,10 @@ export {
   type CandleLook,
   type CandleStyle,
 } from './candle-series';
+export {
+  VolumeProfile,
+  volumeProfile,
+  VolumeProfileModifier,
+  VolumeProfileSeries,
+  type ProfileSide,
+} from './volume-profile-series';

@@ -25,6 +25,7 @@ import {
   spectrum,
   sweep,
   volume,
+  volumeProfile,
   SweepData,
   SpectrumDisplay,
   SmithGridOverlay,
@@ -271,6 +272,48 @@ function candlesPage(): Page {
           clearInterval(timer);
         },
       };
+    },
+  };
+}
+
+// 400 days in candles with the volume per price level of the visible ones beside, as the market profile page of the
+// .NET showroom.
+function marketProfilePage(): Page {
+  const day = 86_400_000;
+  const data = new CandleData(400);
+  let price = 100;
+  for (let i = 0; i < 400; i++) {
+    const open = price;
+    let high = open;
+    let low = open;
+    for (let step = 0; step < 8; step++) {
+      price *= 1 + (Math.random() - 0.5) * 0.012;
+      high = Math.max(high, price);
+      low = Math.min(low, price);
+    }
+    const traded = Math.round(5000 + Math.random() * 20000 * (1 + (Math.abs(price - open) / open) * 50));
+    data.append(Date.UTC(2024, 0, 2) + day * i, open, high, low, price, traded);
+  }
+  return {
+    id: 'market-profile',
+    name: 'Market profile',
+    group: 'Business',
+    hint: 'Wheel: zoom | Drag: pan, the profile follows | Pointer on a bar: price and volume | Double click: all',
+    configure: (c) => {
+      c.title(t('Volume per price level of the visible days'))
+        .xAxis((a) => a.dateTime('time'))
+        .yAxis((a) => a.numeric('price').title(t('Price')).autoRange());
+      candles(c, data, undefined, 'price');
+      volumeProfile(
+        c,
+        data,
+        (profile) => {
+          profile.levels = 40;
+        },
+        'price',
+      )
+        .addModifier(() => new ZoomPanModifier())
+        .addModifier(() => new CrosshairModifier());
     },
   };
 }
@@ -1320,6 +1363,7 @@ export const pages: readonly Page[] = [
     },
   },
   candlesPage(),
+  marketProfilePage(),
   oscilloscopePage(),
   spectrumPage(),
   networkPage(),

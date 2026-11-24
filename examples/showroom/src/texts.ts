@@ -63,6 +63,10 @@ const german: Readonly<Record<string, string>> = {
   Donut: 'Ring',
   'Power mix': 'Strommix',
   Candles: 'Kerzen',
+  'Market profile': 'Marktprofil',
+  'Volume per price level of the visible days': 'Volumen je Kursstufe der sichtbaren Tage',
+  'Wheel: zoom | Drag: pan, the profile follows | Pointer on a bar: price and volume | Double click: all':
+    'Rad: Zoom | Ziehen: verschieben, das Profil folgt | Zeiger auf einem Balken: Kurs und Volumen | Doppelklick: alles',
   'Share price, the last day trades live': 'Aktienkurs, der letzte Tag handelt live',
   Volume: 'Volumen',
   'Wheel: zoom | Drag: pan | Pointer: open, high, low, close and volume | Double click: all':

@@ -386,6 +386,23 @@ element.chart = volume(builder, data, 'volume')
   .addModifier(() => new CrosshairModifier());
 ```
 
+## Market profile
+
+![Candles of 200 days with the volume per price level of the second half beside them](docs/images/market-profile.png)
+
+`VolumeProfileSeries` spreads the volume of each visible candle evenly over the price levels from its low to its
+high and draws the levels as bars from the side of the plot: the point of control, the level with the most volume,
+stands out, the value area around it with 70 % of the volume less. Zooming and panning change the visible candles, and
+the profile follows; the pointer on a bar shows its prices, volume and share. `volumeProfile(builder, data, configure,
+yAxis)` describes it.
+
+```ts
+import { candles, volumeProfile } from '@tachyon-charts/core';
+
+candles(builder, data, undefined, 'price');
+volumeProfile(builder, data, (profile) => (profile.levels = 40), 'price');
+```
+
 ## Rasters and colormaps
 
 ![A field of 400 x 300 cells with two peaks and a valley in the colormap Inferno](docs/images/raster.png)

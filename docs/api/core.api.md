@@ -1914,6 +1914,9 @@ export class PositionGradientFill implements SeriesFill {
 }
 
 // @public
+export type ProfileSide = 'right' | 'left';
+
+// @public
 export interface PyramidReply {
     readonly firstBlock: number;
     readonly id: number;
@@ -2891,6 +2894,68 @@ export class ViolinSeries extends SampleSeries {
 
 // @public
 export function volume(builder: ChartBuilder, data: CandleData, yAxis?: string): ChartBuilder;
+
+// @public
+export class VolumeProfile {
+    barOf(level: number): {
+        left: number;
+        top: number;
+        right: number;
+        bottom: number;
+    };
+    build(data: CandleData, frame: SeriesFrame, origin: number, levels: number, valueArea: number, width: number, side: ProfileSide): void;
+    count: number;
+    isInValueArea(level: number): boolean;
+    largest: number;
+    levelAt(x: number, y: number): number;
+    pointOfControl: number;
+    priceOf(level: number): number;
+    prices: DoubleRange;
+    rangeOf(level: number): DoubleRange;
+    scale: number;
+    total: number;
+    valueAreaHigh: number;
+    valueAreaLow: number;
+    volumes: Float64Array<ArrayBuffer>;
+}
+
+// @public
+export function volumeProfile(builder: ChartBuilder, data: CandleData, configure?: (series: VolumeProfileSeries) => void, yAxis?: string): ChartBuilder;
+
+// @public
+export class VolumeProfileModifier extends ChartModifier {
+    onPointer(input: PointerInputEvent): ModifierResult;
+}
+
+// @public
+export class VolumeProfileSeries extends ChartSeries {
+    constructor(
+    data: CandleData, xAxis: Axis, yAxis: Axis);
+    get accentColor(): Rgba8;
+    get color(): Rgba8;
+    set color(value: Rgba8);
+    readonly data: CandleData;
+    dataRange(axis: 'x' | 'y'): DoubleRange | undefined;
+    draw(commands: CommandList, frame: SeriesFrame): void;
+    findPoint(_frame: SeriesFrame, pixelX: number, pixelY: number): FoundPoint | undefined;
+    get hoveredLevel(): number;
+    set hoveredLevel(value: number);
+    get levels(): number;
+    set levels(value: number);
+    get pointOfControlColor(): Rgba8;
+    set pointOfControlColor(value: Rgba8);
+    prepare(_device: RenderDevice, frame: SeriesFrame): void;
+    readonly profile: VolumeProfile;
+    get side(): ProfileSide;
+    set side(value: ProfileSide);
+    get valueAreaColor(): Rgba8;
+    set valueAreaColor(value: Rgba8);
+    get valueAreaShare(): number;
+    set valueAreaShare(value: number);
+    get version(): number;
+    get width(): number;
+    set width(value: number);
+}
 
 // @public
 export class VolumeSeries extends ChartSeries {

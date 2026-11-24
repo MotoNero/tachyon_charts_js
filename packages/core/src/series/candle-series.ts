@@ -682,8 +682,8 @@ export class CandleReadoutOverlay extends ChartOverlay {
   }
 }
 
-// A whole number with groups of thousands, as N0 of .NET.
-function groupThousands(value: number, separator: string): string {
+/** @internal A whole number with groups of thousands, as N0 of .NET. */
+export function groupThousands(value: number, separator: string): string {
   const digits = String(Math.abs(roundHalfEven(value)));
   const grouped = digits.replace(/\B(?=(\d{3})+(?!\d))/g, separator);
   return value < 0 ? `-${grouped}` : grouped;
