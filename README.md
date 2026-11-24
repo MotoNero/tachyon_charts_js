@@ -439,6 +439,26 @@ const builder = new ChartBuilder().xAxis((a) => a.dateTime('time').autoRange());
 element.chart = gantt(builder, data).addModifier(() => new ZoomPanModifier());
 ```
 
+## Polygons and heatmaps in an area
+
+![A ring, a star and an island with two lakes as filled polygons with outlines](docs/images/polygons.png)
+
+`Polygon` holds an outer `PolygonRing` and holes, with a name and a color of its own if wanted; `contains` tells
+whether a point lies inside. `PolygonSeries` fills the polygons in the colors of the palette, cut into triangles with
+the holes joined in, and draws their outlines; the pointer finds the polygon under it, 10 000 of them included.
+`polygons(builder, shapes, configure)` describes them. A heatmap keeps only the cells inside a `mask` of polygons,
+for example a measurement inside a region:
+
+![A measured field shown only inside a wobbly region with a lake](docs/images/heatmap-in-an-area.png)
+
+```ts
+import { HeatmapSeries, Polygon, PolygonRing, polygons } from '@tachyon-charts/core';
+
+const region = new Polygon(new PolygonRing(outerX, outerY), [new PolygonRing(lakeX, lakeY)], 'Region');
+builder.addSeries((x, y, axis) => Object.assign(new HeatmapSeries(data, x, y, axis('color')), { mask: [region] }));
+polygons(builder, [region], (series) => (series.fillAlpha = 0));
+```
+
 ## Rasters and colormaps
 
 ![A field of 400 x 300 cells with two peaks and a valley in the colormap Inferno](docs/images/raster.png)

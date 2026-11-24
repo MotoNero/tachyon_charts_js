@@ -56,6 +56,9 @@ import {
   rgba,
   findBuiltInTheme,
   gantt,
+  polygons,
+  PolygonRing,
+  Polygon,
   GanttData,
   linkDataSource,
   parseThemeColor,
@@ -360,6 +363,54 @@ function marketProfilePage(): Page {
     },
   };
 }
+
+// The shapes of the polygon pages of the .NET showroom: rings, a star, wobbly areas and a field of hexagons.
+function polygonCircle(cx: number, cy: number, radius: number, corners: number): PolygonRing {
+  const x: number[] = [];
+  const y: number[] = [];
+  for (let i = 0; i < corners; i++) {
+    const angle = (i * 2 * Math.PI) / corners;
+    x.push(cx + radius * Math.cos(angle));
+    y.push(cy + radius * Math.sin(angle));
+  }
+  return new PolygonRing(x, y);
+}
+
+function polygonStar(cx: number, cy: number, outer: number, inner: number, points: number): PolygonRing {
+  const x: number[] = [];
+  const y: number[] = [];
+  for (let i = 0; i < points * 2; i++) {
+    const angle = Math.PI / 2 + (i * Math.PI) / points;
+    const radius = i % 2 === 0 ? outer : inner;
+    x.push(cx + radius * Math.cos(angle));
+    y.push(cy + radius * Math.sin(angle));
+  }
+  return new PolygonRing(x, y);
+}
+
+function polygonBlob(
+  cx: number,
+  cy: number,
+  radius: number,
+  wobble: number,
+  corners: number,
+  seed: number,
+): PolygonRing {
+  const x: number[] = [];
+  const y: number[] = [];
+  for (let i = 0; i < corners; i++) {
+    const angle = (i * 2 * Math.PI) / corners;
+    const r =
+      radius +
+      wobble *
+        (0.5 * Math.sin(angle * 3 + seed) + 0.3 * Math.sin(angle * 7 + seed * 2) + 0.2 * Math.sin(angle * 11 + seed));
+    x.push(cx + r * Math.cos(angle));
+    y.push(cy + r * Math.sin(angle));
+  }
+  return new PolygonRing(x, y);
+}
+
+const polygonHint = 'Wheel: zoom | Drag: pan | Pointer: the polygon under it | Double click: all';
 
 // The test plan of three stations with linked steps and two milestones, and a test hall of 100 stations with 1000 tests
 // each, as the Gantt pages of the .NET showroom.
@@ -1499,6 +1550,107 @@ export const pages: readonly Page[] = [
         c.title(t('Test hall: 100 stations, 100 000 tests')).xAxis((a) => a.dateTime('time').autoRange()),
         testHall(),
       ).addModifier(() => new ZoomPanModifier());
+    },
+  },
+  {
+    id: 'polygons',
+    name: 'Polygons',
+    group: 'Business',
+    hint: polygonHint,
+    configure: (c) => {
+      polygons(
+        c
+          .title(t('Polygons with holes'))
+          .xAxis((a) => a.numeric('x').range(0, 10))
+          .yAxis((a) => a.numeric('y').range(0, 10)),
+        [
+          new Polygon(polygonCircle(3, 7, 2, 48), [polygonCircle(3, 7, 1, 32)], t('Ring')),
+          new Polygon(polygonStar(7.5, 7, 2, 0.9, 5), [], t('Star')),
+          new Polygon(
+            polygonBlob(5, 2.6, 2.2, 0.6, 80, 5),
+            [polygonCircle(5.6, 2.4, 0.6, 24), polygonCircle(4.2, 3, 0.4, 20)],
+            t('Island with two lakes'),
+          ),
+        ],
+        (series) => {
+          series.thickness = 1.5;
+        },
+      )
+        .addModifier(() => new ZoomPanModifier())
+        .addModifier(() => new CrosshairModifier())
+        .addModifier(() => new TooltipModifier());
+    },
+  },
+  {
+    id: 'ten-thousand-polygons',
+    name: '10 000 polygons',
+    group: 'Business',
+    hint: polygonHint,
+    configure: (c) => {
+      const hexagons: Polygon[] = [];
+      for (let row = 0; row < 100; row++) {
+        for (let column = 0; column < 100; column++) {
+          hexagons.push(
+            new Polygon(
+              polygonCircle(column * 1.5 + (row % 2) * 0.75, row * 0.433, 0.48, 6),
+              [],
+              `Cell ${String(row)}/${String(column)}`,
+            ),
+          );
+        }
+      }
+      polygons(
+        c
+          .title(t('10 000 hexagons'))
+          .xAxis((a) => a.numeric('x').range(-1, 150))
+          .yAxis((a) => a.numeric('y').range(-1, 44)),
+        hexagons,
+        (series) => {
+          series.thickness = 0.5;
+        },
+      )
+        .addModifier(() => new ZoomPanModifier())
+        .addModifier(() => new TooltipModifier());
+    },
+  },
+  {
+    id: 'heatmap-in-an-area',
+    name: 'Heatmap in an area',
+    group: 'Business',
+    hint: polygonHint,
+    configure: (c) => {
+      const region = new Polygon(
+        polygonBlob(5, 5, 4.2, 0.9, 120, 3),
+        [polygonBlob(6, 5.6, 1.1, 0.25, 40, 7)],
+        t('Region'),
+      );
+      const length = 400;
+      const data = new HeatmapData(length, length);
+      const values = new Float32Array(length * length);
+      for (let row = 0; row < length; row++) {
+        for (let column = 0; column < length; column++) {
+          const x = ((column + 0.5) / length) * 10;
+          const y = ((row + 0.5) / length) * 10;
+          values[row * length + column] = Math.sin(x * 0.8) * Math.cos(y * 0.6) + 0.3 * Math.sin((x + y) * 0.4);
+        }
+      }
+      data.setValues(values);
+      c.title(t('A measurement inside a region'))
+        .xAxis((a) => a.numeric('x').range(0, 10))
+        .yAxis((a) => a.numeric('y').range(0, 10))
+        .yAxis((a) => a.color('Turbo', 'color'))
+        .addSeries((x, y, axis) =>
+          Object.assign(new HeatmapSeries(data, x, y, axis('color') as ColorAxis), {
+            xStep: 10 / length,
+            yStep: 10 / length,
+            mask: [region],
+          }),
+        );
+      polygons(c, [region], (series) => {
+        series.fillAlpha = 0;
+      })
+        .addModifier(() => new ZoomPanModifier())
+        .addModifier(() => new TooltipModifier());
     },
   },
   candlesPage(),

@@ -26,3 +26,4 @@ export {
   type PointSource,
 } from './source';
 export { ChangeIndex, changeBlockSize, DigitalTransitions, PackedBits, type DigitalSource } from './digital';
+export { maskByPolygons, Polygon, PolygonRing } from './polygon';

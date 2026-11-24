@@ -1287,6 +1287,8 @@ export class HeatmapSeries extends ChartSeries {
     draw(commands: CommandList): void;
     get drawnPointCount(): number;
     isInterpolated: boolean;
+    get mask(): readonly Polygon[] | undefined;
+    set mask(value: readonly Polygon[] | undefined);
     prepare(device: RenderDevice, frame: SeriesFrame): void;
     releaseResources(): void;
     get version(): number;
@@ -1528,6 +1530,9 @@ export interface MarkerStyle {
     readonly shape: MarkerShape;
     readonly sizeScale?: number;
 }
+
+// @public
+export function maskByPolygons(values: Float32Array, columns: ArrayLike<number>, rows: ArrayLike<number>, polygons: readonly Polygon[]): void;
 
 // @public
 export interface MaskViolation {
@@ -1981,6 +1986,57 @@ export class PolarSeries extends ChartSeries {
     prepare(device: RenderDevice, frame: SeriesFrame): void;
     static radar(values: ArrayLike<number>, xAxis: Axis, yAxis: Axis): PolarSeries;
     releaseResources(): void;
+    get thickness(): number;
+    set thickness(value: number);
+    get version(): number;
+}
+
+// @public
+export class Polygon {
+    constructor(
+    outer: PolygonRing, holes?: readonly PolygonRing[],
+    name?: string,
+    color?: Rgba8 | undefined);
+    readonly color?: Rgba8 | undefined;
+    contains(x: number, y: number): boolean;
+    readonly holes: readonly PolygonRing[];
+    readonly name: string;
+    readonly outer: PolygonRing;
+    triangulate(): {
+        x: number[];
+        y: number[];
+        triangles: number[];
+    };
+}
+
+// @public
+export class PolygonRing {
+    constructor(x: ArrayLike<number>, y: ArrayLike<number>);
+    get count(): number;
+    // @internal
+    get doubleArea(): number;
+    readonly x: readonly number[];
+    readonly y: readonly number[];
+}
+
+// @public
+export function polygons(builder: ChartBuilder, shapes: readonly Polygon[], configure?: (series: PolygonSeries) => void): ChartBuilder;
+
+// @public
+export class PolygonSeries extends ChartSeries {
+    constructor(polygons: readonly Polygon[], xAxis: Axis, yAxis: Axis);
+    get accentColor(): Rgba8;
+    dataRange(axis: 'x' | 'y'): DoubleRange | undefined;
+    draw(commands: CommandList, frame: SeriesFrame): void;
+    get fillAlpha(): number;
+    set fillAlpha(value: number);
+    findPoint(frame: SeriesFrame, pixelX: number, pixelY: number): FoundPoint | undefined;
+    onPalette(palette: readonly Rgba8[]): void;
+    get polygons(): readonly Polygon[];
+    prepare(device: RenderDevice, frame: SeriesFrame): void;
+    releaseResources(): void;
+    get stroke(): Rgba8;
+    set stroke(value: Rgba8);
     get thickness(): number;
     set thickness(value: number);
     get version(): number;

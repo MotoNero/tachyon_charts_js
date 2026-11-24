@@ -55,3 +55,4 @@ export {
   type GanttState,
   type GanttTask,
 } from './gantt-series';
+export { polygons, PolygonSeries } from './polygon-series';

@@ -3,6 +3,7 @@
 // axes are resampled to the pixels of the plot on the CPU whenever the view or the data changes.
 import type { Axis } from '../axes/axis';
 import type { ColorAxis } from '../axes/color-axis';
+import { maskByPolygons, type Polygon } from '../data/polygon';
 import { DoubleRange } from '../numerics/range';
 import { ChartSeries, type SeriesFrame } from '../pipeline/chart-series';
 import type { CommandList } from '../render/commands';
@@ -164,6 +165,10 @@ export class HeatmapSeries extends ChartSeries {
   private start = { x: 0, y: 0 };
   private step = { x: 1, y: 1 };
   private edges: { x: Float64Array | undefined; y: Float64Array | undefined } = { x: undefined, y: undefined };
+  private maskPolygons: readonly Polygon[] | undefined;
+  private maskChanges = 0;
+  private masked = new Float32Array(0);
+  private maskedFor = '';
   private layoutChanges = 0;
   private valueTexture: GpuTexture | undefined;
   private uploaded = -1;
@@ -264,7 +269,7 @@ export class HeatmapSeries extends ChartSeries {
 
   /** {@inheritDoc ChartSeries.version} */
   get version(): number {
-    return this.data.version + this.layoutChanges + this.ownColorAxis.version;
+    return this.data.version + this.layoutChanges + this.ownColorAxis.version + this.maskChanges;
   }
 
   /** {@inheritDoc ChartSeries.drawnPointCount} */
@@ -360,9 +365,10 @@ export class HeatmapSeries extends ChartSeries {
       this.valueTexture = device.createTexture({ size: { width, height }, format: 'r32float' });
       this.uploaded = -1;
     }
-    if (this.uploaded !== this.data.version) {
-      this.valueTexture.write(this.data.values);
-      this.uploaded = this.data.version;
+    const uploadVersion = this.data.version * 1_000_003 + this.maskChanges;
+    if (this.uploaded !== uploadVersion) {
+      this.valueTexture.write(this.shownValues());
+      this.uploaded = uploadVersion;
     }
     this.texture = this.valueTexture;
     const placed = placeRaster(frame, this.xRange(), this.yRange(), 1, 1);
@@ -392,7 +398,7 @@ export class HeatmapSeries extends ChartSeries {
       this.pixelVersion = -1;
     }
     this.texture = this.pixelTexture;
-    const version = this.data.version + this.layoutChanges;
+    const version = this.data.version + this.layoutChanges + this.maskChanges;
     if (this.pixelVersion === version && this.pixelFrame === frame) {
       return;
     }
@@ -402,12 +408,50 @@ export class HeatmapSeries extends ChartSeries {
     this.pixelFrame = frame;
   }
 
+  /** Polygons outside of which the cells stay empty, such as the outline of a region; none by default. */
+  get mask(): readonly Polygon[] | undefined {
+    return this.maskPolygons;
+  }
+
+  set mask(value: readonly Polygon[] | undefined) {
+    this.maskPolygons = value ? [...value] : undefined;
+    this.maskChanges++;
+  }
+
+  // The values, with NaN outside the mask; the copy is kept until the data or the mask change.
+  private shownValues(): Float32Array {
+    const polygons = this.maskPolygons;
+    if (!polygons) {
+      return this.data.values;
+    }
+    const key = `${String(this.data.version)}/${String(this.maskChanges)}/${String(this.layoutChanges)}`;
+    if (key !== this.maskedFor) {
+      const values = this.data.values;
+      if (this.masked.length !== values.length) {
+        this.masked = new Float32Array(values.length);
+      }
+      this.masked.set(values);
+      const center = (cell: number, edges: Float64Array | undefined, start: number, step: number): number =>
+        edges ? ((edges[cell] as number) + (edges[cell + 1] as number)) / 2 : start + (cell + 0.5) * step;
+      const columns = Array.from({ length: this.data.width }, (_, i) =>
+        center(i, this.edges.x, this.start.x, this.step.x),
+      );
+      const rows = Array.from({ length: this.data.height }, (_, i) =>
+        center(i, this.edges.y, this.start.y, this.step.y),
+      );
+      maskByPolygons(this.masked, columns, rows, polygons);
+      this.maskedFor = key;
+    }
+    return this.masked;
+  }
+
   // The rows of the texture run from the top pixel down, as the section of the raster reads them.
   private resample(frame: SeriesFrame, firstColumn: number, firstRow: number, columns: number, rows: number): void {
     if (this.pixels.length !== columns * rows) {
       this.pixels = new Float32Array(columns * rows);
     }
-    const { width, height, values } = this.data;
+    const { width, height } = this.data;
+    const values = this.shownValues();
     const cells = new Int32Array(columns);
     for (let i = 0; i < columns; i++) {
       cells[i] = findCell(frame.x.toData(firstColumn + i + 0.5), this.edges.x, this.start.x, this.step.x, width);
