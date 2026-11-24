@@ -28,6 +28,7 @@ const enum Kind {
   Markers,
   Glyphs,
   Raster,
+  Image,
 }
 
 const reductionCodes: Record<RasterReduction, number> = { nearest: 0, mean: 1, maximum: 2 };
@@ -295,7 +296,22 @@ export class WebGpuFrame implements CommandList {
   }
 
   drawImage(image: GpuTexture, bounds: PixelRect): void {
-    this.notYet('images', image, bounds);
+    this.ensureRecording();
+    if (!(image instanceof WebGpuTexture) || image.device !== this.device) {
+      throw new TypeError('The image belongs to another device.');
+    }
+    image.ensureUsable();
+    if (!(bounds.width > 0 && bounds.height > 0)) {
+      return;
+    }
+    const op = this.nextOp(Kind.Image);
+    op.texture = image;
+    op.scaleX = bounds.width;
+    op.scaleY = bounds.height;
+    op.offsetX = bounds.x;
+    op.offsetY = bounds.y;
+    op.slot = this.slots++;
+    op.turn = this.turn;
   }
 
   drawRaster(values: GpuTexture, colormap: GpuTexture, bounds: PixelRect, style: RasterStyle): void {
@@ -357,6 +373,10 @@ export class WebGpuFrame implements CommandList {
         pass.setPipeline(pipelines.raster);
         pass.setBindGroup(1, this.valuesGroup(op.texture as WebGpuTexture));
         pass.setBindGroup(2, this.textureGroup(op.colormap as WebGpuTexture));
+        pass.draw(6, 1, 0, 0);
+      } else if (op.kind === Kind.Image) {
+        pass.setPipeline(pipelines.image);
+        pass.setBindGroup(1, this.textureGroup(op.texture as WebGpuTexture));
         pass.draw(6, 1, 0, 0);
       } else if (op.kind === Kind.Markers) {
         pass.setPipeline(pipelines.marker);
@@ -634,11 +654,6 @@ export class WebGpuFrame implements CommandList {
       throw new Error('The frame is not recording: it was submitted or disposed.');
     }
     this.target.ensureUsable();
-  }
-
-  private notYet(what: string, ...ignored: unknown[]): never {
-    this.ensureRecording();
-    throw new Error(`The WebGPU frame cannot draw ${what} yet (${String(ignored.length)} arguments).`);
   }
 }
 

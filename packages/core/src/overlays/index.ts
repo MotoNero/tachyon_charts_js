@@ -4,3 +4,23 @@ export { createPolarChart, PolarGridOverlay, RadialZoomModifier, type PolarChart
 export * from './smith-grid';
 export * from './scientific-overlays';
 export { LegendModifier, LegendOverlay, type LegendPlacement, type LegendRow } from './legend';
+export {
+  Annotation,
+  ArrowAnnotation,
+  BandAnnotation,
+  BoxAnnotation,
+  HorizontalLineAnnotation,
+  ImageAnnotation,
+  LineAnnotation,
+  MarkerAnnotation,
+  TextAnnotation,
+  VerticalLineAnnotation,
+  type AnnotationAppearance,
+  type AnnotationSymbol,
+  type LabelIcon,
+  type LabelPlace,
+  type LabelSide,
+  type LabelTurn,
+  type LineDash,
+} from './annotations';
+export { AnnotationEditModifier } from './annotation-edit';

@@ -1,5 +1,5 @@
 // The render pipelines of the 2D shaders, made once per texture format, as in the .NET version.
-import { flatWgsl, markerWgsl, polylineWgsl, rasterWgsl, textWgsl } from './generated/shaders';
+import { flatWgsl, imageWgsl, markerWgsl, polylineWgsl, rasterWgsl, textWgsl } from './generated/shaders';
 
 /** Bytes of the uniforms of one command: the Params of the shaders, the quarter turn at 128 included. */
 export const paramsSize = 144;
@@ -23,6 +23,8 @@ export interface Pipelines {
   readonly marker: GPURenderPipeline;
   readonly text: GPURenderPipeline;
   readonly raster: GPURenderPipeline;
+  /** Pixels of an RGBA texture on a rectangle. */
+  readonly image: GPURenderPipeline;
 }
 
 const blend: GPUBlendState = {
@@ -45,6 +47,7 @@ export class PipelineCache {
   readonly valuesLayout: GPUBindGroupLayout;
   private readonly rasterLayout: GPUPipelineLayout;
   private readonly rasterShader: GPUShaderModule;
+  private readonly imageShader: GPUShaderModule;
   private readonly textShader: GPUShaderModule;
   private readonly flatShader: GPUShaderModule;
   private readonly polylineShader: GPUShaderModule;
@@ -81,6 +84,7 @@ export class PipelineCache {
       bindGroupLayouts: [this.uniformLayout, this.valuesLayout, this.textureLayout],
     });
     this.rasterShader = gpu.createShaderModule({ label: 'raster.wgsl', code: rasterWgsl });
+    this.imageShader = gpu.createShaderModule({ label: 'image.wgsl', code: imageWgsl });
     this.textShader = gpu.createShaderModule({ label: 'text.wgsl', code: textWgsl });
     this.flatShader = gpu.createShaderModule({ label: 'flat.wgsl', code: flatWgsl });
     this.polylineShader = gpu.createShaderModule({ label: 'polyline.wgsl', code: polylineWgsl });
@@ -154,7 +158,9 @@ export class PipelineCache {
       );
       // Six corners from the vertex index, no vertex buffer; values and colors from two textures.
       const raster = this.pipeline(this.rasterShader, format, blend, 'fs_main', [], this.rasterLayout);
-      pipelines = { flat, polyline, glow, marker, text, raster };
+      // Six corners from the vertex index as well; the pixels from one texture.
+      const image = this.pipeline(this.imageShader, format, blend, 'fs_main', [], this.textLayout);
+      pipelines = { flat, polyline, glow, marker, text, raster, image };
       this.byFormat.set(format, pipelines);
     }
     return pipelines;

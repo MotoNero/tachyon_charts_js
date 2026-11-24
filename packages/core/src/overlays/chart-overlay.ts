@@ -2,8 +2,10 @@
 import type { Axis } from '../axes/axis';
 import { DipRect, type AxisPlacement, type ChartLayoutResult, type ReservedRoom } from '../layout/chart-layout';
 import { glyphStride, meshVertexStride, type CommandList } from '../render/commands';
+import type { RenderDevice } from '../render/device';
+import type { GpuTexture } from '../render/resources';
 import { packRgba8, type Rgba8 } from '../render/types';
-import type { TextEngine } from '../text/engine';
+import type { TextEngine, TextFont } from '../text/engine';
 import type { Point } from '../input/primitives';
 
 const f = Math.fround;
@@ -56,6 +58,10 @@ export interface OverlayColors {
 
 /** The surface of overlays. Coordinates are device-independent units relative to the chart. */
 export class OverlayCanvas {
+  /** @internal The device of the frame, for the textures of images. */
+  device: RenderDevice | undefined;
+  private readonly textures = new Map<object, { device: RenderDevice; texture: GpuTexture }>();
+
   /** The height of the whole chart in device-independent units. */
   chartHeight = 0;
 
@@ -122,18 +128,18 @@ export class OverlayCanvas {
     this.clip = undefined;
   }
 
-  /** The height of a line of text. */
-  lineHeight(size: number): number {
-    return this.textEngine.lineHeight(size);
+  /** The height of a line of text, in the default font unless given. */
+  lineHeight(size: number, font?: TextFont): number {
+    return this.textEngine.lineHeight(size, font);
   }
 
-  /** The width of a text. */
-  measureWidth(text: string, size: number): number {
-    return this.textEngine.measureWidth(text, size);
+  /** The width of a text, in the default font unless given. */
+  measureWidth(text: string, size: number, font?: TextFont): number {
+    return this.textEngine.measureWidth(text, size, font);
   }
 
-  /** Writes a text with its baseline at `baseline`. */
-  drawText(text: string, x: number, baseline: number, size: number, color: Rgba8): void {
+  /** Writes a text with its baseline at `baseline`, in the default font unless given. */
+  drawText(text: string, x: number, baseline: number, size: number, color: Rgba8, font?: TextFont): void {
     const needed = (this.glyphTotal + text.length) * glyphStride;
     if (needed > this.glyphData.length) {
       const grown = new Float32Array(Math.max(this.glyphData.length * 2, needed));
@@ -144,7 +150,7 @@ export class OverlayCanvas {
       text,
       f(x * this.scale),
       f(baseline * this.scale),
-      { size: f(size * this.scale), color },
+      font ? { size: f(size * this.scale), color, font } : { size: f(size * this.scale), color },
       this.glyphData,
       this.glyphTotal,
     );
@@ -154,15 +160,24 @@ export class OverlayCanvas {
    * Writes a text turned by an angle in radians around its middle, as DrawTurnedText of the .NET version: the
    * baseline lies 0.3 lines below the middle unless given.
    */
-  drawTurnedText(text: string, center: Point, angle: number, size: number, color: Rgba8, baselineBelow?: number): void {
+  drawTurnedText(
+    text: string,
+    center: Point,
+    angle: number,
+    size: number,
+    color: Rgba8,
+    baselineBelow?: number,
+    font?: TextFont,
+  ): void {
     const first = this.glyphTotal;
-    const width = this.measureWidth(text, size);
+    const width = this.measureWidth(text, size, font);
     this.drawText(
       text,
       center.x - width / 2,
-      center.y + (baselineBelow ?? f(this.lineHeight(size) * 0.3)),
+      center.y + (baselineBelow ?? f(this.lineHeight(size, font) * 0.3)),
       size,
       color,
+      font,
     );
     const pivotX = f(center.x * this.scale);
     const pivotY = f(center.y * this.scale);
@@ -266,6 +281,26 @@ export class OverlayCanvas {
       ],
       color,
     );
+  }
+
+  /**
+   * Draws pixels, RGBA rows from the top, into an area. The texture stays on the device for the owner until the
+   * device changes.
+   */
+  drawImage(owner: object, pixels: Uint8Array, width: number, height: number, area: DipRect): void {
+    const device = this.device;
+    if (!device) {
+      return;
+    }
+    let entry = this.textures.get(owner);
+    if (entry?.device !== device) {
+      entry?.texture.dispose();
+      const texture = device.createTexture({ size: { width, height }, format: 'rgba8unorm' });
+      texture.write(pixels);
+      entry = { device, texture };
+      this.textures.set(owner, entry);
+    }
+    this.commands?.drawImage(entry.texture, area.toPixels(this.scale));
   }
 
   /** Fills a convex shape: a slanted edge fades out over one pixel, an edge along the grid stays sharp. */

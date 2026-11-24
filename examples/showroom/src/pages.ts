@@ -56,6 +56,13 @@ import {
   rgba,
   findBuiltInTheme,
   gantt,
+  VerticalLineAnnotation,
+  TextAnnotation,
+  LineAnnotation,
+  HorizontalLineAnnotation,
+  BoxAnnotation,
+  BandAnnotation,
+  AnnotationEditModifier,
   polygons,
   PolygonRing,
   Polygon,
@@ -1743,6 +1750,99 @@ export const pages: readonly Page[] = [
             .series(...pressures)
             .place('bottom'),
         )
+        .addModifier(() => new ZoomPanModifier())
+        .addModifier(() => new CrosshairModifier());
+    },
+  },
+  {
+    id: 'annotations',
+    name: 'Annotations',
+    group: 'Annotations',
+    hint: 'Drag an annotation: move it | Drag a handle or the lower right corner: resize | Delete: remove | Ctrl+Z, Ctrl+Y: undo, redo',
+    configure: (c) => {
+      const red = { r: 240, g: 90, b: 90, a: 255 };
+      const green = { r: 110, g: 210, b: 130, a: 255 };
+      const orange = { r: 240, g: 130, b: 90, a: 255 };
+      const clear = { r: 0, g: 0, b: 0, a: 0 };
+      const x = (chart: ChartSurface): Axis => chart.horizontalAxes[0] as Axis;
+      const y = (chart: ChartSurface): Axis => chart.panes[0]?.axes[0] as Axis;
+      c.title(t('Annotations'))
+        .xAxis((a) => a.numeric('x').title(t('Time in s')).range(0, 10))
+        .yAxis((a) => a.numeric('y').range(-1.5, 1.5))
+        .addLine(
+          sample((v) => 0.9 * Math.sin(v * 1.3), 240),
+          (line) => line.stroke({ r: 80, g: 170, b: 240, a: 255 }).thickness(2),
+        )
+        .addOverlay((chart) =>
+          Object.assign(new HorizontalLineAnnotation(y(chart)), {
+            y: 1.1,
+            label: t('Upper limit'),
+            color: red,
+            isEditable: true,
+            appearance: {
+              labelPlace: 'end',
+              labelIcon: 'warning',
+              labelColor: { r: 255, g: 255, b: 255, a: 255 },
+              dash: 'dashed',
+            },
+          }),
+        )
+        .addOverlay((chart) =>
+          Object.assign(new VerticalLineAnnotation(x(chart)), {
+            x: 6,
+            label: t('Trigger'),
+            color: green,
+            isEditable: true,
+            appearance: { labelTurn: 'alongLine', labelFill: clear, labelSize: 14, thickness: 2 },
+          }),
+        )
+        .addOverlay((chart) => {
+          const band = Object.assign(new BandAnnotation(x(chart)), {
+            color: { ...green, a: 45 },
+            isEditable: true,
+            label: t('Window'),
+            appearance: { labelFill: clear, labelBorder: green, labelColor: green, dash: 'dotted', thickness: 1.5 },
+          });
+          band.setRange(7.5, 9);
+          return band;
+        })
+        .addOverlay((chart) => {
+          const box = Object.assign(new BoxAnnotation(x(chart), y(chart)), {
+            color: orange,
+            isEditable: true,
+            label: t('Peak'),
+            appearance: { labelIcon: 'info', labelBorder: { r: 30, g: 30, b: 30, a: 255 }, dash: 'dashed' },
+          });
+          box.setCorners(1.9, 1.25, 3.6, 0.55);
+          return box;
+        })
+        .addOverlay((chart) => {
+          const trend = Object.assign(new LineAnnotation(x(chart), y(chart)), {
+            color: { r: 150, g: 110, b: 230, a: 255 },
+            isEditable: true,
+            label: t('Trend'),
+            appearance: { labelTurn: 'alongLine', labelPlace: 'middle', labelIcon: 'arrow', dash: 'dotted' },
+          });
+          trend.setEnds(0.4, -1.3, 4.6, -0.5);
+          return trend;
+        })
+        .addOverlay((chart) => {
+          const note = Object.assign(new TextAnnotation(x(chart), y(chart)), {
+            text: t('Turned note'),
+            isEditable: true,
+            color: red,
+            appearance: {
+              labelTurn: 'angle',
+              labelAngle: 15,
+              labelFill: { ...red, a: 60 },
+              labelBorder: red,
+              labelColor: red,
+            },
+          });
+          note.moveTo(6.6, -1.05);
+          return note;
+        })
+        .addModifier(() => new AnnotationEditModifier())
         .addModifier(() => new ZoomPanModifier())
         .addModifier(() => new CrosshairModifier());
     },

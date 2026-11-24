@@ -1,0 +1,43 @@
+#version 300 es
+// A texture on a rectangle, from image.wgsl of the .NET version: six corners from the vertex index.
+
+precision highp float;
+
+layout(std140) uniform Params {
+    vec2 target_size;
+    float width;
+    vec4 color;
+    vec2 scale;
+    vec2 offset;
+    // The fields of the other programs in between; the layout is shared.
+    vec4 unused_a;
+    vec4 unused_b;
+    vec4 unused_c;
+    vec4 unused_d;
+    vec4 unused_e;
+    vec4 turn;
+};
+
+out vec2 v_uv;
+
+const vec2 corners[6] = vec2[6](
+    vec2(0.0, 0.0), vec2(1.0, 0.0), vec2(1.0, 1.0),
+    vec2(0.0, 0.0), vec2(1.0, 1.0), vec2(0.0, 1.0)
+);
+
+// A quarter turn clockwise for a chart whose X axis runs down: (x, y) lands at (sum - y, x).
+vec2 turned(vec2 point) {
+    if (turn.x > 0.5) {
+        return vec2(turn.y - point.y, point.x);
+    }
+    return point;
+}
+
+void main() {
+    vec2 corner = corners[gl_VertexID];
+    vec2 position = offset + scale * corner;
+    vec2 ndc = turned(position) / target_size * 2.0 - 1.0;
+
+    gl_Position = vec4(ndc.x, -ndc.y, 0.0, 1.0);
+    v_uv = corner;
+}

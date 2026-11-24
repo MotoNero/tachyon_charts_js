@@ -20,6 +20,84 @@ export interface AnimationTokens {
 }
 
 // @public
+export abstract class Annotation extends ChartOverlay {
+    constructor(
+    xAxis: Axis | undefined,
+    yAxis: Axis | undefined);
+    get appearance(): AnnotationAppearance;
+    set appearance(value: AnnotationAppearance);
+    capture(): unknown;
+    get color(): Rgba8;
+    set color(value: Rgba8);
+    contains(position: Point, tolerance: number): boolean;
+    protected drawAcross(canvas: OverlayCanvas, axis: Axis, value: number, label: string | undefined): void;
+    protected drawEdges(canvas: OverlayCanvas, area: DipRect, width: number, color: Rgba8): void;
+    protected drawHandles(canvas: OverlayCanvas, points: readonly Point[]): void;
+    // @internal
+    handleAt(position: Point, tolerance: number): number;
+    isEditable: boolean;
+    // @internal
+    get isHot(): boolean;
+    set isHot(value: boolean);
+    protected get isTurned(): boolean;
+    get lastBounds(): DipRect | undefined;
+    abstract move(deltaX: number, deltaY: number): void;
+    moveHandle(_handle: number, _deltaX: number, _deltaY: number): void;
+    // @internal
+    notifyEdited(): void;
+    // @internal
+    notifyEditFinished(): void;
+    onEdited: ((annotation: Annotation) => void) | undefined;
+    onEditFinished: ((annotation: Annotation) => void) | undefined;
+    resize(_deltaX: number, _deltaY: number): boolean;
+    restore(_state: unknown): void;
+    protected setBounds(bounds: DipRect): void;
+    protected setHandles(...areas: DipRect[]): void;
+    protected toChart(canvas: OverlayCanvas, x: number, y: number): Point;
+    get version(): number;
+    readonly xAxis: Axis | undefined;
+    readonly yAxis: Axis | undefined;
+}
+
+// @public
+export interface AnnotationAppearance {
+    readonly dash?: LineDash;
+    readonly labelAngle?: number;
+    readonly labelBorder?: Rgba8;
+    readonly labelBorderThickness?: number;
+    readonly labelColor?: Rgba8;
+    readonly labelFill?: Rgba8;
+    readonly labelFont?: TextFont;
+    readonly labelIcon?: LabelIcon;
+    readonly labelIconColor?: Rgba8;
+    readonly labelOffset?: number;
+    readonly labelPlace?: LabelPlace;
+    readonly labelSide?: LabelSide;
+    readonly labelSize?: number;
+    readonly labelSymbol?: AnnotationSymbol;
+    readonly labelTurn?: LabelTurn;
+    readonly thickness?: number;
+}
+
+// @public
+export class AnnotationEditModifier extends ChartModifier {
+    constructor();
+    static readonly defaultPriority = 45;
+    onCaptureLost(): void;
+    onKey(input: KeyInputEvent): ModifierResult;
+    onPointer(input: PointerInputEvent): ModifierResult;
+    onRemoved: ((annotation: Annotation) => void) | undefined;
+    tolerance: number;
+}
+
+// @public
+export interface AnnotationSymbol {
+    readonly font: TextFont;
+    readonly glyph: string;
+    readonly size?: number;
+}
+
+// @public
 export interface AppendTarget {
     append(x: ArrayLike<number>, y: ArrayLike<number>): void;
 }
@@ -41,6 +119,26 @@ export class AreaSeries extends RibbonSeries {
 
 // @public
 export function arrangeChart(size: DipSize, title: string | undefined, horizontalAxes: readonly Axis[], panes: readonly LayoutPane[], measurer: TextMeasurer, options?: ChartLayoutOptions): ChartLayoutResult;
+
+// @public
+export class ArrowAnnotation extends Annotation {
+    capture(): unknown;
+    draw(canvas: OverlayCanvas): void;
+    move(deltaX: number, deltaY: number): void;
+    moveHandle(handle: number, deltaX: number, deltaY: number): void;
+    resize(deltaX: number, deltaY: number): boolean;
+    restore(state: unknown): void;
+    setEnds(x1: number, y1: number, x2: number, y2: number): void;
+    get start(): {
+        x: number;
+        y: number;
+    };
+    thickness: number;
+    get tip(): {
+        x: number;
+        y: number;
+    };
+}
 
 // @public
 export const atlasSize = 1024;
@@ -176,6 +274,21 @@ export interface AxisTokens {
 }
 
 // @public
+export class BandAnnotation extends Annotation {
+    constructor(axis: Axis);
+    capture(): unknown;
+    draw(canvas: OverlayCanvas): void;
+    get end(): number;
+    label: string | undefined;
+    move(deltaX: number, deltaY: number): void;
+    moveHandle(handle: number, deltaX: number, deltaY: number): void;
+    resize(deltaX: number, deltaY: number): boolean;
+    restore(state: unknown): void;
+    setRange(start: number, end: number): void;
+    get start(): number;
+}
+
+// @public
 export class BandSeries extends RibbonSeries {
     constructor(
     first: PointSource,
@@ -228,6 +341,27 @@ export const baseBlockSize = 16;
 
 // @public
 export type BinningRule = 'fixedCount' | 'fixedWidth' | 'sturges' | 'freedmanDiaconis';
+
+// @public
+export class BoxAnnotation extends Annotation {
+    capture(): unknown;
+    draw(canvas: OverlayCanvas): void;
+    fill: Rgba8;
+    get first(): {
+        x: number;
+        y: number;
+    };
+    label: string | undefined;
+    move(deltaX: number, deltaY: number): void;
+    moveHandle(handle: number, deltaX: number, deltaY: number): void;
+    resize(deltaX: number, deltaY: number): boolean;
+    restore(state: unknown): void;
+    get second(): {
+        x: number;
+        y: number;
+    };
+    setCorners(x1: number, y1: number, x2: number, y2: number): void;
+}
 
 // @public
 export class BoxPlotSeries extends SampleSeries {
@@ -1330,6 +1464,34 @@ export interface HitResult extends FoundPoint {
 export type HitTestMode = 'nearest' | 'nearestX';
 
 // @public
+export class HorizontalLineAnnotation extends Annotation {
+    constructor(yAxis: Axis);
+    capture(): unknown;
+    draw(canvas: OverlayCanvas): void;
+    label: string | undefined;
+    move(_deltaX: number, deltaY: number): void;
+    restore(state: unknown): void;
+    get y(): number;
+    set y(value: number);
+}
+
+// @public
+export class ImageAnnotation extends Annotation {
+    constructor(pixels: Uint8Array, width: number, height: number, xAxis?: Axis, yAxis?: Axis);
+    displaySize: {
+        width: number;
+        height: number;
+    } | undefined;
+    draw(canvas: OverlayCanvas): void;
+    move(deltaX: number, deltaY: number): void;
+    moveTo(x: number, y: number): void;
+    get position(): {
+        x: number;
+        y: number;
+    };
+}
+
+// @public
 export interface InputCapture {
     readonly kind: 'pointer' | 'keyboard' | 'gesture';
     readonly pointerId: number;
@@ -1380,6 +1542,18 @@ export interface KeyInputEvent {
     readonly kind: 'pressed' | 'released';
     readonly modifiers: number;
 }
+
+// @public
+export type LabelIcon = 'none' | 'warning' | 'info' | 'arrow' | 'marker';
+
+// @public
+export type LabelPlace = 'auto' | 'start' | 'middle' | 'end';
+
+// @public
+export type LabelSide = 'auto' | 'before' | 'after';
+
+// @public
+export type LabelTurn = 'level' | 'alongLine' | 'angle';
 
 // @public
 export interface LayoutPane {
@@ -1448,6 +1622,27 @@ export interface LimitLine {
 }
 
 // @public
+export class LineAnnotation extends Annotation {
+    capture(): unknown;
+    contains(position: Point, tolerance: number): boolean;
+    draw(canvas: OverlayCanvas): void;
+    get end(): {
+        x: number;
+        y: number;
+    };
+    label: string | undefined;
+    move(deltaX: number, deltaY: number): void;
+    moveHandle(handle: number, deltaX: number, deltaY: number): void;
+    restore(state: unknown): void;
+    setEnds(x1: number, y1: number, x2: number, y2: number): void;
+    get start(): {
+        x: number;
+        y: number;
+    };
+    thickness: number;
+}
+
+// @public
 export class LinearAxisTransform {
     constructor(data: DoubleRange, pixelAtMin: number, pixelAtMax: number, scaling?: AxisScaling | undefined);
     get isLinear(): boolean;
@@ -1472,6 +1667,9 @@ export class LineBuilder {
     xAxis(id: string): this;
     yAxis(id: string): this;
 }
+
+// @public
+export type LineDash = 'solid' | 'dashed' | 'dotted';
 
 // @public
 export interface LineDefinition extends SeriesDefinitionBase {
@@ -1570,6 +1768,18 @@ export function lowerBound(x: NumberArray, count: number, value: number, first?:
 
 // @public
 export function marchingSquares(values: Float32Array, width: number, height: number, levels: Float32Array, segments: number[]): void;
+
+// @public
+export class MarkerAnnotation extends Annotation {
+    draw(canvas: OverlayCanvas): void;
+    move(deltaX: number, deltaY: number): void;
+    moveTo(x: number, y: number): void;
+    get position(): {
+        x: number;
+        y: number;
+    };
+    size: number;
+}
 
 // @public
 export type MarkerShape = 'circle' | 'square' | 'triangle' | 'diamond' | 'cross' | 'plus';
@@ -1741,11 +1951,14 @@ export class OverlayCanvas {
     get chartWidth(): number;
     clip: DipRect | undefined;
     get colors(): OverlayColors;
+    // @internal
+    device: RenderDevice | undefined;
+    drawImage(owner: object, pixels: Uint8Array, width: number, height: number, area: DipRect): void;
     drawLabel(text: string, x: number, y: number, background: Rgba8, foreground: Rgba8): DipRect;
     drawLine(from: Point, to: Point, width: number, color: Rgba8): void;
     drawRectangle(area: DipRect, color: Rgba8): void;
-    drawText(text: string, x: number, baseline: number, size: number, color: Rgba8): void;
-    drawTurnedText(text: string, center: Point, angle: number, size: number, color: Rgba8, baselineBelow?: number): void;
+    drawText(text: string, x: number, baseline: number, size: number, color: Rgba8, font?: TextFont): void;
+    drawTurnedText(text: string, center: Point, angle: number, size: number, color: Rgba8, baselineBelow?: number, font?: TextFont): void;
     fillPolygon(corners: readonly Point[], color: Rgba8): void;
     fillRectangle(area: DipRect, color: Rgba8): void;
     fillTriangle(a: Point, b: Point, c: Point, color: Rgba8): void;
@@ -1753,8 +1966,8 @@ export class OverlayCanvas {
     get glyphs(): Float32Array;
     get labelSize(): number;
     get layout(): ChartLayoutResult;
-    lineHeight(size: number): number;
-    measureWidth(text: string, size: number): number;
+    lineHeight(size: number, font?: TextFont): number;
+    measureWidth(text: string, size: number, font?: TextFont): number;
     paneAt(position: Point): DipRect | undefined;
     pointOf(xAxis: Axis, yAxis: Axis, x: number, y: number): Point | undefined;
     positionOf(axis: Axis, value: number): number | undefined;
@@ -2942,6 +3155,21 @@ export class TernarySeries extends ChartSeries {
 }
 
 // @public
+export class TextAnnotation extends Annotation {
+    capture(): unknown;
+    draw(canvas: OverlayCanvas): void;
+    fontSize: number;
+    move(deltaX: number, deltaY: number): void;
+    moveTo(x: number, y: number): void;
+    get position(): {
+        x: number;
+        y: number;
+    };
+    restore(state: unknown): void;
+    text: string;
+}
+
+// @public
 export class TextEngine {
     constructor(defaultFont: ArrayBuffer | ArrayBufferView);
     addFont(family: string, data: ArrayBuffer | ArrayBufferView, bold?: boolean, italic?: boolean): void;
@@ -3110,6 +3338,18 @@ export type Values = ArrayLike<number> & Iterable<number>;
 
 // @public
 export const version = "0.1.0-dev";
+
+// @public
+export class VerticalLineAnnotation extends Annotation {
+    constructor(xAxis: Axis);
+    capture(): unknown;
+    draw(canvas: OverlayCanvas): void;
+    label: string | undefined;
+    move(deltaX: number): void;
+    restore(state: unknown): void;
+    get x(): number;
+    set x(value: number);
+}
 
 // @public
 export class ViolinSeries extends SampleSeries {

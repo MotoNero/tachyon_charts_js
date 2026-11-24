@@ -38,6 +38,7 @@ const enum Kind {
   Markers,
   Glyphs,
   Raster,
+  Image,
 }
 
 const reductionCodes: Record<RasterReduction, number> = { nearest: 0, mean: 1, maximum: 2 };
@@ -299,9 +300,18 @@ export class WebGlFrame implements CommandList {
 
   drawImage(image: GpuTexture, bounds: PixelRect): void {
     this.ensureRecording();
-    throw new Error(
-      `The WebGL frame cannot draw images yet, as the WebGPU frame (${String(image.size.width)} × ${String(bounds.width)}).`,
-    );
+    this.textureSource(image);
+    if (!(bounds.width > 0 && bounds.height > 0)) {
+      return;
+    }
+    const op = this.nextOp(Kind.Image);
+    op.texture = image as WebGlTexture;
+    op.scaleX = bounds.width;
+    op.scaleY = bounds.height;
+    op.offsetX = bounds.x;
+    op.offsetY = bounds.y;
+    op.slot = this.slots++;
+    op.turn = this.turn;
   }
 
   drawRaster(values: GpuTexture, colormap: GpuTexture, bounds: PixelRect, style: RasterStyle): void {
@@ -399,6 +409,11 @@ export class WebGlFrame implements CommandList {
         this.use(programs.raster);
         bindTexture(gl, 0, op.texture as WebGlTexture);
         bindTexture(gl, 1, op.colormap as WebGlTexture);
+        gl.drawArrays(gl.TRIANGLES, 0, 6);
+        break;
+      case Kind.Image:
+        this.use(programs.image);
+        bindTexture(gl, 0, op.texture as WebGlTexture);
         gl.drawArrays(gl.TRIANGLES, 0, 6);
         break;
       case Kind.Markers:

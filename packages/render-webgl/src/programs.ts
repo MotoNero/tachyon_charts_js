@@ -3,6 +3,8 @@
 import {
   flatFrag,
   flatVert,
+  imageFrag,
+  imageVert,
   markerFrag,
   markerVert,
   polylineFrag,
@@ -52,6 +54,8 @@ export interface Programs {
   readonly marker: Program;
   readonly text: Program;
   readonly raster: Program;
+  /** Pixels of an RGBA texture on a rectangle. */
+  readonly image: Program;
 }
 
 // The glyph fields in order, as the vertex buffer layout of the WebGPU text pipeline.
@@ -124,6 +128,7 @@ export function createPrograms(gl: WebGL2RenderingContext): Programs {
     ),
     text: make('text', textVert, textFrag, glyphAttributes, glyphSize, ['atlas']),
     raster: make('raster', rasterVert, rasterFrag, [], 0, ['values', 'colormap']),
+    image: make('image', imageVert, imageFrag, [], 0, ['image']),
   };
 }
 

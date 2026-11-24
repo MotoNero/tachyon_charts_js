@@ -474,6 +474,32 @@ builder
   .legend((l) => l.title('Pressures').series('Pump', 'Filter', 'Valve').place('bottom'));
 ```
 
+## Annotations
+
+![Lines, a band, a box, a trend and a turned note with labels on plates, icons and dashes](docs/images/annotations.png)
+
+Annotations mark places of the data: `HorizontalLineAnnotation` and `VerticalLineAnnotation` across the plot,
+`BandAnnotation` between two values, `BoxAnnotation` between two corners, `TextAnnotation`, `LineAnnotation`,
+`ArrowAnnotation`, `MarkerAnnotation` and `ImageAnnotation`. An `appearance` places a label at the start, the middle or
+the end, before or after the line, level, along the line or turned by an angle, on a plate of its own color with a
+frame and a sign (warning, info, arrow, marker), and draws lines dashed or dotted. With `AnnotationEditModifier`,
+editable annotations move and resize with the pointer, Delete removes the chosen one, Ctrl+Z and Ctrl+Y undo and redo.
+
+```ts
+import { AnnotationEditModifier, HorizontalLineAnnotation } from '@tachyon-charts/core';
+
+builder
+  .addOverlay((chart) =>
+    Object.assign(new HorizontalLineAnnotation(chart.panes[0].axes[0]), {
+      y: 1.1,
+      label: 'Upper limit',
+      isEditable: true,
+      appearance: { labelPlace: 'end', labelIcon: 'warning', dash: 'dashed' },
+    }),
+  )
+  .addModifier(() => new AnnotationEditModifier());
+```
+
 ## Rasters and colormaps
 
 ![A field of 400 x 300 cells with two peaks and a valley in the colormap Inferno](docs/images/raster.png)

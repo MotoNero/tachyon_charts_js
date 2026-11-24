@@ -433,6 +433,7 @@ export class ChartSurface {
         frame.fillLinearGradient(bar.bounds, bar.top, bar.bottom, true);
       }
       this.drawZoomRectangle(frame, target.dpiScale);
+      this.canvas.device = device;
       const usedCanvas = this.drawOverlays(frame, target);
       if (this.glyphCount > 0) {
         frame.drawGlyphs(atlas, this.glyphs, this.glyphCount);
