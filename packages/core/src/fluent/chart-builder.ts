@@ -133,7 +133,7 @@ export type SeriesDefinition = LineDefinition | ScatterDefinition | CustomSeries
 export interface BuiltChart {
   /** The chart, to render and to change. */
   readonly surface: ChartSurface;
-  /** The modifiers the description adds to the usual ones, such as dragging the marker of a Smith chart. */
+  /** The modifiers of the description, such as dragging the marker of a Smith chart; the chart element's usual ones when empty. */
   readonly modifiers: readonly ChartModifier[];
 }
 
@@ -156,7 +156,7 @@ export class ChartDefinition {
     readonly theme?: ThemeDocument,
     /** Creates the overlays of the chart, such as the grid of a polar chart. */
     readonly overlays: readonly ((chart: ChartSurface) => ChartOverlay)[] = [],
-    /** Creates the modifiers the chart adds to the usual ones. */
+    /** Creates the modifiers of the chart; the chart element's usual ones when there are none. */
     readonly modifiers: readonly (() => ChartModifier)[] = [],
   ) {}
 
@@ -675,7 +675,10 @@ export class ChartBuilder {
     return this;
   }
 
-  /** Adds a modifier to the usual ones of the chart element, such as dragging the marker of a Smith chart. */
+  /**
+   * Adds a modifier, such as dragging the marker of a Smith chart. A description with modifiers gets exactly these in
+   * the chart element, as in the .NET version; one without gets the usual zooming, panning, crosshair and tooltip.
+   */
   addModifier(factory: () => ChartModifier): this {
     this.modifierList.push(factory);
     return this;

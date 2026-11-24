@@ -58,6 +58,12 @@ const german: Readonly<Record<string, string>> = {
   Smith: 'Smith',
   Ternary: 'Ternär',
   Instruments: 'Instrumente',
+  Business: 'Geschäft',
+  Pie: 'Torte',
+  Donut: 'Ring',
+  'Power mix': 'Strommix',
+  'Pointer: name, value and share | Click: pull a slice out, again: back':
+    'Zeiger: Name, Wert und Anteil | Klick: Stück herausziehen, nochmals: zurück',
   Oscilloscope: 'Oszilloskop',
   Spectrum: 'Spektrum',
   'Network analyzer': 'Netzwerkanalysator',

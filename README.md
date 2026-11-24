@@ -222,7 +222,8 @@ a reference impedance (50 ohms by default). `createSmithChart` sets up hidden ax
 circles of constant resistance and the arcs of constant reactance, normalized or in ohms (`showsOhms`).
 `SmithMarkerOverlay` marks one point with its impedance, reflection coefficient and standing wave ratio;
 `SmithMarkerModifier` moves it to the point next to the pointer while the button is held. With `ChartBuilder`, add the
-modifier with `addModifier`.
+modifier with `addModifier`: a description with modifiers gets exactly these in the chart element, one without gets the
+usual zooming, panning, crosshair and tooltip.
 
 ```ts
 import { createSmithChart, SmithMarkerOverlay, SmithSeries } from '@tachyon-charts/core';
@@ -312,16 +313,16 @@ display, start, stop, minimum, maximum)` describes the chart with frequency in h
 `NetworkMarkerModifier` drags a marker, Ctrl+click adds or removes one.
 
 ```ts
-import { ChartBuilder, networkAnalyzer, NetworkDisplay, NetworkMarkerModifier } from '@tachyon-charts/core';
+import { ChartBuilder, networkAnalyzer, NetworkDisplay, NetworkMarkerModifier, ZoomPanModifier } from '@tachyon-charts/core';
 
 const display = new NetworkDisplay();
 const s21 = display.addTrace('S21');
 s21.setSweep(frequencies, responses); // responses as { re, im }
 s21.addLimit({ kind: 'minimum', startFrequency: 1.45e9, startLevel: -1, stopFrequency: 1.55e9, stopLevel: -1 });
 display.addMarker(1.5e9);
-element.chart = networkAnalyzer(new ChartBuilder(), display, 1e9, 2e9, -70, 5).addModifier(
-  () => new NetworkMarkerModifier(display),
-);
+element.chart = networkAnalyzer(new ChartBuilder(), display, 1e9, 2e9, -70, 5)
+  .addModifier(() => new ZoomPanModifier())
+  .addModifier(() => new NetworkMarkerModifier(display));
 ```
 
 ## Sweep and stepping monitors
@@ -341,6 +342,23 @@ import { ChartBuilder, DoubleRange, sweep, SweepData } from '@tachyon-charts/cor
 const data = new SweepData(2, 25_000 * 7, 6); // two channels, seven seconds of samples, a window of six
 element.chart = sweep(new ChartBuilder(), data, [new DoubleRange(-0.6, 1.4), new DoubleRange(-1, 1)], ['ECG', 'Resp']);
 data.append(times, values); // values of all channels, sample after sample
+```
+
+## Pie and donut charts
+
+![The power mix as a pie with one slice pulled out and labels inside and outside](docs/images/pie.png)
+
+`PieSeries` draws one slice per value from the top clockwise, with a small gap and soft edges; an inner radius makes a
+donut. Labels show name and percent, the name, the percent or the value: inside a slice when it is wide enough,
+otherwise outside on lines, spread so that they do not overlap. The pointer lights a slice up and shows its value and
+share, a click pulls it out and a second click back. The slices take the colors of the theme unless given their own.
+
+```ts
+import { ChartBuilder, pie } from '@tachyon-charts/core';
+
+element.chart = pie(new ChartBuilder().title('Power mix'), [32, 18, 15], ['Wind', 'Solar', 'Gas'], (series) => {
+  series.innerRadius = 0.55;
+});
 ```
 
 ## Rasters and colormaps

@@ -25,3 +25,4 @@ export { PolarProjection, PolarSeries, type PolarParts } from './polar-series';
 export * from './smith-series';
 export * from './scientific-series';
 export * from './sweep-series';
+export { pie, PieModifier, PieSeries, type PieLabels, type PieSlices } from './pie-series';

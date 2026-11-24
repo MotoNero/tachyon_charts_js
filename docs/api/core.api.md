@@ -1614,6 +1614,71 @@ export class PersistenceBuffer {
 }
 
 // @public
+export function pie(builder: ChartBuilder, values: readonly number[], names?: readonly string[], configure?: (pie: PieSeries) => void): ChartBuilder;
+
+// @public
+export type PieLabels = 'none' | 'name' | 'percent' | 'value' | 'nameAndPercent';
+
+// @public
+export class PieModifier extends ChartModifier {
+    constructor();
+    onPointer(input: PointerInputEvent): ModifierResult;
+}
+
+// @public
+export class PieSeries extends ChartSeries {
+    constructor(values: readonly number[], names: readonly string[] | undefined, xAxis: Axis, yAxis: Axis);
+    get accentColor(): Rgba8;
+    // @internal
+    colorOf(index: number): Rgba8;
+    get colors(): readonly Rgba8[] | undefined;
+    set colors(value: readonly Rgba8[] | undefined);
+    get count(): number;
+    get current(): PieSlices;
+    dataRange(): DoubleRange | undefined;
+    draw(commands: CommandList, frame: SeriesFrame): void;
+    get explodedIndex(): number;
+    set explodedIndex(value: number);
+    get explodeDistance(): number;
+    set explodeDistance(value: number);
+    findPoint(frame: SeriesFrame, pixelX: number, pixelY: number): FoundPoint | undefined;
+    // @internal
+    findSlice(px: number, py: number, x: number, y: number, width: number, height: number): number;
+    // @internal
+    fit(x: number, y: number, width: number, height: number): {
+        x: number;
+        y: number;
+        radius: number;
+    };
+    get gap(): number;
+    set gap(value: number);
+    get highlightedIndex(): number;
+    set highlightedIndex(value: number);
+    get innerRadius(): number;
+    set innerRadius(value: number);
+    get labels(): PieLabels;
+    set labels(value: PieLabels);
+    // @internal
+    liftOf(index: number): number;
+    onPalette(palette: readonly Rgba8[]): void;
+    prepare(_device: RenderDevice, frame: SeriesFrame): void;
+    setValues(values: readonly number[], names?: readonly string[]): void;
+    sliceName(index: number): string;
+    sliceShare(index: number): number;
+    sliceValue(index: number): number;
+    get version(): number;
+}
+
+// @public
+export interface PieSlices {
+    readonly names: readonly string[];
+    readonly start: readonly number[];
+    readonly sweep: readonly number[];
+    readonly total: number;
+    readonly values: readonly number[];
+}
+
+// @public
 export class PixelLine {
     addColumns(frame: SeriesFrame): void;
     addPoint(x: number, y: number): void;

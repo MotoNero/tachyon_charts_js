@@ -526,7 +526,7 @@ export class TachyonChartElement extends HTMLElement {
     this.applyInteraction();
   }
 
-  // The modifiers of the example and the .NET showroom, unless interactive="false".
+  // The modifiers of the description, or those of the example and the .NET showroom, unless interactive="false".
   private applyInteraction(): void {
     this.modifiers.clear();
     const surface = this.chartSurface;
@@ -538,13 +538,18 @@ export class TachyonChartElement extends HTMLElement {
     if (this.getAttribute('interactive') === 'false') {
       return;
     }
+    // A description with modifiers of its own takes exactly those, as in the .NET version; otherwise the usual ones.
+    if (this.ownModifiers.length > 0) {
+      for (const modifier of this.ownModifiers) {
+        this.modifiers.add(modifier);
+      }
+      return;
+    }
     const tooltip = new TooltipModifier();
     tooltip.onChanged = (data: TooltipData | undefined) => {
       this.dispatchEvent(new CustomEvent('tachyon-tooltip', { detail: data }));
     };
-    // The modifiers of the description come first: an instrument takes the wheel and the pointer before zooming.
     for (const modifier of [
-      ...this.ownModifiers,
       new ZoomPanModifier(),
       new RubberBandZoomModifier(),
       new AxisDragModifier(),

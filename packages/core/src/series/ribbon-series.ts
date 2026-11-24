@@ -86,7 +86,7 @@ export class Mesh {
   }
 }
 
-interface Corner {
+export interface Corner {
   x: number;
   y: number;
   color: Rgba8;
@@ -95,8 +95,8 @@ interface Corner {
 const fringeWidth = 1;
 const straight = 0.01;
 
-/** A soft band of one pixel along the outside of a slanted edge, from the color of the edge to nothing. */
-function addFringe(mesh: Mesh, a: Corner, b: Corner, insideX: number, insideY: number): void {
+/** @internal A soft band of one pixel along the outside of a slanted edge, from the color of the edge to nothing. */
+export function addFringe(mesh: Mesh, a: Corner, b: Corner, insideX: number, insideY: number): void {
   const alongX = f(b.x - a.x);
   const alongY = f(b.y - a.y);
   if (Math.abs(alongX) < straight || Math.abs(alongY) < straight) {

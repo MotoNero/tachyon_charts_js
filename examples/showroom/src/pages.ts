@@ -12,6 +12,7 @@ import {
   NetworkDisplay,
   NetworkMarkerModifier,
   oscilloscope,
+  pie,
   ParallelAxesModifier,
   ParallelAxesOverlay,
   ParallelCoordinatesSeries,
@@ -28,6 +29,7 @@ import {
   SmithSeries,
   TernaryGridOverlay,
   TernarySeries,
+  ZoomPanModifier,
   HeatmapData,
   HeatmapSeries,
   SpectrogramData,
@@ -215,6 +217,9 @@ async function writeSampleCsv(progress: (share: number) => void): Promise<void> 
   await stream.close();
 }
 
+const pieValues = [32, 18, 15, 14, 9, 6, 3, 1.5, 1, 0.5];
+const pieNames = ['Wind', 'Solar', 'Gas', 'Coal', 'Biomass', 'Hydro', 'Nuclear', 'Oil', 'Other', 'Geothermal'];
+
 // An oscilloscope with free-running signals at 30 records per second; only the trigger makes the picture stand
 // still, as the interactive oscilloscope of the .NET showroom.
 function scopeSignal(kind: number, time: number): number {
@@ -355,6 +360,7 @@ function networkPage(): Page {
       display.addMarker(1.7e9);
       networkAnalyzer(c, display, 1e9, 2e9, -70, 5)
         .theme(instrument)
+        .addModifier(() => new ZoomPanModifier())
         .addModifier(() => new NetworkMarkerModifier(display));
     },
   };
@@ -1234,6 +1240,28 @@ export const pages: readonly Page[] = [
             ]),
         )
         .addModifier(() => new ParallelAxesModifier());
+    },
+  },
+  {
+    id: 'pie',
+    name: 'Pie',
+    group: 'Business',
+    hint: 'Pointer: name, value and share | Click: pull a slice out, again: back',
+    configure: (c) => {
+      pie(c.title(t('Power mix')), pieValues, pieNames, (series) => {
+        series.explodedIndex = 1;
+      });
+    },
+  },
+  {
+    id: 'donut',
+    name: 'Donut',
+    group: 'Business',
+    hint: 'Pointer: name, value and share | Click: pull a slice out, again: back',
+    configure: (c) => {
+      pie(c.title(t('Power mix')), pieValues, pieNames, (series) => {
+        series.innerRadius = 0.55;
+      });
     },
   },
   oscilloscopePage(),
