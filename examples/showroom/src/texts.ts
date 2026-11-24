@@ -64,6 +64,13 @@ const german: Readonly<Record<string, string>> = {
   'Power mix': 'Strommix',
   Candles: 'Kerzen',
   'Market profile': 'Marktprofil',
+  'Scale break': 'Achsenbruch',
+  'A peak and the small values beside it': 'Eine Spitze und die kleinen Werte daneben',
+  Counts: 'Zählungen',
+  'Candles without weekends': 'Kerzen ohne Wochenenden',
+  'Working days only, the weekends take no room': 'Nur Arbeitstage, die Wochenenden nehmen keinen Platz',
+  'Wheel: zoom | Drag: pan across the break | Pointer: values | Double click: all':
+    'Rad: Zoom | Ziehen: über den Bruch verschieben | Zeiger: Werte | Doppelklick: alles',
   'Volume per price level of the visible days': 'Volumen je Kursstufe der sichtbaren Tage',
   'Wheel: zoom | Drag: pan, the profile follows | Pointer on a bar: price and volume | Double click: all':
     'Rad: Zoom | Ziehen: verschieben, das Profil folgt | Zeiger auf einem Balken: Kurs und Volumen | Doppelklick: alles',

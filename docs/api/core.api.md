@@ -88,12 +88,14 @@ export abstract class Axis {
 export class AxisBuilder {
     constructor(fallbackId: string);
     autoRange(): this;
+    breaks(...breaks: DoubleRange[]): this;
     category(categories: readonly string[], id?: string): this;
     color(colormap?: string, id?: string): this;
     crossesAt(value: number): this;
     dateTime(id?: string): this;
     get definition(): AxisDefinition;
     floor(floor: number): this;
+    gaps(gaps: TimeGapMap): this;
     hidden(): this;
     inverted(): this;
     labelRotation(degrees: number): this;
@@ -108,9 +110,11 @@ export class AxisBuilder {
 
 // @public
 export interface AxisDefinition {
+    readonly breaks?: readonly DoubleRange[];
     readonly categories: readonly string[];
     readonly colormap?: string;
     readonly crossesAt?: number;
+    readonly gaps?: TimeGapMap;
     readonly id: string;
     readonly isAutoRange: boolean;
     readonly isHidden: boolean;
@@ -863,9 +867,12 @@ export class DateTimeAxis extends Axis {
     set culture(value: Culture | undefined);
     fitToTime(first: bigint | number, last: bigint | number, padding?: number): void;
     formatCursorValue(value: number): string;
+    get gaps(): TimeGapMap | undefined;
+    set gaps(value: TimeGapMap | undefined);
     generateTicks(length: number, measurer: TextMeasurer): TickSet;
     get origin(): bigint;
     readonly resolution: TimeResolution;
+    get scaling(): AxisScaling | undefined;
     setVisibleTime(start: bigint | number, end: bigint | number): void;
     timeAt(value: number): bigint;
     get timeZone(): string;
@@ -875,7 +882,7 @@ export class DateTimeAxis extends Axis {
 
 // @public
 export class DateTimeAxisTransform {
-    constructor(first: bigint, last: bigint, pixelStart: number, pixelEnd: number);
+    constructor(first: bigint, last: bigint, pixelStart: number, pixelEnd: number, gaps?: TimeGapMap | undefined);
     toPixel(time: bigint): number;
     toTime(pixel: number): bigint;
 }
@@ -1553,9 +1560,12 @@ export type NumberArray = Float64Array | Float32Array | Int32Array | Uint32Array
 // @public
 export class NumericAxis extends Axis {
     constructor(id: string, position: AxisPosition);
+    get breaks(): readonly DoubleRange[];
+    set breaks(value: readonly DoubleRange[]);
     formatCursorValue(value: number): string;
     generateTicks(length: number, measurer: TextMeasurer): TickSet;
     labelFormat: NumericLabelFormat;
+    get scaling(): AxisScaling | undefined;
 }
 
 // @public
@@ -2819,6 +2829,17 @@ export interface TickSet {
     readonly major: readonly AxisTick[];
     readonly minor: readonly number[];
     readonly step: number;
+}
+
+// @public
+export class TimeGapMap {
+    constructor(gaps: Iterable<readonly [bigint, bigint]>);
+    compress(time: bigint): bigint;
+    get count(): number;
+    expand(position: bigint): bigint;
+    isHidden(time: bigint): boolean;
+    startOf(index: number): bigint;
+    static weekends(from: number, to: number, timeZone?: string, unitsPerMillisecond?: bigint): TimeGapMap;
 }
 
 // @public

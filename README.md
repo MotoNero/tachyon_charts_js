@@ -403,6 +403,22 @@ candles(builder, data, undefined, 'price');
 volumeProfile(builder, data, (profile) => (profile.levels = 40), 'price');
 ```
 
+## Axis breaks and time gaps
+
+![A peak near 1000 and small values below 45 on one axis with a break between them](docs/images/scale-break.png)
+
+A numeric axis leaves out ranges with `breaks`: a break keeps one hundredth of its length for its mark, the values
+after it move up, and no tick lies inside it. A time axis leaves out intervals such as nights or weekends with
+`gaps` and a `TimeGapMap`; `TimeGapMap.weekends` builds the weekends of a time zone. Breaks and gaps are marked on the
+axis and across the plot; zooming, panning and the values under the pointer go across them.
+
+```ts
+import { DoubleRange, TimeGapMap } from '@tachyon-charts/core';
+
+builder.yAxis((a) => a.numeric('y').range(0, 1010).breaks(new DoubleRange(45, 960)));
+builder.xAxis((a) => a.dateTime('time').autoRange().gaps(TimeGapMap.weekends(first, last, 'Europe/Berlin')));
+```
+
 ## Rasters and colormaps
 
 ![A field of 400 x 300 cells with two peaks and a valley in the colormap Inferno](docs/images/raster.png)

@@ -6,6 +6,7 @@ import { resolveTheme, toSurfaceStyle, type ThemeDocument } from '../themes/them
 import type { HitResult, HitTestMode } from '../hit-testing/hit-test';
 import type { Point } from '../input/primitives';
 import { OverlayCanvas, type ChartOverlay } from '../overlays/chart-overlay';
+import { drawAxisBreaks, hasAxisBreaks } from '../overlays/axis-break-marks';
 import { drawContourLabels, hasContourLabels } from '../overlays/contour-labels';
 import { chartText } from '../locale/culture';
 import {
@@ -457,8 +458,12 @@ export class ChartSurface {
 
   private drawOverlays(frame: CommandList, target: RenderTarget): boolean {
     const layout = this.layout;
+    if (!layout) {
+      return false;
+    }
+    const hasBreaks = hasAxisBreaks(layout);
     const hasLabels = hasContourLabels(this.seriesList);
-    if ((this.overlayList.length === 0 && !hasLabels) || !layout) {
+    if (this.overlayList.length === 0 && !hasLabels && !hasBreaks) {
       return false;
     }
     const background = this.surfaceStyle.backgroundColor;
@@ -477,6 +482,9 @@ export class ChartSurface {
       },
       this.labelSize,
     );
+    if (hasBreaks) {
+      drawAxisBreaks(this.canvas, layout);
+    }
     if (hasLabels) {
       drawContourLabels(this.canvas, layout, this.seriesList);
     }

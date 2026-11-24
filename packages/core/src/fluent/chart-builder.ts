@@ -3,6 +3,7 @@
 import type { Axis, AxisPosition } from '../axes/axis';
 import { CategoryAxis } from '../axes/category-axis';
 import { ColorAxis } from '../axes/color-axis';
+import type { TimeGapMap } from '../axes/time-gaps';
 import { DateTimeAxis } from '../axes/date-time-axis';
 import { LogAxis, type NonPositiveValues } from '../axes/log-axis';
 import { NumericAxis } from '../axes/numeric-axis';
@@ -62,6 +63,10 @@ export interface AxisDefinition {
   readonly logFloor?: number;
   /** The name of the built-in colormap of a color axis. */
   readonly colormap?: string;
+  /** The ranges a numeric axis leaves out. */
+  readonly breaks?: readonly DoubleRange[];
+  /** The intervals a time axis leaves out. */
+  readonly gaps?: TimeGapMap;
 }
 
 /** What all descriptions of series share. */
@@ -211,9 +216,12 @@ function createAxis(definition: AxisDefinition, fallback: AxisPosition): Axis {
   const position = definition.position ?? fallback;
   let axis: Axis;
   switch (definition.kind) {
-    case 'dateTime':
-      axis = new DateTimeAxis(definition.id, position);
+    case 'dateTime': {
+      const time = new DateTimeAxis(definition.id, position);
+      time.gaps = definition.gaps;
+      axis = time;
       break;
+    }
     case 'category':
       axis = new CategoryAxis(definition.id, position, definition.categories);
       break;
@@ -234,9 +242,12 @@ function createAxis(definition: AxisDefinition, fallback: AxisPosition): Axis {
       axis = log;
       break;
     }
-    default:
-      axis = new NumericAxis(definition.id, position);
+    default: {
+      const numeric = new NumericAxis(definition.id, position);
+      numeric.breaks = definition.breaks ?? [];
+      axis = numeric;
       break;
+    }
   }
   axis.title = definition.title;
   axis.limits = definition.limits;
@@ -382,6 +393,16 @@ export class AxisBuilder {
   /** The axis takes no room and draws nothing; its range still maps the series. */
   hidden(): this {
     return this.change({ isHidden: true });
+  }
+
+  /** Leaves ranges out of a numeric axis, marked on the axis. */
+  breaks(...breaks: DoubleRange[]): this {
+    return this.change({ breaks });
+  }
+
+  /** Leaves intervals out of a time axis, such as weekends. */
+  gaps(gaps: TimeGapMap): this {
+    return this.change({ gaps });
   }
 
   /** Turns the labels of a category axis, up to 90 degrees either way. */

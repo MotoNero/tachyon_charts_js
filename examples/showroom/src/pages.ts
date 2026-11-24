@@ -47,6 +47,8 @@ import {
   DoubleRange,
   RasterSeries,
   DataSource,
+  TimeGapMap,
+  TooltipModifier,
   DigitalSeries,
   DigitalTransitions,
   FifoDataSource,
@@ -272,6 +274,45 @@ function candlesPage(): Page {
           clearInterval(timer);
         },
       };
+    },
+  };
+}
+
+// 60 working days in candles on a time axis without the weekends, as the candles without weekends page of the .NET
+// showroom.
+function candlesWithoutWeekendsPage(): Page {
+  const day = 86_400_000;
+  const data = new CandleData(60);
+  let price = 100;
+  for (let i = 0; data.count < 60; i++) {
+    const open = price;
+    let high = open;
+    let low = open;
+    for (let step = 0; step < 8; step++) {
+      price *= 1 + (Math.random() - 0.5) * 0.012;
+      high = Math.max(high, price);
+      low = Math.min(low, price);
+    }
+    const time = Date.UTC(2024, 0, 2) + day * i;
+    const weekday = new Date(time).getUTCDay();
+    if (weekday !== 0 && weekday !== 6) {
+      const traded = Math.round(5000 + Math.random() * 20000 * (1 + (Math.abs(price - open) / open) * 50));
+      data.append(time, open, high, low, price, traded);
+    }
+  }
+  const gaps = TimeGapMap.weekends(data.at(0).time, data.at(data.count - 1).time);
+  return {
+    id: 'candles-without-weekends',
+    name: 'Candles without weekends',
+    group: 'Business',
+    hint: 'Wheel: zoom | Drag: pan across the break | Pointer: values | Double click: all',
+    configure: (c) => {
+      c.title(t('Working days only, the weekends take no room'))
+        .xAxis((a) => a.dateTime('time').autoRange().gaps(gaps))
+        .yAxis((a) => a.numeric('price').title(t('Price')).autoRange());
+      candles(c, data, undefined, 'price')
+        .addModifier(() => new ZoomPanModifier())
+        .addModifier(() => new CrosshairModifier());
     },
   };
 }
@@ -1364,11 +1405,35 @@ export const pages: readonly Page[] = [
   },
   candlesPage(),
   marketProfilePage(),
+  candlesWithoutWeekendsPage(),
   oscilloscopePage(),
   spectrumPage(),
   networkPage(),
   monitorPage('sweep'),
   monitorPage('stepping'),
+  {
+    id: 'scale-break',
+    name: 'Scale break',
+    group: 'Axes',
+    hint: 'Wheel: zoom | Drag: pan across the break | Pointer: values | Double click: all',
+    configure: (c) => {
+      const data = new DataSource(2000);
+      for (let i = 0; i < 2000; i++) {
+        const x = i / 100;
+        data.append(
+          x,
+          20 + 10 * Math.sin(x * 3) + 5 * Math.sin(x * 11) + 960 * Math.exp(-((x - 12) * (x - 12)) / 0.02),
+        );
+      }
+      c.title(t('A peak and the small values beside it'))
+        .xAxis((a) => a.numeric('x').title(t('Time in s')).range(0, 20))
+        .yAxis((a) => a.numeric('y').title(t('Counts')).range(0, 1010).breaks(new DoubleRange(45, 960)))
+        .addLine(data, (line) => line.name(t('Counts')).thickness(1.5))
+        .addModifier(() => new ZoomPanModifier())
+        .addModifier(() => new CrosshairModifier())
+        .addModifier(() => new TooltipModifier());
+    },
+  },
   {
     id: 'logarithmic-axis',
     name: 'Logarithmic axis',

@@ -2,7 +2,9 @@
 import { chartText, type Culture } from '../locale/culture';
 import { TimeZone, wallTime } from '../locale/time-zone';
 import { DoubleRange } from '../numerics/range';
+import type { AxisScaling } from '../numerics/scaling';
 import { Axis, emptyTicks, type AxisPosition, type AxisTick, type TextMeasurer, type TickSet } from './axis';
+import { TimeGapScaling, type TimeGapMap } from './time-gaps';
 
 /** What one unit of a time value means; all count from 1970-01-01 UTC. */
 export type TimeResolution = 'milliseconds' | 'ticks' | 'nanoseconds';
@@ -80,25 +82,31 @@ function pad(value: number, digits: number): string {
 /** The mapping of times to pixels. */
 export class DateTimeAxisTransform {
   private readonly pixelsPerUnit: number;
+  private readonly scaleStart: bigint;
 
   constructor(
-    private readonly first: bigint,
+    first: bigint,
     last: bigint,
     private readonly pixelStart: number,
     pixelEnd: number,
+    private readonly gaps?: TimeGapMap,
   ) {
-    this.pixelsPerUnit = last > first ? (pixelEnd - pixelStart) / Number(last - first) : 0;
+    this.scaleStart = gaps ? gaps.compress(first) : first;
+    const scaleEnd = gaps ? gaps.compress(last) : last;
+    this.pixelsPerUnit = scaleEnd > this.scaleStart ? (pixelEnd - pixelStart) / Number(scaleEnd - this.scaleStart) : 0;
   }
 
-  /** A time as a pixel position. */
+  /** A time as a pixel position; the gaps take no room. */
   toPixel(time: bigint): number {
-    return this.pixelStart + Number(time - this.first) * this.pixelsPerUnit;
+    const position = this.gaps ? this.gaps.compress(time) : time;
+    return this.pixelStart + Number(position - this.scaleStart) * this.pixelsPerUnit;
   }
 
   /** A pixel position as the nearest time. */
   toTime(pixel: number): bigint {
     const units = this.pixelsPerUnit === 0 ? 0 : Math.round((pixel - this.pixelStart) / this.pixelsPerUnit);
-    return this.first + BigInt(units);
+    const position = this.scaleStart + BigInt(units);
+    return this.gaps ? this.gaps.expand(position) : position;
   }
 }
 
@@ -109,6 +117,8 @@ export class DateTimeAxisTransform {
  */
 export class DateTimeAxis extends Axis {
   private originTime = 0n;
+  private gapMap: TimeGapMap | undefined;
+  private gapScaling: TimeGapScaling | undefined;
   private zone = TimeZone.utc;
   private ownCulture: Culture | undefined;
   private readonly perUnit: number;
@@ -134,6 +144,30 @@ export class DateTimeAxis extends Axis {
   /** The time the range of the base class counts from. */
   get origin(): bigint {
     return this.originTime;
+  }
+
+  /** The intervals the axis leaves out, such as weekends; they take no room, and zooming, panning and the pointer go across them. */
+  get gaps(): TimeGapMap | undefined {
+    return this.gapMap;
+  }
+
+  set gaps(value: TimeGapMap | undefined) {
+    this.gapMap = value;
+    this.gapScaling = undefined;
+    this.changed();
+  }
+
+  /** {@inheritDoc Axis.scaling} */
+  override get scaling(): AxisScaling | undefined {
+    const gaps = this.gapMap;
+    if (!gaps) {
+      return undefined;
+    }
+    // The scale counts from the origin like the values of the axis, so it follows a new origin.
+    if (this.gapScaling?.origin !== this.originTime || this.gapScaling.gaps !== gaps) {
+      this.gapScaling = new TimeGapScaling(gaps, this.originTime);
+    }
+    return this.gapScaling;
   }
 
   /** The zone of labels and calendar boundaries, a name of the IANA database such as `Europe/Berlin`. */
@@ -221,7 +255,13 @@ export class DateTimeAxis extends Axis {
     }
     const [first, last] = this.visibleTime();
     const forward = this.isHorizontal !== this.isInverted;
-    return new DateTimeAxisTransform(first, last, forward ? start : start + length, forward ? start + length : start);
+    return new DateTimeAxisTransform(
+      first,
+      last,
+      forward ? start : start + length,
+      forward ? start + length : start,
+      this.gapMap,
+    );
   }
 
   /** {@inheritDoc Axis.generateTicks} */
@@ -237,7 +277,8 @@ export class DateTimeAxis extends Axis {
       return this.singleTick(first);
     }
     const transform = this.createTimeTransform(0, length);
-    const target = (Number(last - first) * this.perUnit) / Math.max(length / targetSpacing, 1);
+    const visible = this.gapMap ? this.gapMap.compress(last) - this.gapMap.compress(first) : last - first;
+    const target = (Number(visible) * this.perUnit) / Math.max(length / targetSpacing, 1);
     for (const step of steps) {
       if (step.nanoseconds < target || (step.kind === 'fixed' && step.nanoseconds < this.perUnit)) {
         continue;
@@ -314,7 +355,9 @@ export class DateTimeAxis extends Axis {
     }
     const times: bigint[] = [];
     for (; time <= last; time += stepUnits) {
-      times.push(time);
+      if (this.gapMap?.isHidden(time) !== true) {
+        times.push(time);
+      }
     }
     return times;
   }
@@ -327,7 +370,7 @@ export class DateTimeAxis extends Axis {
       // A wall time skipped by a clock change has no tick. Midnight still gets one at the first valid time.
       if (step.kind !== 'hours' || !this.zone.isInvalid(wall)) {
         const time = BigInt(this.zone.toUtc(wall)) * this.unitsPerMillisecond;
-        if (time >= first && time <= last) {
+        if (time >= first && time <= last && this.gapMap?.isHidden(time) !== true) {
           times.push(time);
         }
       }

@@ -1,8 +1,10 @@
 // A linear axis with ticks on round numbers (NumericAxis and NumericLabelFormat of the .NET version).
 import { chartText, type Culture } from '../locale/culture';
 import { formatFixed, formatScientific } from '../locale/format';
+import { BreakScaling } from '../numerics/break-scaling';
 import { niceStep, power, roundHalfEven } from '../numerics/nice';
 import type { DoubleRange } from '../numerics/range';
+import type { AxisScaling } from '../numerics/scaling';
 import { Axis, emptyTicks, type AxisPosition, type AxisTick, type TextMeasurer, type TickSet } from './axis';
 
 const scientificExponent = 15;
@@ -68,6 +70,7 @@ const maximumCoarsening = 64;
 export class NumericAxis extends Axis {
   /** How labels are written. */
   labelFormat: NumericLabelFormat = {};
+  private breakScaling: BreakScaling | undefined;
 
   // Makes the protected constructor of the base public.
   // eslint-disable-next-line @typescript-eslint/no-useless-constructor
@@ -93,6 +96,24 @@ export class NumericAxis extends Axis {
     return formatTicks(format, [value], span / 1000)[0] ?? '';
   }
 
+  /**
+   * The ranges the axis leaves out, for example to show a peak and the small values below it. The breaks take almost
+   * no room and are marked on the axis; zooming, panning and the values under the pointer go across them.
+   */
+  get breaks(): readonly DoubleRange[] {
+    return this.breakScaling?.breaks ?? [];
+  }
+
+  set breaks(value: readonly DoubleRange[]) {
+    this.breakScaling = value.length === 0 ? undefined : new BreakScaling(value);
+    this.changed();
+  }
+
+  /** {@inheritDoc Axis.scaling} */
+  override get scaling(): AxisScaling | undefined {
+    return this.breakScaling;
+  }
+
   /** {@inheritDoc Axis.generateTicks} */
   generateTicks(length: number, measurer: TextMeasurer): TickSet {
     if (!Number.isFinite(length) || length < 0) {
@@ -105,22 +126,35 @@ export class NumericAxis extends Axis {
     if (range.length === 0) {
       return this.singleTick(range.min);
     }
-    const span = range.length;
+    // With breaks, the visible length leaves out the breaks, and no tick lies inside one.
+    const breaks = this.breakScaling;
+    const span = breaks ? breaks.forward(range.max) - breaks.forward(range.min) : range.length;
+    if (!(span > 0)) {
+      return this.singleTick(range.min);
+    }
     const intervals = Math.max(Math.trunc(length / Math.max(minimumTickSpacing, measurer.lineHeight + labelGap)), 1);
     let step = niceStep(span, intervals);
     for (let attempt = 0; attempt < maximumCoarsening; attempt++) {
-      const values = createTicks(range, step);
+      const values = this.outsideBreaks(createTicks(range, step));
       if (values.length === 0) {
         return this.singleTick(range.center);
       }
       const labels = formatTicks(this.labelFormat, values, step);
       if (this.fits(labels, step, length / span, measurer)) {
         const major: AxisTick[] = values.map((value, i) => ({ value, label: labels[i] ?? '' }));
-        return { major, minor: createMinorTicks(range, step, length), step };
+        return { major, minor: this.outsideBreaks(createMinorTicks(range, step, length)), step };
       }
       step = nextStep(step);
     }
     return this.singleTick(range.center);
+  }
+
+  private outsideBreaks(values: number[]): number[] {
+    const ranges = this.breakScaling?.breaks;
+    if (!ranges) {
+      return values;
+    }
+    return values.filter((value) => !ranges.some((range) => value > range.min && value < range.max));
   }
 
   private fits(labels: string[], step: number, unitsPerData: number, measurer: TextMeasurer): boolean {
