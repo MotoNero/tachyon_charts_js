@@ -90,7 +90,7 @@ import {
   type Axis,
   type ChartSurface,
 } from '@tachyon-charts/core';
-import { Line3D, Points3D, Scatter3D, scene3D, Surface3D } from '@tachyon-charts/3d';
+import { Bars3D, Bubbles3D, evenContours, Line3D, Points3D, Scatter3D, scene3D, Surface3D } from '@tachyon-charts/3d';
 import {
   BitColumn,
   BitFileWriter,
@@ -608,6 +608,97 @@ function pages3D(): Page[] {
             .yAxis(-1, 1, 'y')
             .zAxis(-1, 1, 'z')
             .addScatter(new Scatter3D(points)),
+        );
+      },
+    },
+    {
+      id: 'height-lines',
+      name: 'Height lines',
+      group: '3D',
+      hint: hint3D,
+      configure: (c) => {
+        scene3D(c, (s) =>
+          s
+            .title(t('Surface'))
+            .xAxis(0, 6, 'x')
+            .yAxis(0, 6, 'y')
+            .zAxis(-1.5, 2, 'z')
+            .addSurface(
+              new Surface3D(field3D(512), new DoubleRange(0, 6), new DoubleRange(0, 6), {
+                contours: { ...evenContours(new DoubleRange(-1.5, 2), 13), onWalls: true },
+              }),
+            ),
+        );
+      },
+    },
+    {
+      id: 'columns-3d',
+      name: 'Columns',
+      group: '3D',
+      hint: hint3D,
+      configure: (c) => {
+        const side = 16;
+        const values = new Float32Array(side * side);
+        for (let row = 0; row < side; row++) {
+          for (let column = 0; column < side; column++) {
+            const x = (column + 0.5) / side;
+            const y = (row + 0.5) / side;
+            values[row * side + column] =
+              0.15 +
+              0.85 * Math.exp(-14 * ((x - 0.35) * (x - 0.35) + (y - 0.6) * (y - 0.6))) +
+              0.35 * Math.exp(-30 * ((x - 0.8) * (x - 0.8) + (y - 0.25) * (y - 0.25)));
+          }
+        }
+        const data = new HeatmapData(side, side);
+        data.setValues(values);
+        scene3D(c, (s) =>
+          s
+            .title(t('Columns over a raster'))
+            .xAxis(0, 16, 'x')
+            .yAxis(0, 16, 'y')
+            .zAxis(0, 1.2, t('Value'))
+            .addBars(new Bars3D(data, new DoubleRange(0, 16), new DoubleRange(0, 16), { material: { gloss: 0.4 } })),
+        );
+      },
+    },
+    {
+      id: 'bubbles-3d',
+      name: 'Bubbles',
+      group: '3D',
+      hint: hint3D,
+      configure: (c) => {
+        const fields = [
+          { r: 255, g: 190, b: 11, a: 255 },
+          { r: 58, g: 134, b: 255, a: 255 },
+          { r: 6, g: 214, b: 160, a: 255 },
+        ];
+        const middles = [
+          [2.5, 3, 4],
+          [7, 6.5, 6],
+          [4.5, 7.5, 2.5],
+        ];
+        const gauss = (): number => Math.sqrt(-2 * Math.log(1 - Math.random())) * Math.cos(2 * Math.PI * Math.random());
+        const x: number[] = [];
+        const y: number[] = [];
+        const z: number[] = [];
+        const yields: number[] = [];
+        const colors: Rgba8[] = [];
+        for (let i = 0; i < 180; i++) {
+          const field = Math.trunc(i / 60);
+          const middle = middles[field] as number[];
+          x.push((middle[0] as number) + gauss() * 1.3);
+          y.push((middle[1] as number) + gauss() * 1.1);
+          z.push((middle[2] as number) + gauss() * 0.9);
+          yields.push(20 + 380 * Math.pow(Math.random(), 3));
+          colors.push(fields[field] as Rgba8);
+        }
+        scene3D(c, (s) =>
+          s
+            .title(t('Wells, volume by yield in m³ per day'))
+            .xAxis(0, 10, t('East in km'))
+            .yAxis(0, 10, t('North in km'))
+            .zAxis(0, 8, t('Depth in 100 m'))
+            .addBubbles(new Bubbles3D(x, y, z, Bubbles3D.scaleToVolume(yields, 0.15, 0.9), { colors, values: yields })),
         );
       },
     },

@@ -2,6 +2,8 @@
 // part by part; a scene without them shows the axis box.
 import { DoubleRange, NumericAxis, type Axis } from '@tachyon-charts/core';
 import { Camera3D } from './camera';
+import type { Bars3D } from './bars';
+import type { Bubbles3D } from './bubbles';
 import type { Line3D, Scatter3D } from './points';
 import type { Surface3D } from './surface';
 
@@ -33,6 +35,8 @@ export class Scene3D {
   private readonly surfaceList: Surface3D[] = [];
   private readonly lineList: Line3D[] = [];
   private readonly scatterList: Scatter3D[] = [];
+  private readonly barList: Bars3D[] = [];
+  private readonly bubbleList: Bubbles3D[] = [];
   private axesShown = true;
   private changes = 0;
 
@@ -65,6 +69,28 @@ export class Scene3D {
   /** The scatters. */
   get scatters(): readonly Scatter3D[] {
     return this.scatterList;
+  }
+
+  /** The columns. */
+  get bars(): readonly Bars3D[] {
+    return this.barList;
+  }
+
+  /** The bubbles. */
+  get bubbles(): readonly Bubbles3D[] {
+    return this.bubbleList;
+  }
+
+  /** Adds bubbles. */
+  addBubbles(bubbles: Bubbles3D): void {
+    this.bubbleList.push(bubbles);
+    this.addElement(bubbles);
+  }
+
+  /** Adds columns. */
+  addBars(bars: Bars3D): void {
+    this.barList.push(bars);
+    this.addElement(bars);
   }
 
   /** Adds a line. */

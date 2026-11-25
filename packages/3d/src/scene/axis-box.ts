@@ -4,6 +4,16 @@ import type { Axis, AxisTick, TextMeasurer } from '@tachyon-charts/core';
 import type { Matrix3D } from './matrix';
 import { Point3D } from './matrix';
 
+/** The three axes of a scene. */
+export interface SceneAxes {
+  /** The axis from left to right. */
+  readonly xAxis: Axis;
+  /** The axis from front to back. */
+  readonly yAxis: Axis;
+  /** The upward axis. */
+  readonly zAxis: Axis;
+}
+
 /** @internal The side of the box each wall lies on: -1 or 1 for X, Y and Z. */
 export interface BoxWalls {
   readonly x: number;

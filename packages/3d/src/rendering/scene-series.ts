@@ -16,6 +16,9 @@ import {
 import { createWebGpuDevice, WebGpuDevice } from '@tachyon-charts/render-webgpu';
 import { addBoxLines, selectWalls, tickPlaces, toBox } from '../scene/axis-box';
 import { BoxMap, toSizeCode, type Line3D, type Scatter3D } from '../scene/points';
+import { barStride, type Bars3D } from '../scene/bars';
+import type { Bubbles3D } from '../scene/bubbles';
+import { bubbleStride } from './bubbles';
 import type { Scene3D } from '../scene/scene';
 import { fullMaterial, type Surface3D } from '../scene/surface';
 import { LineVertices, Renderer3D } from './renderer';
@@ -47,6 +50,8 @@ export class Scene3DSeries extends ChartSeries {
   private copies = 0;
   private readonly matrix = new Float32Array(16);
   private readonly surfaceVersions = new Map<Surface3D, number>();
+  private readonly barVersions = new Map<Bars3D, number>();
+  private readonly bubbleKeys = new Map<Bubbles3D, string>();
   private heights = new Float32Array(0);
   private ranges = '';
   private palette: readonly Rgba8[] = [];
@@ -181,6 +186,13 @@ export class Scene3DSeries extends ChartSeries {
     for (const surface of this.scene.surfaces) {
       this.updateSurface(surface);
     }
+    for (const bars of this.scene.bars) {
+      this.updateBars(bars);
+    }
+    const boxMap = new BoxMap(this.scene.xAxis, this.scene.yAxis, this.scene.zAxis);
+    for (const bubbles of this.scene.bubbles) {
+      this.uploadBubbles(bubbles, boxMap);
+    }
     const map = new BoxMap(this.scene.xAxis, this.scene.yAxis, this.scene.zAxis);
     const renderer = this.renderer as Renderer3D;
     for (const line of this.scene.lines) {
@@ -209,7 +221,7 @@ export class Scene3DSeries extends ChartSeries {
 
   // The color an element draws with: its own, or the color of the palette its place among the elements without one
   // gives.
-  private colorOf(element: Line3D | Scatter3D, hasOwn: boolean, own: Rgba8): Rgba8 {
+  private colorOf(element: Line3D | Scatter3D | Bubbles3D, hasOwn: boolean, own: Rgba8): Rgba8 {
     if (hasOwn || this.palette.length === 0) {
       return own;
     }
@@ -217,7 +229,7 @@ export class Scene3DSeries extends ChartSeries {
     if (stamp !== this.themeColorsStamp) {
       this.themeColors = new Map();
       let next = 0;
-      for (const item of [...this.scene.lines, ...this.scene.scatters]) {
+      for (const item of [...this.scene.lines, ...this.scene.scatters, ...this.scene.bubbles]) {
         if (!item.hasOwnColor) {
           this.themeColors.set(item, this.palette[next++ % this.palette.length] as Rgba8);
         }
@@ -236,7 +248,53 @@ export class Scene3DSeries extends ChartSeries {
     if (ranges !== this.ranges) {
       this.ranges = ranges;
       this.surfaceVersions.clear();
+      this.barVersions.clear();
+      this.bubbleKeys.clear();
     }
+  }
+
+  private uploadBubbles(bubbles: Bubbles3D, map: BoxMap): void {
+    const renderer = this.renderer as Renderer3D;
+    const color = this.colorOf(bubbles, bubbles.hasOwnColor, bubbles.color);
+    const key = colorKey(color);
+    if (this.bubbleKeys.get(bubbles) === key && renderer.holdsBubbles(bubbles)) {
+      return;
+    }
+    this.bubbleKeys.set(bubbles, key);
+    const range = this.scene.xAxis.visibleRange;
+    const span = range.max - range.min;
+    const isScreen = bubbles.sizeUnit === 'screen';
+    const instances = new ArrayBuffer(bubbles.count * bubbleStride);
+    const floats = new Float32Array(instances);
+    const bytes = new Uint8Array(instances);
+    let count = 0;
+    for (let i = 0; i < bubbles.count; i++) {
+      const at = (count * bubbleStride) / 4;
+      map.write(bubbles.x[i] as number, bubbles.y[i] as number, bubbles.z[i] as number, floats, at);
+      const diameter = bubbles.diameters[i] as number;
+      if ((floats[at] as number) > 1e29 || !Number.isFinite(diameter) || diameter <= 0) {
+        continue;
+      }
+      // A radius in the box spans half the diameter of 2 / span: the box is 2 wide.
+      floats[at + 3] = isScreen ? -diameter : diameter / span;
+      const own = bubbles.colors?.[i] ?? color;
+      bytes.set([own.r, own.g, own.b, own.a], (at + 4) * 4);
+      count++;
+    }
+    renderer.uploadBubbles(bubbles, instances, count, fullMaterial(bubbles.material));
+  }
+
+  private updateBars(bars: Bars3D): void {
+    const renderer = this.renderer as Renderer3D;
+    const version = bars.data.version;
+    if (this.barVersions.get(bars) === version && renderer.holdsBars(bars)) {
+      return;
+    }
+    this.barVersions.set(bars, version);
+    const count = bars.data.width * bars.data.height;
+    const instances = new ArrayBuffer(count * barStride);
+    bars.write(this.scene, instances);
+    renderer.updateBars(bars, instances, count, bars.cells(this.scene), fullMaterial(bars.material));
   }
 
   private updateSurface(surface: Surface3D): void {

@@ -89,6 +89,12 @@ const german: Readonly<Record<string, string>> = {
   'Path of a particle': 'Pfad eines Teilchens',
   'Scatter of 3,000 points': 'Punktwolke aus 3.000 Punkten',
   'Three clouds': 'Drei Wolken',
+  'Height lines': 'Höhenlinien',
+  Columns: 'Säulen',
+  'Columns over a raster': 'Säulen über einem Raster',
+  Bubbles: 'Blasen',
+  'Wells, volume by yield in m³ per day': 'Brunnen, Volumen nach Ertrag in m³ je Tag',
+  'Depth in 100 m': 'Tiefe in 100 m',
   'Drag: turn | Shift+drag: move | Wheel: zoom | Arrow keys: turn | Double click, Home: start':
     'Ziehen: drehen | Umschalt+Ziehen: verschieben | Rad: Zoom | Pfeiltasten: drehen | Doppelklick, Pos1: Anfang',
   'Last value at the axis': 'Letzter Wert an der Achse',

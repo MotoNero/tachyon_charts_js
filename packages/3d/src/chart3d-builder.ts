@@ -6,6 +6,8 @@ import { Orbit3DModifier } from './rendering/orbit-modifier';
 import { Scene3DSeries } from './rendering/scene-series';
 import type { CameraProjection } from './scene/camera';
 import { createBoxAxis, Scene3D } from './scene/scene';
+import type { Bars3D } from './scene/bars';
+import type { Bubbles3D } from './scene/bubbles';
 import type { Line3D, Scatter3D } from './scene/points';
 import type { Surface3D } from './scene/surface';
 
@@ -55,6 +57,18 @@ export class Chart3DBuilder {
   /** Adds a height field. */
   addSurface(surface: Surface3D): this {
     this.scene.addSurface(surface);
+    return this;
+  }
+
+  /** Adds bubbles. */
+  addBubbles(bubbles: Bubbles3D): this {
+    this.scene.addBubbles(bubbles);
+    return this;
+  }
+
+  /** Adds columns over the cells of a grid. */
+  addBars(bars: Bars3D): this {
+    this.scene.addBars(bars);
     return this;
   }
 

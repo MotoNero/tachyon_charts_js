@@ -8,6 +8,10 @@ import type { FullMaterial } from '../scene/surface';
 import type { Line3D, Scatter3D } from '../scene/points';
 import { SurfaceBuffers, type SurfacePipelines, type SurfaceShape } from './surfaces';
 import { createTracePipelines, TraceBuffer, type TracePipelines } from './traces';
+import { BarBuffer, createBarPipeline } from './bars';
+import { BubbleBuffer, createBubblePipeline } from './bubbles';
+import type { Bubbles3D } from '../scene/bubbles';
+import type { Bars3D, GridPlace } from '../scene/bars';
 
 const sampleCount = 4;
 const colorFormat: GPUTextureFormat = 'rgba8unorm';
@@ -78,6 +82,10 @@ export class Renderer3D {
   private readonly tracePipelines: TracePipelines;
   private readonly traces = new Map<Line3D, TraceBuffer>();
   private readonly spots = new Map<Scatter3D, TraceBuffer>();
+  private readonly barPipeline: GPURenderPipeline;
+  private readonly bars = new Map<Bars3D, BarBuffer>();
+  private readonly bubblePipeline: GPURenderPipeline;
+  private readonly bubbles = new Map<Bubbles3D, BubbleBuffer>();
   // No plane cuts the scene: each column keeps every point (0, 0, 0, 1).
   private readonly cuts = new Float32Array([0, 0, 0, 1, 0, 0, 0, 1, 0, 0, 0, 1, 0, 0, 0, 1]);
   private lines: GPUBuffer | undefined;
@@ -165,6 +173,8 @@ export class Renderer3D {
       }),
     };
     this.tracePipelines = createTracePipelines(gpu, colorFormat, depthFormat, sampleCount);
+    this.barPipeline = createBarPipeline(gpu, colorFormat, depthFormat, sampleCount);
+    this.bubblePipeline = createBubblePipeline(gpu, colorFormat, depthFormat, sampleCount);
     this.lineBindGroup = gpu.createBindGroup({
       layout: this.linePipeline.getBindGroupLayout(0),
       entries: [{ binding: 0, resource: { buffer: this.lineUniforms, size: lineUniformSize } }],
@@ -186,6 +196,39 @@ export class Renderer3D {
       this.surfaces.set(owner, buffers);
     }
     buffers.write(shape, heights);
+  }
+
+  /** Uploads the columns of an element, with a new buffer when their number changed. */
+  updateBars(bars: Bars3D, instances: ArrayBuffer, count: number, place: GridPlace, material: FullMaterial): void {
+    let buffer = this.bars.get(bars);
+    if (buffer?.count !== count) {
+      buffer?.dispose();
+      buffer = new BarBuffer(this.gpu, this.barPipeline, material, count);
+      this.bars.set(bars, buffer);
+    }
+    buffer.place = place;
+    buffer.write(instances);
+  }
+
+  /** Uploads bubbles, with a new buffer when there are more than it holds. */
+  uploadBubbles(bubbles: Bubbles3D, instances: ArrayBuffer, count: number, material: FullMaterial): void {
+    let buffer = this.bubbles.get(bubbles);
+    if (!buffer || buffer.capacity < count) {
+      buffer?.dispose();
+      buffer = new BubbleBuffer(this.gpu, this.bubblePipeline, material, count);
+      this.bubbles.set(bubbles, buffer);
+    }
+    buffer.write(instances, count);
+  }
+
+  /** Whether the renderer holds the buffer of bubbles. */
+  holdsBubbles(bubbles: Bubbles3D): boolean {
+    return this.bubbles.has(bubbles);
+  }
+
+  /** Whether the renderer holds the buffer of columns. */
+  holdsBars(bars: Bars3D): boolean {
+    return this.bars.has(bars);
   }
 
   /** The buffer of a line, made on first use. */
@@ -245,6 +288,12 @@ export class Renderer3D {
     for (const trace of [...this.traces.values(), ...this.spots.values()]) {
       trace.writeUniforms(matrix, size.width, size.height, this.cuts);
     }
+    for (const bars of this.bars.values()) {
+      bars.writeUniforms(matrix, eye, this.cuts);
+    }
+    for (const bubbles of this.bubbles.values()) {
+      bubbles.writeUniforms(matrix, eye, this.cuts, size.width, size.height);
+    }
     const encoder = this.gpu.createCommandEncoder({ label: 'scene 3D' });
     const pass = encoder.beginRenderPass({
       colorAttachments: [
@@ -279,6 +328,18 @@ export class Renderer3D {
       pass.setPipeline(this.tracePipelines.spots);
       for (const spots of this.spots.values()) {
         spots.drawSpots(pass);
+      }
+    }
+    pass.setPipeline(this.barPipeline);
+    for (const bars of this.bars.values()) {
+      if (!bars.isTransparent) {
+        bars.draw(pass, eye[1]);
+      }
+    }
+    if (this.bubbles.size > 0) {
+      pass.setPipeline(this.bubblePipeline);
+      for (const bubbles of this.bubbles.values()) {
+        bubbles.draw(pass);
       }
     }
     for (const surface of this.surfaces.values()) {
@@ -325,6 +386,14 @@ export class Renderer3D {
     }
     this.traces.clear();
     this.spots.clear();
+    for (const bars of this.bars.values()) {
+      bars.dispose();
+    }
+    this.bars.clear();
+    for (const bubbles of this.bubbles.values()) {
+      bubbles.dispose();
+    }
+    this.bubbles.clear();
     this.lines?.destroy();
     this.lineUniforms.destroy();
   }
