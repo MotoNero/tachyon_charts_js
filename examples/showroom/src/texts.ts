@@ -80,6 +80,13 @@ const german: Readonly<Record<string, string>> = {
   Target: 'Ziel',
   Rollover: 'Rollover',
   'Set point': 'Sollwert',
+  'Axis box': 'Achsenbox',
+  'Offset in mm': 'Versatz in mm',
+  'Level in dB': 'Pegel in dB',
+  Surface: 'Fläche',
+  'Surface 4096 × 4096': 'Fläche 4096 × 4096',
+  'Drag: turn | Shift+drag: move | Wheel: zoom | Arrow keys: turn | Double click, Home: start':
+    'Ziehen: drehen | Umschalt+Ziehen: verschieben | Rad: Zoom | Pfeiltasten: drehen | Doppelklick, Pos1: Anfang',
   'Last value at the axis': 'Letzter Wert an der Achse',
   'Temperatures, live': 'Temperaturen, live',
   Trigger: 'Trigger',

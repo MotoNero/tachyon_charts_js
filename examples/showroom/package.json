@@ -3,6 +3,7 @@
   "private": true,
   "type": "module",
   "dependencies": {
+    "@tachyon-charts/3d": "workspace:*",
     "@tachyon-charts/core": "workspace:*",
     "@tachyon-charts/element": "workspace:*",
     "@tachyon-charts/large-data": "workspace:*"

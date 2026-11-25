@@ -65,6 +65,9 @@ importers:
 
   examples/showroom:
     dependencies:
+      '@tachyon-charts/3d':
+        specifier: workspace:*
+        version: link:../../packages/3d
       '@tachyon-charts/core':
         specifier: workspace:*
         version: link:../../packages/core

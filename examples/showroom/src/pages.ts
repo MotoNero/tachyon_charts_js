@@ -90,6 +90,7 @@ import {
   type Axis,
   type ChartSurface,
 } from '@tachyon-charts/core';
+import { scene3D, Surface3D } from '@tachyon-charts/3d';
 import {
   BitColumn,
   BitFileWriter,
@@ -513,6 +514,61 @@ function linkedChartsPage(): Page {
       };
     },
   };
+}
+
+// The 3D pages of the .NET showroom: a chart with its scene, turned with the pointer.
+const hint3D = 'Drag: turn | Shift+drag: move | Wheel: zoom | Arrow keys: turn | Double click, Home: start';
+
+// A wave and a hill over 6 × 6, as ContourData.CreateField of the .NET version.
+function field3D(side: number): HeatmapData {
+  const values = new Float32Array(side * side);
+  for (let row = 0; row < side; row++) {
+    const y = (row * 6) / side;
+    for (let column = 0; column < side; column++) {
+      const x = (column * 6) / side;
+      values[row * side + column] =
+        Math.sin(x) * Math.cos(y * 1.3) + 0.6 * Math.exp(-((x - 2) * (x - 2) + (y - 4) * (y - 4)));
+    }
+  }
+  const data = new HeatmapData(side, side);
+  data.setValues(values);
+  return data;
+}
+
+function pages3D(): Page[] {
+  return [
+    {
+      id: 'axis-box',
+      name: 'Axis box',
+      group: '3D',
+      hint: hint3D,
+      configure: (c) => {
+        scene3D(c, (s) =>
+          s
+            .title(t('Axis box'))
+            .xAxis(0, 10, t('Time in s'))
+            .yAxis(-5, 5, t('Offset in mm'))
+            .zAxis(0, 100, t('Level in dB')),
+        );
+      },
+    },
+    {
+      id: 'surface-4096',
+      name: 'Surface 4096 × 4096',
+      group: '3D',
+      hint: hint3D,
+      configure: (c) => {
+        scene3D(c, (s) =>
+          s
+            .title(t('Surface'))
+            .xAxis(0, 6, 'x')
+            .yAxis(0, 6, 'y')
+            .zAxis(-1.5, 2, 'z')
+            .addSurface(new Surface3D(field3D(4096), new DoubleRange(0, 6), new DoubleRange(0, 6))),
+        );
+      },
+    },
+  ];
 }
 
 // A share price of 160 days with drawing tools: keys 1 to 9 choose a tool, as the drawing tools page of the .NET
@@ -2021,6 +2077,7 @@ export const pages: readonly Page[] = [
   lastValuePage(),
   valueLabelsPage(),
   rolloverPage(),
+  ...pages3D(),
   linkedChartsPage(),
   marketProfilePage(),
   candlesWithoutWeekendsPage(),
