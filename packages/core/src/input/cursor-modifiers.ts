@@ -1,6 +1,6 @@
 // Modifiers that follow the pointer without taking its input (CursorModifiers of the .NET version).
 import type { HitResult } from '../hit-testing/hit-test';
-import { CrosshairOverlay, formatHitY } from '../overlays/crosshair-overlay';
+import { CrosshairOverlay, formatHitY, RolloverOverlay } from '../overlays/crosshair-overlay';
 import type { Rgba8 } from '../render/types';
 import type { ChartInteraction } from './chart-interaction';
 import { ChartModifier, type ModifierResult } from './modifier-pipeline';
@@ -75,6 +75,55 @@ export class CrosshairModifier extends ChartModifier {
     for (const listener of this.movedListeners) {
       listener(x);
     }
+  }
+}
+
+/** Shows a line at the X of the pointer with the value of every series there. It only observes, as the crosshair. */
+export class RolloverModifier extends ChartModifier {
+  /** The line and the labels the chart draws. */
+  readonly overlay = new RolloverOverlay();
+  /** How far from the pointer in X a series still shows its value, in device-independent units; 40 by default. */
+  maximumDistance = 40;
+
+  /** Creates the modifier with priority -10, after all that act on the input. */
+  constructor() {
+    super(-10);
+  }
+
+  /** Adds the line to the chart. */
+  protected override onAttached(interaction: ChartInteraction): void {
+    interaction.run(() => {
+      interaction.chart.addOverlay(this.overlay);
+    });
+  }
+
+  /** Removes the line from the chart. */
+  protected override onDetached(interaction: ChartInteraction): void {
+    interaction.run(() => {
+      interaction.chart.removeOverlay(this.overlay);
+    });
+  }
+
+  /** {@inheritDoc ChartModifier.onPointer} */
+  override onPointer(input: PointerInputEvent): ModifierResult {
+    const interaction = this.interaction;
+    if (!interaction) {
+      return 'ignored';
+    }
+    const overlay = this.overlay;
+    const axis = interaction.chart.horizontalAxes[0];
+    if (input.kind === 'exited' || input.kind === 'canceled' || !interaction.hitPane(input.position) || !axis) {
+      interaction.run(() => {
+        overlay.hide();
+      });
+      return 'ignored';
+    }
+    const hits = interaction.chart.hitTestAll(input.position, this.maximumDistance, 'nearestX');
+    const value = interaction.xValueAt(input.position);
+    interaction.run(() => {
+      overlay.show(axis, value, hits);
+    });
+    return 'ignored';
   }
 }
 

@@ -3,6 +3,7 @@ import type { Axis } from '../axes/axis';
 import type { ColorAxis } from '../axes/color-axis';
 import type { FoundPoint, HitTestMode, SelectionArea } from '../hit-testing/types';
 import type { DoubleRange } from '../numerics/range';
+import { valueLabelLimit, type AreaLike, type ValueLabel } from './value-label';
 import type { LinearAxisTransform } from '../numerics/transform';
 import type { CommandList } from '../render/commands';
 import type { RenderDevice } from '../render/device';
@@ -34,6 +35,8 @@ export class SeriesFrame {
 export abstract class ChartSeries {
   private visible = true;
   private standsOut = false;
+  private lastValueShown = false;
+  private valuesShown = false;
   private states = 0;
   /** The name shown in rollovers and legends. */
   name: string | undefined;
@@ -71,6 +74,61 @@ export abstract class ChartSeries {
       this.standsOut = value;
       this.states++;
     }
+  }
+
+  /** Whether a plate at the axis shows the newest value of the series. */
+  get showsLastValue(): boolean {
+    return this.lastValueShown;
+  }
+
+  set showsLastValue(value: boolean) {
+    if (value !== this.lastValueShown) {
+      this.lastValueShown = value;
+      this.states++;
+    }
+  }
+
+  /** Whether the values of the points or bars stand beside them. */
+  get showsValues(): boolean {
+    return this.valuesShown;
+  }
+
+  set showsValues(value: boolean) {
+    if (value !== this.valuesShown) {
+      this.valuesShown = value;
+      this.states++;
+    }
+  }
+
+  /** The newest Y value, for {@link ChartSeries.showsLastValue}; `undefined` without one. */
+  latestValue(): number | undefined {
+    return undefined;
+  }
+
+  /** The number of points {@link ChartSeries.readPoint} reads, from 0. */
+  // A getter, not a field: series override it with their own count.
+  // eslint-disable-next-line @typescript-eslint/class-literal-property-style
+  get sourcePointCount(): number {
+    return 0;
+  }
+
+  /**
+   * Adds the labels the series shows within the visible ranges, for {@link ChartSeries.showsValues}; by default the
+   * points that {@link ChartSeries.readPoint} reads, each with its Y value above it.
+   */
+  collectValueLabels(x: DoubleRange, y: DoubleRange, labels: ValueLabel[]): void {
+    const count = this.sourcePointCount;
+    for (let i = 0; i < count && labels.length < valueLabelLimit; i++) {
+      const point = this.readPoint(i);
+      if (point && x.contains(point.x) && y.contains(point.y)) {
+        labels.push({ x: point.x, y: point.y, value: point.y, place: 'above' });
+      }
+    }
+  }
+
+  /** The place of a label for series that place their labels themselves, as a pie; `undefined` for the others. */
+  placeValueLabel(_pane: AreaLike, _label: ValueLabel): { x: number; y: number } | undefined {
+    return undefined;
   }
 
   /** Grows with changes of the state the chart keeps, such as the visibility. */

@@ -103,6 +103,14 @@ export interface AppendTarget {
 }
 
 // @public
+export interface AreaLike {
+    readonly height: number;
+    readonly width: number;
+    readonly x: number;
+    readonly y: number;
+}
+
+// @public
 export class AreaSeries extends RibbonSeries {
     constructor(
     source: PointSource, xAxis: Axis, yAxis: Axis);
@@ -313,6 +321,7 @@ export class BarSeries extends ChartSeries {
     get accentColor(): Rgba8;
     get barWidth(): number;
     set barWidth(value: number);
+    collectValueLabels(x: DoubleRange, y: DoubleRange, labels: ValueLabel[]): void;
     get cornerRadius(): number;
     set cornerRadius(value: number);
     dataRange(axis: 'x' | 'y'): DoubleRange | undefined;
@@ -673,6 +682,7 @@ export abstract class ChartSeries {
     yAxis: Axis);
     get accentColor(): Rgba8;
     collectPoints(_frame: SeriesFrame, _area: SelectionArea, _indices: number[]): void;
+    collectValueLabels(x: DoubleRange, y: DoubleRange, labels: ValueLabel[]): void;
     get colorAxis(): ColorAxis | undefined;
     colorRange(): DoubleRange | undefined;
     dataRange(_axis: 'x' | 'y'): DoubleRange | undefined;
@@ -683,8 +693,13 @@ export abstract class ChartSeries {
     set isHighlighted(value: boolean);
     get isVisible(): boolean;
     set isVisible(value: boolean);
+    latestValue(): number | undefined;
     name: string | undefined;
     onPalette(_palette: readonly Rgba8[]): void;
+    placeValueLabel(_pane: AreaLike, _label: ValueLabel): {
+        x: number;
+        y: number;
+    } | undefined;
     prepare(_device: RenderDevice, _frame: SeriesFrame): void;
     prepareData(_frame: SeriesFrame): void;
     readPoint(_index: number): {
@@ -692,6 +707,11 @@ export abstract class ChartSeries {
         y: number;
     } | undefined;
     releaseResources(): void;
+    get showsLastValue(): boolean;
+    set showsLastValue(value: boolean);
+    get showsValues(): boolean;
+    set showsValues(value: boolean);
+    get sourcePointCount(): number;
     get stateVersion(): number;
     takeSnapshot(): void;
     abstract get version(): number;
@@ -767,6 +787,9 @@ export const chartText: {
 
 // @public
 export type ChartTextKey = 'mean' | 'maskFail' | 'pass' | 'fail' | 'triggered' | 'waiting' | 'stopped' | 'auto' | 'azimuth' | 'elevation' | 'gain' | 'value' | 'loading';
+
+// @public
+export function collectSourceLabels(source: PointSource, origin: number, xRange: DoubleRange, yRange: DoubleRange, labels: ValueLabel[]): void;
 
 // @public
 export function collectSourcePoints(source: PointSource, origin: number, frame: SeriesFrame, area: SelectionArea, indices: number[]): void;
@@ -1776,11 +1799,13 @@ export class LineBuilder {
     dash(...lengths: number[]): this;
     get definition(): LineDefinition;
     glow(radius: number, intensity?: number): this;
+    lastValue(): this;
     name(name: string): this;
     spline(): this;
     step(): this;
     stroke(color: Rgba8): this;
     thickness(thickness: number): this;
+    values(): this;
     xAxis(id: string): this;
     yAxis(id: string): this;
 }
@@ -1797,6 +1822,8 @@ export interface LineDefinition extends SeriesDefinitionBase {
     readonly isSpline: boolean;
     readonly isStep: boolean;
     readonly kind: 'line';
+    readonly showsLastValue?: boolean;
+    readonly showsValues?: boolean;
     readonly source: PointSource;
     readonly thickness: number;
 }
@@ -1810,6 +1837,7 @@ export class LineSeries extends ChartSeries {
     source: PointSource, xAxis: Axis, yAxis: Axis);
     get accentColor(): Rgba8;
     collectPoints(frame: SeriesFrame, area: SelectionArea, indices: number[]): void;
+    collectValueLabels(x: DoubleRange, y: DoubleRange, labels: ValueLabel[]): void;
     get color(): Rgba8;
     set color(value: Rgba8);
     get dashPattern(): readonly number[] | undefined;
@@ -1827,6 +1855,7 @@ export class LineSeries extends ChartSeries {
     set isSpline(value: boolean);
     get isStep(): boolean;
     set isStep(value: boolean);
+    latestValue(): number | undefined;
     prepare(device: RenderDevice, frame: SeriesFrame): void;
     prepareData(frame: SeriesFrame): void;
     readPoint(index: number): {
@@ -2724,6 +2753,24 @@ export interface RingSegment {
 }
 
 // @public
+export class RolloverModifier extends ChartModifier {
+    constructor();
+    maximumDistance: number;
+    protected onAttached(interaction: ChartInteraction): void;
+    protected onDetached(interaction: ChartInteraction): void;
+    onPointer(input: PointerInputEvent): ModifierResult;
+    readonly overlay: RolloverOverlay;
+}
+
+// @public
+export class RolloverOverlay extends ChartOverlay {
+    draw(canvas: OverlayCanvas): void;
+    hide(): void;
+    get hits(): readonly HitResult[];
+    show(axis: Axis, x: number, hits: readonly HitResult[]): void;
+}
+
+// @public
 export function roundHalfEven(value: number): number;
 
 // @public
@@ -2797,6 +2844,7 @@ export class ScatterSeries extends ChartSeries {
     get borderThickness(): number;
     set borderThickness(value: number);
     collectPoints(frame: SeriesFrame, area: SelectionArea, indices: number[]): void;
+    collectValueLabels(x: DoubleRange, y: DoubleRange, labels: ValueLabel[]): void;
     get color(): Rgba8;
     set color(value: Rgba8);
     dataRange(axis: 'x' | 'y'): DoubleRange | undefined;
@@ -2804,6 +2852,7 @@ export class ScatterSeries extends ChartSeries {
     draw(commands: CommandList, frame: SeriesFrame): void;
     get drawnPointCount(): number;
     findPoint(frame: SeriesFrame, pixelX: number, pixelY: number, maximumDistance: number, mode: HitTestMode): FoundPoint | undefined;
+    latestValue(): number | undefined;
     get pointColors(): readonly Rgba8[] | undefined;
     set pointColors(value: readonly Rgba8[] | undefined);
     get pointSizes(): ArrayLike<number> | undefined;
@@ -3597,6 +3646,17 @@ export type TriggerState = 'triggered' | 'auto' | 'waiting' | 'stopped';
 
 // @public
 export function upperBound(x: NumberArray, count: number, value: number): number;
+
+// @public
+export interface ValueLabel {
+    readonly place: ValueLabelPlace;
+    readonly value: number;
+    readonly x: number;
+    readonly y: number;
+}
+
+// @public
+export type ValueLabelPlace = 'above' | 'right' | 'center';
 
 // @public
 export type Values = ArrayLike<number> & Iterable<number>;

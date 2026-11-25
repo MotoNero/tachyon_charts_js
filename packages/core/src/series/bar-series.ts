@@ -6,6 +6,7 @@ import type { LinearAxisTransform } from '../numerics/transform';
 import type { CommandList } from '../render/commands';
 import { packRgba8, type PixelRect, type Rgba8 } from '../render/types';
 import { ChartSeries, type SeriesFrame } from '../pipeline/chart-series';
+import { valueLabelLimit, type ValueLabel } from '../pipeline/value-label';
 import { Mesh, SolidFill, type SeriesFill } from './ribbon-series';
 
 const f = Math.fround;
@@ -268,6 +269,39 @@ export class BarSeries extends ChartSeries {
   private step(): number {
     const count = (this.rowValues[0] as Float64Array).length;
     return count < 2 ? 1 : (this.position(count - 1) - this.position(0)) / (count - 1);
+  }
+
+  /** {@inheritDoc ChartSeries.collectValueLabels} */
+  override collectValueLabels(x: DoubleRange, y: DoubleRange, labels: ValueLabel[]): void {
+    const count = this.rowValues[0]?.length ?? 0;
+    const places = this.horizontal ? y : x;
+    const step = this.step();
+    const isGrouped = this.barLayout === 'grouped';
+    const width = step * this.share;
+    const slot = isGrouped ? width / this.rowValues.length : width;
+    const { lower, upper } = this.readEnds();
+    // Beyond the end of grouped bars, in the middle of stacked ones.
+    const beyond = this.horizontal ? 'right' : 'above';
+    for (let i = 0; i < count && labels.length < valueLabelLimit; i++) {
+      const position = this.position(i);
+      if (!places.contains(position)) {
+        continue;
+      }
+      this.rowValues.forEach((row, index) => {
+        const value = row[i] as number;
+        if (!Number.isFinite(value)) {
+          return;
+        }
+        const place = position - width / 2 + (isGrouped ? index + 0.5 : 0.5) * slot;
+        const high = (upper[index] as Float64Array)[i] as number;
+        const low = (lower[index] as Float64Array)[i] as number;
+        const end = isGrouped ? high : (low + high) / 2;
+        const kind = isGrouped ? beyond : 'center';
+        labels.push(
+          this.horizontal ? { x: end, y: place, value, place: kind } : { x: place, y: end, value, place: kind },
+        );
+      });
+    }
   }
 
   // The ends and the data ranges, computed again only after a change.

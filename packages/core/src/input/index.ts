@@ -1,5 +1,5 @@
 export { ChartInteraction, ZoomHistory, type ChartDirection, type ChartEdit, type PaneHit } from './chart-interaction';
-export { CrosshairModifier, TooltipModifier, type TooltipData } from './cursor-modifiers';
+export { CrosshairModifier, RolloverModifier, TooltipModifier, type TooltipData } from './cursor-modifiers';
 export { ChartModifier, ModifierPipeline, type InputCapture, type ModifierResult } from './modifier-pipeline';
 export {
   AxisDragModifier,

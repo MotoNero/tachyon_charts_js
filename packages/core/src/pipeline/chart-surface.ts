@@ -8,6 +8,7 @@ import type { Point } from '../input/primitives';
 import { OverlayCanvas, type ChartOverlay } from '../overlays/chart-overlay';
 import { drawAxisBreaks, hasAxisBreaks } from '../overlays/axis-break-marks';
 import { drawContourLabels, hasContourLabels } from '../overlays/contour-labels';
+import { drawLastValues, drawValueLabels, hasLastValues, hasValueLabels } from '../overlays/value-marks';
 import { chartText } from '../locale/culture';
 import {
   arrangeChart,
@@ -114,6 +115,7 @@ export class ChartSurface {
   private renderedSeries = -1;
   private layoutStructure = -1;
   private memberOf: SurfaceGroup | undefined;
+  private drawsLastValues = false;
   private layoutAxes = -1;
   private renderedWidth = -1;
   private renderedHeight = -1;
@@ -530,6 +532,9 @@ export class ChartSurface {
       if (this.glyphCount > 0) {
         frame.drawGlyphs(atlas, this.glyphs, this.glyphCount);
       }
+      if (this.drawsLastValues && this.layout) {
+        drawLastValues(this.canvas, this.layout, this.seriesList);
+      }
       if (usedCanvas && this.canvas.glyphCount > 0) {
         // Overlays may have asked for new glyphs, which reach the texture only with this call.
         frame.drawGlyphs(this.textEngine.atlasOn(device), this.canvas.glyphs, this.canvas.glyphCount);
@@ -563,7 +568,10 @@ export class ChartSurface {
     }
     const hasBreaks = hasAxisBreaks(layout);
     const hasLabels = hasContourLabels(this.seriesList);
-    if (this.overlayList.length === 0 && !hasLabels && !hasBreaks) {
+    const lastValues = hasLastValues(this.seriesList);
+    const values = hasValueLabels(this.seriesList);
+    this.drawsLastValues = false;
+    if (this.overlayList.length === 0 && !hasLabels && !hasBreaks && !lastValues && !values) {
       return false;
     }
     const background = this.surfaceStyle.backgroundColor;
@@ -589,6 +597,11 @@ export class ChartSurface {
     if (hasLabels) {
       drawContourLabels(this.canvas, layout, this.seriesList);
     }
+    if (values) {
+      drawValueLabels(this.canvas, layout, this.seriesList);
+    }
+    // The marks of the last values come after the labels of the axes, which they cover.
+    this.drawsLastValues = lastValues;
     for (const overlay of this.overlayList) {
       overlay.draw(this.canvas);
       this.canvas.clip = undefined;

@@ -3,6 +3,8 @@
 import { FifoDataSource } from '../data/fifo-data-source';
 import type { DataSnapshot, PointSource } from '../data/source';
 import type { ChartSeries, SeriesFrame } from '../pipeline/chart-series';
+import type { DoubleRange } from '../numerics/range';
+import { valueLabelLimit, type ValueLabel } from '../pipeline/value-label';
 import { lowerBound } from '../resampling/min-max-decimator';
 import type { FoundPoint, HitTestMode, SelectionArea } from './types';
 
@@ -134,4 +136,22 @@ function nextUp(value: number): number {
   const bits = buffer.getBigInt64(0);
   buffer.setBigInt64(0, value > 0 ? bits + 1n : bits - 1n);
   return buffer.getFloat64(0);
+}
+
+/** Adds a label above each point of a source within the visible ranges, X relative to the origin. */
+export function collectSourceLabels(
+  source: PointSource,
+  origin: number,
+  xRange: DoubleRange,
+  yRange: DoubleRange,
+  labels: ValueLabel[],
+): void {
+  const snapshot = source.snapshot();
+  for (let i = 0; i < snapshot.count && labels.length < valueLabelLimit; i++) {
+    const x = (snapshot.x[i] as number) - origin;
+    const y = snapshot.y[i] as number;
+    if (xRange.contains(x) && yRange.contains(y)) {
+      labels.push({ x, y, value: y, place: 'above' });
+    }
+  }
 }

@@ -833,6 +833,25 @@ overview.chart = new ChartBuilder()
   .addModifier(() => OverviewModifier.of('signal'));
 ```
 
+## Values at the axis, at points and at the pointer
+
+![Three temperatures with plates of their newest values at the right axis](docs/images/last-value.png)
+![Grouped bars and a target line with their values above them](docs/images/value-labels.png)
+![A line at the pointer with the value of each of three lines beside its point](docs/images/rollover.png)
+
+`lastValue()` on a line puts a plate with its newest value at the axis, in the color of the line; plates that meet
+move apart and a value outside the view sticks to the edge. `values()` on a line and `showsValues` on any series write
+the values beside the points, above grouped bars and in the middle of stacked ones, leaving out labels that would
+overlap. `RolloverModifier` draws a line at the pointer with the value of every series there, stacked where they meet;
+a `CrosshairModifier` with `showsValues` lists them in a box beside the cross.
+
+```ts
+builder
+  .addLine(inlet, (s) => s.name('Inlet').lastValue())
+  .addLine(target, (s) => s.name('Target').values())
+  .addModifier(() => new RolloverModifier());
+```
+
 ## Themes
 
 ![The theme preview in the light theme: a line and markers with titled axes](docs/images/theme-light.png)

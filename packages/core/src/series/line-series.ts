@@ -3,11 +3,13 @@ import type { Axis } from '../axes/axis';
 import {
   collectSourcePoints,
   findNearest,
+  collectSourceLabels,
   readSourcePoint,
   type FoundPoint,
   type HitTestMode,
   type SelectionArea,
 } from '../hit-testing/hit-test';
+import type { ValueLabel } from '../pipeline/value-label';
 import { DateTimeAxis } from '../axes/date-time-axis';
 import { emptySnapshot, type DataSnapshot, type PointSource } from '../data/source';
 import { DoubleRange } from '../numerics/range';
@@ -217,6 +219,17 @@ export class LineSeries extends ChartSeries {
   /** {@inheritDoc ChartSeries.readPoint} */
   override readPoint(index: number): { x: number; y: number } | undefined {
     return readSourcePoint(this.source, originOf(this.xAxis), index);
+  }
+
+  /** {@inheritDoc ChartSeries.latestValue} */
+  override latestValue(): number | undefined {
+    const value = this.source.latest();
+    return value !== undefined && Number.isFinite(value) ? value : undefined;
+  }
+
+  /** {@inheritDoc ChartSeries.collectValueLabels} */
+  override collectValueLabels(x: DoubleRange, y: DoubleRange, labels: ValueLabel[]): void {
+    collectSourceLabels(this.source, originOf(this.xAxis), x, y, labels);
   }
 
   /** {@inheritDoc ChartSeries.dataRange} */

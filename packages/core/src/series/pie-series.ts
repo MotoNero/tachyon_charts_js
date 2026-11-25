@@ -18,6 +18,7 @@ import type { CommandList } from '../render/commands';
 import type { RenderDevice } from '../render/device';
 import { packRgba8, type Rgba8 } from '../render/types';
 import { addFringe, Mesh, type Corner } from './ribbon-series';
+import { spreadLabels } from '../layout/spread';
 
 const f = Math.fround;
 const stepsPerTurn = 180;
@@ -418,16 +419,6 @@ interface Outside {
   readonly width: number;
   readonly anchor: { x: number; y: number };
   readonly wanted: number;
-}
-
-/** @internal Places labels from the top down with at least one line between them, within the bounds. */
-export function spreadLabels(places: number[], top: number, bottom: number, line: number): void {
-  for (let i = 0; i < places.length; i++) {
-    places[i] = Math.max(places[i] as number, i === 0 ? top : (places[i - 1] as number) + line);
-  }
-  for (let i = places.length - 1; i >= 0; i--) {
-    places[i] = Math.min(places[i] as number, i === places.length - 1 ? bottom : (places[i + 1] as number) - line);
-  }
 }
 
 function contrastTo(color: Rgba8): Rgba8 {

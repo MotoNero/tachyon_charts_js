@@ -100,6 +100,10 @@ export interface LineDefinition extends SeriesDefinitionBase {
   readonly glowRadius?: number;
   /** The strength of the glow, 0..1. */
   readonly glowIntensity: number;
+  /** Whether a plate at the axis shows the newest value. */
+  readonly showsLastValue?: boolean;
+  /** Whether the values of the points stand above them. */
+  readonly showsValues?: boolean;
 }
 
 /** The description of markers. */
@@ -288,6 +292,8 @@ function createSeries(definition: SeriesDefinition, x: Axis, y: Axis, axis: (id:
       line.isSpline = definition.isSpline;
       line.glowRadius = definition.glowRadius;
       line.glowIntensity = definition.glowIntensity;
+      line.showsLastValue = definition.showsLastValue ?? false;
+      line.showsValues = definition.showsValues ?? false;
       return line;
     }
     case 'scatter': {
@@ -504,6 +510,16 @@ export class LineBuilder {
   /** A glow around the line: reach in device-independent units and strength 0..1. */
   glow(radius: number, intensity = 0.8): this {
     return this.change({ glowRadius: radius, glowIntensity: intensity });
+  }
+
+  /** A plate at the axis with the newest value, in the color of the line. */
+  lastValue(): this {
+    return this.change({ showsLastValue: true });
+  }
+
+  /** The values of the points above them; labels that would overlap are left out. */
+  values(): this {
+    return this.change({ showsValues: true });
   }
 
   private change(part: Partial<LineDefinition>): this {

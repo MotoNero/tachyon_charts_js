@@ -334,3 +334,74 @@ function isAlong(placement: AxisPlacement, along: number): boolean {
     ? along >= bounds.x && along <= bounds.right
     : along >= bounds.y && along <= bounds.bottom;
 }
+
+/** A line across the plot at the X of the pointer, with a mark and a label at the point of every series there. */
+export class RolloverOverlay extends ChartOverlay {
+  private hitList: HitResult[] = [];
+  private x: number | undefined;
+  private axis: Axis | undefined;
+
+  /** The points shown. */
+  get hits(): readonly HitResult[] {
+    return this.hitList;
+  }
+
+  /** Shows the line at a value of an axis with the points of the series there. */
+  show(axis: Axis, x: number, hits: readonly HitResult[]): void {
+    this.axis = axis;
+    this.x = x;
+    this.hitList = [...hits];
+    this.changed();
+  }
+
+  /** Hides the line. */
+  hide(): void {
+    if (this.x !== undefined) {
+      this.x = undefined;
+      this.hitList = [];
+      this.changed();
+    }
+  }
+
+  /** {@inheritDoc ChartOverlay.draw} */
+  draw(canvas: OverlayCanvas): void {
+    const value = this.x;
+    const axis = this.axis;
+    const at = value === undefined || !axis ? undefined : canvas.positionOf(axis, value);
+    if (at === undefined || !axis) {
+      return;
+    }
+    for (const pane of canvas.layout.panes) {
+      canvas.clip = pane;
+      if (axis.isHorizontal) {
+        canvas.drawLine({ x: f(at), y: f(pane.y) }, { x: f(at), y: f(pane.bottom) }, 1, canvas.colors.crosshair);
+      } else {
+        canvas.drawLine({ x: f(pane.x), y: f(at) }, { x: f(pane.right), y: f(at) }, 1, canvas.colors.crosshair);
+      }
+    }
+    canvas.clip = undefined;
+    const labelHeight = canvas.lineHeight(canvas.labelSize) + 4;
+    let lastBottom = Number.NEGATIVE_INFINITY;
+    const placed = this.hitList.map((hit) => ({
+      hit,
+      point: canvas.pointOf(hit.series.xAxis, hit.series.yAxis, hit.x, hit.y),
+    }));
+    placed.sort((a, b) => (a.point?.y ?? 0) - (b.point?.y ?? 0));
+    for (const { hit, point } of placed) {
+      if (!point) {
+        continue;
+      }
+      canvas.fillRectangle(
+        new DipRect(point.x - rolloverMarker, point.y - rolloverMarker, rolloverMarker * 2, rolloverMarker * 2),
+        hit.series.accentColor,
+      );
+      // Labels of near values stack instead of covering each other.
+      const top = Math.max(point.y - labelHeight / 2, lastBottom);
+      const text = hit.series.name ? `${hit.series.name}: ${formatHitY(hit)}` : formatHitY(hit);
+      canvas.drawLabel(text, point.x + 8, top, hit.series.accentColor, canvas.colors.background);
+      lastBottom = top + labelHeight;
+    }
+  }
+}
+
+const rolloverMarker = 3;

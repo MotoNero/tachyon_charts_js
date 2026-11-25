@@ -85,6 +85,7 @@ import {
   SelectionModifier,
   MeasureCursorModifier,
   OverviewModifier,
+  RolloverModifier,
   type ThemeDocument,
   type Axis,
   type ChartSurface,
@@ -249,6 +250,137 @@ async function writeSampleCsv(progress: (share: number) => void): Promise<void> 
 
 const pieValues = [32, 18, 15, 14, 9, 6, 3, 1.5, 1, 0.5];
 const pieNames = ['Wind', 'Solar', 'Gas', 'Coal', 'Biomass', 'Hydro', 'Nuclear', 'Oil', 'Other', 'Geothermal'];
+
+// Three temperatures arriving live, each with a plate of its newest value at the axis; plates that meet move apart,
+// as the last value page of the .NET showroom.
+function lastValuePage(): Page {
+  const names = ['Inlet', 'Core', 'Outlet'];
+  const colors: Rgba8[] = [
+    { r: 76, g: 201, b: 240, a: 255 },
+    { r: 255, g: 190, b: 11, a: 255 },
+    { r: 247, g: 37, b: 133, a: 255 },
+  ];
+  // Three slow waves around 60 °C that cross now and then.
+  const value = (line: number, t: number): number =>
+    60 + 8 * Math.sin(t * 0.21 + line * 2.1) + 2 * Math.sin(t * 1.7 + line) + (line - 1);
+  const lines = names.map(() => new FifoDataSource(3000));
+  // The time goes on where it stopped when the page shows again, so that the lines stay sorted.
+  let written = 0;
+  return {
+    id: 'last-value',
+    name: 'Last value at the axis',
+    group: 'Lines',
+    hint: 'The marks at the axis show the newest value of each line and move apart when they meet | Wheel: zoom | Drag: pan',
+    configure: (c) => {
+      c.title(t('Temperatures, live'))
+        .xAxis((a) => a.numeric('t').title(t('Time in s')).autoRange())
+        .yAxis((a) => a.numeric('temperature').title(t('Temperature in °C')).range(45, 75).position('right'));
+      lines.forEach((source, i) => {
+        c.addLine(source, (s) =>
+          s
+            .name(t(names[i] ?? ''))
+            .stroke(colors[i] as Rgba8)
+            .thickness(1.5)
+            .lastValue(),
+        );
+      });
+      c.addModifier(() => new ZoomPanModifier());
+    },
+    start: () => {
+      const begin = performance.now();
+      const offset = written;
+      const timer = setInterval(() => {
+        const due = offset + Math.trunc(((performance.now() - begin) / 1000) * 50);
+        for (; written < due; written++) {
+          const time = written * 0.02;
+          lines.forEach((source, line) => {
+            source.append(time, value(line, time));
+          });
+        }
+      }, 20);
+      return {
+        dispose: () => {
+          clearInterval(timer);
+        },
+      };
+    },
+  };
+}
+
+// Bars and a target line with their values beside them; labels that would overlap are left out.
+function valueLabelsPage(): Page {
+  const target = new DataSource(8);
+  for (let i = 0; i < 8; i++) {
+    target.append(i, 52 + 4 * i);
+  }
+  return {
+    id: 'value-labels',
+    name: 'Values at points',
+    group: 'Bars',
+    hint: 'Wheel: zoom | Drag: pan | Labels that would overlap are left out',
+    configure: (c) => {
+      c.title(t('Sales per quarter'))
+        .xAxis((a) => a.numeric('quarter').title(t('Quarter')).range(-0.6, 7.6))
+        .yAxis((a) => a.numeric('sales').title(t('Sales in k€')).range(0, 110))
+        .addSeries(
+          (x, y) => {
+            const bars = new BarSeries(
+              [
+                [48, 55, 61, 58, 70, 76, 81, 90],
+                [35, 38, 42.5, 47, 44, 52, 57.25, 63],
+              ],
+              x,
+              y,
+            );
+            bars.name = t('North and South');
+            bars.showsValues = true;
+            return bars;
+          },
+          'quarter',
+          'sales',
+        )
+        .addLine(target, (s) => s.name(t('Target')).thickness(2).values())
+        .addModifier(() => new ZoomPanModifier());
+    },
+  };
+}
+
+// Three lines with a line at the pointer and the value of each line there, labels stacked where they meet.
+function rolloverPage(): Page {
+  const wave = (fn: (x: number) => number): DataSource => {
+    const source = new DataSource(240);
+    for (let i = 0; i < 240; i++) {
+      const x = (i * 10) / 239;
+      source.append(x, fn(x));
+    }
+    return source;
+  };
+  return {
+    id: 'rollover',
+    name: 'Rollover',
+    group: 'Interactive',
+    hint: 'Pointer: the value of every line at its X | Wheel: zoom | Drag: pan',
+    configure: (c) => {
+      c.title(t('Rollover'))
+        .xAxis((a) => a.numeric('x').title(t('Time in s')).range(0, 10))
+        .yAxis((a) => a.numeric('y').range(-1.5, 1.5))
+        .addLine(
+          wave((x) => 0.9 * Math.sin(x * 1.3)),
+          (s) => s.name(t('Pressure')).stroke({ r: 80, g: 170, b: 240, a: 255 }).thickness(2),
+        )
+        .addLine(
+          wave((x) => 0.9 * Math.sin(x * 1.3) + 0.05),
+          (s) => s.name(t('Set point')).stroke({ r: 110, g: 210, b: 130, a: 255 }).thickness(2),
+        )
+        .addLine(
+          wave((x) => 0.6 * Math.cos(x * 0.8)),
+          (s) => s.name(t('Temperature')).stroke({ r: 240, g: 130, b: 90, a: 255 }).thickness(2),
+        )
+        .addModifier(() => new ZoomPanModifier())
+        .addModifier(() => new RolloverModifier());
+    },
+  };
+}
 
 // A live line of 50 000 points per second beside a fixed one, with all interactions of the chart: zooming, panning,
 // the rubber band, dragging axes, crosshair, tooltip, legend, keys, selecting points and measuring, as the live chart
@@ -1886,6 +2018,9 @@ export const pages: readonly Page[] = [
   candlesPage(),
   drawingToolsPage(),
   liveChartPage(),
+  lastValuePage(),
+  valueLabelsPage(),
+  rolloverPage(),
   linkedChartsPage(),
   marketProfilePage(),
   candlesWithoutWeekendsPage(),
