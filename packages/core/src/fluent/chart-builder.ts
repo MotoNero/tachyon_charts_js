@@ -141,6 +141,8 @@ export interface BuiltChart {
   readonly surface: ChartSurface;
   /** The modifiers of the description, such as dragging the marker of a Smith chart; the chart element's usual ones when empty. */
   readonly modifiers: readonly ChartModifier[];
+  /** The group the chart element puts the chart in, so that it shows the same X range as the others. */
+  readonly groupName?: string | undefined;
 }
 
 /** The description of a chart, independent of any framework; {@link ChartDefinition.build} makes the chart. */
@@ -164,6 +166,8 @@ export class ChartDefinition {
     readonly overlays: readonly ((chart: ChartSurface) => ChartOverlay)[] = [],
     /** Creates the modifiers of the chart; the chart element's usual ones when there are none. */
     readonly modifiers: readonly (() => ChartModifier)[] = [],
+    /** The group of charts with the same X range the chart element puts the chart in; none when left out. */
+    readonly groupName?: string,
   ) {}
 
   /**
@@ -191,7 +195,7 @@ export class ChartDefinition {
     for (const overlay of this.overlays) {
       surface.addOverlay(overlay(surface));
     }
-    return { surface, modifiers: this.modifiers.map((modifier) => modifier()) };
+    return { surface, modifiers: this.modifiers.map((modifier) => modifier()), groupName: this.groupName };
   }
 
   // Vertical axes go into the pane they name, from the top.
@@ -590,6 +594,7 @@ export class ChartBuilder {
   private readonly seriesList: SeriesDefinition[] = [];
   private readonly overlayList: ((chart: ChartSurface) => ChartOverlay)[] = [];
   private readonly modifierList: (() => ChartModifier)[] = [];
+  private groupName: string | undefined;
   private hasLegendModifier = false;
   private titleText: string | undefined;
   private titleTextFont: TextFont | undefined;
@@ -689,7 +694,21 @@ export class ChartBuilder {
       this.themeDocument,
       [...this.overlayList],
       [...this.modifierList],
+      this.groupName,
     );
+  }
+
+  /**
+   * Puts the chart in a group of charts that show the same X range, line up their plots and share the crosshair line;
+   * an overview names the group with `OverviewModifier.of`.
+   * @throws RangeError for an empty name.
+   */
+  group(name: string): this {
+    if (name.length === 0) {
+      throw new RangeError('A group needs a name.');
+    }
+    this.groupName = name;
+    return this;
   }
 
   /**

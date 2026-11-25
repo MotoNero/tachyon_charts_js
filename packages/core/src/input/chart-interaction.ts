@@ -156,6 +156,13 @@ function panAxis(axis: Axis, bounds: DipRect, distance: number): void {
 const appliesToX = (direction: ChartDirection): boolean => direction !== 'y';
 const appliesToY = (direction: ChartDirection): boolean => direction !== 'x';
 
+const interactions = new WeakMap<ChartSurface, ChartInteraction>();
+
+/** @internal The latest interaction made for a chart, for an overview that moves the chart. */
+export function interactionOf(chart: ChartSurface): ChartInteraction | undefined {
+  return interactions.get(chart);
+}
+
 /** Connects modifiers with a chart: hit tests read its last layout, changes go to its axes. */
 export class ChartInteraction {
   /** The undo history of navigation and edits. */
@@ -171,7 +178,9 @@ export class ChartInteraction {
     private readonly dispatch: (change: () => void) => void = (change) => {
       change();
     },
-  ) {}
+  ) {
+    interactions.set(chart, this);
+  }
 
   /** Runs a change of the chart. */
   run(change: () => void): void {

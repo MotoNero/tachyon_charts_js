@@ -27,6 +27,14 @@ import type { TextEngine, TextFont } from '../text/engine';
 import { SeriesFrame, type ChartSeries } from './chart-series';
 import { defaultSurfaceStyle, type ChartSurfaceStyle } from './chart-surface-style';
 
+/** What a chart asks of the group it belongs to, as {@link ChartGroup} does it. */
+export interface SurfaceGroup {
+  /** Takes the range of an axis that changed since the last frame over to all others. */
+  onFrameStarting(chart: ChartSurface): void;
+  /** Takes the room a chart needs beside its plot and gives all charts the largest. */
+  onMeasured(chart: ChartSurface, left: number, right: number): void;
+}
+
 /** The points of one series that a selection took, by their numbers in the source. */
 export interface SeriesSelection {
   /** The series. */
@@ -105,6 +113,7 @@ export class ChartSurface {
   private renderedAxes = -1;
   private renderedSeries = -1;
   private layoutStructure = -1;
+  private memberOf: SurfaceGroup | undefined;
   private layoutAxes = -1;
   private renderedWidth = -1;
   private renderedHeight = -1;
@@ -133,7 +142,7 @@ export class ChartSurface {
     horizontalAxes: readonly Axis[],
     panes: readonly LayoutPane[],
     private readonly textEngine: TextEngine,
-    private readonly options: ChartLayoutOptions = {},
+    private options: ChartLayoutOptions = {},
   ) {
     this.horizontal = [...horizontalAxes];
     this.paneList = panes.map((pane) => ({ ...pane, axes: [...pane.axes] }));
@@ -382,6 +391,28 @@ export class ChartSurface {
     return points;
   }
 
+  /** The group the chart belongs to; set by `ChartGroup.add`. */
+  get group(): SurfaceGroup | undefined {
+    return this.memberOf;
+  }
+
+  /** @internal Sets the group; only `ChartGroup` does. */
+  setGroup(group: SurfaceGroup | undefined): void {
+    this.memberOf = group;
+  }
+
+  /**
+   * Sets the smallest distances of the plot from the left and right edge, so that charts of a group line up.
+   * @param left - The distance from the left edge in device-independent units.
+   * @param right - The distance from the right edge in device-independent units.
+   */
+  setPlotInsets(left: number, right: number): void {
+    if ((this.options.minimumPlotLeft ?? 0) !== left || (this.options.minimumPlotRight ?? 0) !== right) {
+      this.options = { ...this.options, minimumPlotLeft: left, minimumPlotRight: right };
+      this.structure++;
+    }
+  }
+
   /** Lets go of what the chart keeps on a device that goes away, such as one of an export: its copy of the glyph atlas. */
   releaseDevice(device: RenderDevice): void {
     this.textEngine.releaseAtlas(device);
@@ -420,6 +451,7 @@ export class ChartSurface {
 
   /** The first step of a frame: versions, snapshots, axes and layout. */
   beginRender(device: RenderDevice, target: RenderTarget): void {
+    this.memberOf?.onFrameStarting(this);
     // The versions come first: a change during the frame then leads to another frame, none gets lost.
     this.invalidated = false;
     this.renderedStructure = this.structure;
@@ -746,6 +778,17 @@ export class ChartSurface {
     const scale = target.dpiScale;
     this.arrangeScale = scale;
     const size = { width: target.size.width / scale, height: target.size.height / scale };
+    const group = this.memberOf;
+    if (group) {
+      // What the chart needs by itself, before the group asks for more.
+      const own = arrangeChart(size, this.titleText, this.horizontal, this.paneList, this.measurer, {
+        ...this.withRoom(),
+        minimumPlotLeft: 0,
+        minimumPlotRight: 0,
+      });
+      group.onMeasured(this, own.plotArea.x, size.width - own.plotArea.right);
+      this.renderedStructure = this.structure;
+    }
     const layout = arrangeChart(size, this.titleText, this.horizontal, this.paneList, this.measurer, this.withRoom());
     this.paneRects.length = 0;
     this.bandRects.length = 0;

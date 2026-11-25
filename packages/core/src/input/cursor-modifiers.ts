@@ -20,6 +20,8 @@ export class CrosshairModifier extends ChartModifier {
   valueDistance = 40;
   /** Called after every move with the X value under the pointer, `undefined` when the cross is hidden. */
   onMoved: ((x: number | undefined) => void) | undefined;
+  /** @internal Listeners besides {@link CrosshairModifier.onMoved}, such as a chart group. */
+  readonly movedListeners = new Set<(x: number | undefined) => void>();
 
   /** Creates the modifier with priority -10, after all that act on the input. */
   constructor() {
@@ -51,7 +53,7 @@ export class CrosshairModifier extends ChartModifier {
       interaction.run(() => {
         overlay.hide();
       });
-      this.onMoved?.(undefined);
+      this.notifyMoved(undefined);
       return 'ignored';
     }
     const chart = interaction.chart;
@@ -64,8 +66,15 @@ export class CrosshairModifier extends ChartModifier {
       overlay.series = chart.series;
       overlay.show(position, snapped, values, header);
     });
-    this.onMoved?.(interaction.xValueAt(position));
+    this.notifyMoved(interaction.xValueAt(position));
     return 'ignored';
+  }
+
+  private notifyMoved(x: number | undefined): void {
+    this.onMoved?.(x);
+    for (const listener of this.movedListeners) {
+      listener(x);
+    }
   }
 }
 

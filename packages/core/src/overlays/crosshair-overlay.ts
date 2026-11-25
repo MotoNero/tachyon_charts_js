@@ -1,5 +1,5 @@
-// A crosshair with the values of the axes at it, a snapped point and the values of all series (CrosshairOverlay of the
-// .NET version, without the line another chart of a group sets, which comes with the groups).
+// A crosshair with the values of the axes at it, a snapped point and the values of all series, or the line another
+// chart of a group sets (CrosshairOverlay of the .NET version).
 import type { Axis, AxisPosition } from '../axes/axis';
 import type { HitResult } from '../hit-testing/hit-test';
 import type { Point } from '../input/primitives';
@@ -70,6 +70,8 @@ export class CrosshairOverlay extends ChartOverlay {
   private values: readonly HitResult[] = [];
   private texts: string[] = [];
   private header: string | undefined;
+  private syncedAxis: Axis | undefined;
+  private syncedX: number | undefined;
   private readonly axisTexts: AxisText[] = [];
   private readonly axisLabels: AxisLabel[] = [];
 
@@ -93,13 +95,24 @@ export class CrosshairOverlay extends ChartOverlay {
     this.header = header;
     this.position = position;
     this.snapped = snapped;
+    this.syncedX = undefined;
+    this.changed();
+  }
+
+  /** Shows only the line at a value of an axis, as another chart of a group asks for. */
+  showAt(axis: Axis, value: number): void {
+    this.syncedAxis = axis;
+    this.syncedX = value;
+    this.position = undefined;
+    this.snapped = undefined;
     this.changed();
   }
 
   /** Hides the cross. */
   hide(): void {
-    if (this.position) {
+    if (this.position || this.syncedX !== undefined) {
       this.position = undefined;
+      this.syncedX = undefined;
       this.snapped = undefined;
       this.values = [];
       this.texts = [];
@@ -110,9 +123,36 @@ export class CrosshairOverlay extends ChartOverlay {
 
   /** {@inheritDoc ChartOverlay.draw} */
   draw(canvas: OverlayCanvas): void {
-    if (this.position) {
+    if (this.syncedX !== undefined && this.syncedAxis) {
+      this.drawSyncedLine(canvas, this.syncedAxis, this.syncedX);
+    } else if (this.position) {
       this.drawCross(canvas, this.position);
     }
+  }
+
+  private drawSyncedLine(canvas: OverlayCanvas, axis: Axis, value: number): void {
+    const at = canvas.positionOf(axis, value);
+    if (at === undefined) {
+      return;
+    }
+    const color = canvas.colors.crosshair;
+    for (const pane of canvas.layout.panes) {
+      canvas.clip = pane;
+      if (axis.isHorizontal) {
+        canvas.drawLine({ x: f(at), y: f(pane.y) }, { x: f(at), y: f(pane.bottom) }, 1, color);
+      } else {
+        canvas.drawLine({ x: f(pane.x), y: f(at) }, { x: f(pane.right), y: f(at) }, 1, color);
+      }
+    }
+    canvas.clip = undefined;
+    const first = canvas.layout.panes[0];
+    if (!first) {
+      return;
+    }
+    const center = axis.isHorizontal
+      ? { x: f(at), y: f(first.y + first.height / 2) }
+      : { x: f(first.x + first.width / 2), y: f(at) };
+    this.drawAxisLabels(canvas, center, axis);
   }
 
   private center(canvas: OverlayCanvas, hit: HitResult, fallback: Point): Point {
@@ -207,11 +247,14 @@ export class CrosshairOverlay extends ChartOverlay {
    * Draws the value of each axis at the cross. A value another axis on that side already shows is left out, a
    * different one moves beside the others, and with several axes on a side each takes the color of its curve.
    */
-  private drawAxisLabels(canvas: OverlayCanvas, center: Point): void {
+  private drawAxisLabels(canvas: OverlayCanvas, center: Point, runningLike?: Axis): void {
     this.axisLabels.length = 0;
     const placements = canvas.layout.axes;
     for (const placement of placements) {
       const axis = placement.axis;
+      if (runningLike && axis.isHorizontal !== runningLike.isHorizontal) {
+        continue;
+      }
       const along = axis.isHorizontal ? center.x : center.y;
       const curve = this.curveOf(axis);
       const value = canvas.valueAt(axis, along);

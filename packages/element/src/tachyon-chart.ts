@@ -7,6 +7,7 @@ import {
   ChartDefinition,
   ChartInteraction,
   ChartSurface,
+  ChartGroup,
   CrosshairModifier,
   findBuiltInTheme,
   getResamplingWorker,
@@ -196,6 +197,9 @@ export class TachyonChartElement extends HTMLElement {
   private readonly modifiers = new ModifierPipeline();
   // The modifiers the description of the chart adds.
   private ownModifiers: readonly ChartModifier[] = [];
+  private groupName: string | undefined;
+  private readonly connectedCrosshairs: CrosshairModifier[] = [];
+  private joinedGroup: ChartGroup | undefined;
   private target: SurfaceRenderTarget | undefined;
   private device: RenderDevice | undefined;
   private engine: TextEngine | undefined;
@@ -333,6 +337,7 @@ export class TachyonChartElement extends HTMLElement {
   /** Frees the GPU resources and stops drawing when the element leaves the page; it starts again when it returns. */
   disconnectedCallback(): void {
     charts.delete(this);
+    this.leaveGroup();
     leaveFrameLoop(this.member);
     this.visibility?.disconnect();
     this.visibility = undefined;
@@ -510,6 +515,8 @@ export class TachyonChartElement extends HTMLElement {
     for (const series of this.chartSurface?.series ?? []) {
       series.releaseResources();
     }
+    this.leaveGroup();
+    this.groupName = undefined;
     if (content instanceof ChartSurface) {
       this.chartSurface = content;
       this.ownModifiers = [];
@@ -517,6 +524,7 @@ export class TachyonChartElement extends HTMLElement {
       const built = content.build(engine);
       this.chartSurface = built.surface;
       this.ownModifiers = built.modifiers;
+      this.groupName = built.groupName;
     } else {
       this.chartSurface = undefined;
       this.ownModifiers = [];
@@ -524,6 +532,36 @@ export class TachyonChartElement extends HTMLElement {
     this.ownTheme = this.chartSurface?.theme;
     this.applyTheme();
     this.applyInteraction();
+    this.joinGroup();
+  }
+
+  // A chart described with a group shows the same X range as the others and shares their crosshair line.
+  private joinGroup(): void {
+    const surface = this.chartSurface;
+    if (!surface || this.groupName === undefined) {
+      return;
+    }
+    const group = ChartGroup.get(this.groupName);
+    group.add(surface);
+    this.joinedGroup = group;
+    for (const modifier of this.modifiers.modifiers) {
+      if (modifier instanceof CrosshairModifier) {
+        group.connect(modifier);
+        this.connectedCrosshairs.push(modifier);
+      }
+    }
+  }
+
+  private leaveGroup(): void {
+    const surface = this.chartSurface;
+    const group = this.joinedGroup;
+    this.joinedGroup = undefined;
+    for (const crosshair of this.connectedCrosshairs.splice(0)) {
+      group?.disconnect(crosshair);
+    }
+    if (surface && group) {
+      group.remove(surface);
+    }
   }
 
   // The modifiers of the description, or those of the example and the .NET showroom, unless interactive="false".

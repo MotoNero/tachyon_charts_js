@@ -393,6 +393,7 @@ export const BufferUsage: {
 
 // @public
 export interface BuiltChart {
+    readonly groupName?: string | undefined;
     readonly modifiers: readonly ChartModifier[];
     readonly surface: ChartSurface;
 }
@@ -520,6 +521,7 @@ export class ChartBuilder {
     addSeries(factory: (xAxis: Axis, yAxis: Axis, axis: (id: string) => Axis) => ChartSeries, xAxis?: string, yAxis?: string): this;
     axisFont(font: TextFont): this;
     build(textEngine: TextEngine): BuiltChart;
+    group(name: string): this;
     legend(configure?: (legend: LegendBuilder) => unknown): this;
     theme(theme: ThemeDocument): this;
     title(title: string): this;
@@ -540,9 +542,11 @@ export class ChartDefinition {
     axisFont?: TextFont | undefined,
     theme?: ThemeDocument | undefined,
     overlays?: readonly ((chart: ChartSurface) => ChartOverlay)[],
-    modifiers?: readonly (() => ChartModifier)[]);
+    modifiers?: readonly (() => ChartModifier)[],
+    groupName?: string | undefined);
     readonly axisFont?: TextFont | undefined;
     build(textEngine: TextEngine): BuiltChart;
+    readonly groupName?: string | undefined;
     readonly modifiers: readonly (() => ChartModifier)[];
     readonly overlays: readonly ((chart: ChartSurface) => ChartOverlay)[];
     readonly series: readonly SeriesDefinition[];
@@ -560,6 +564,26 @@ export type ChartDirection = 'x' | 'y' | 'both';
 export interface ChartEdit {
     redo(): void;
     undo(): void;
+}
+
+// @public
+export class ChartGroup {
+    add(chart: ChartSurface, axis?: Axis): void;
+    get charts(): readonly ChartSurface[];
+    connect(crosshair: CrosshairModifier): void;
+    disconnect(crosshair: CrosshairModifier): void;
+    // @internal
+    get firstChart(): ChartSurface | undefined;
+    static get(name: string): ChartGroup;
+    onCursorMoved: ((x: number | undefined) => void) | undefined;
+    // @internal
+    onFrameStarting(chart: ChartSurface): void;
+    // @internal
+    onMeasured(chart: ChartSurface, left: number, right: number): void;
+    remove(chart: ChartSurface): boolean;
+    showCursor(x: number | undefined): void;
+    synchronizesAxisWidth: boolean;
+    synchronizesRange: boolean;
 }
 
 // @public
@@ -687,6 +711,7 @@ export class ChartSurface {
     get drawnPointCount(): number;
     finishRender(device: RenderDevice, target: RenderTarget): void;
     get frameCount(): number;
+    get group(): SurfaceGroup | undefined;
     hasChanges(target: RenderTarget): boolean;
     hitTest(position: Point, maximumDistance: number, mode: HitTestMode): HitResult | undefined;
     hitTestAll(position: Point, maximumDistance: number, mode: HitTestMode): HitResult[];
@@ -703,6 +728,9 @@ export class ChartSurface {
     render(device: RenderDevice, target: RenderTarget): void;
     selectPoints(outline: readonly Point[]): SeriesSelection[];
     get series(): readonly ChartSeries[];
+    // @internal
+    setGroup(group: SurfaceGroup | undefined): void;
+    setPlotInsets(left: number, right: number): void;
     get style(): ChartSurfaceStyle;
     set style(value: ChartSurfaceStyle);
     get theme(): ThemeDocument | undefined;
@@ -869,6 +897,8 @@ export function createSmithChart(textEngine: TextEngine, referenceImpedance?: nu
 // @public
 export class CrosshairModifier extends ChartModifier {
     constructor();
+    // @internal
+    readonly movedListeners: Set<(x: number | undefined) => void>;
     protected onAttached(interaction: ChartInteraction): void;
     protected onDetached(interaction: ChartInteraction): void;
     onMoved: ((x: number | undefined) => void) | undefined;
@@ -887,6 +917,7 @@ export class CrosshairOverlay extends ChartOverlay {
     hide(): void;
     series: readonly ChartSeries[];
     show(position: Point, snapped?: HitResult, values?: readonly HitResult[], header?: string): void;
+    showAt(axis: Axis, value: number): void;
     get shownValues(): readonly HitResult[];
 }
 
@@ -2108,6 +2139,30 @@ export interface OverlayColors {
 }
 
 // @public
+export class OverviewModifier extends ChartModifier {
+    constructor(target: () => ChartInteraction | undefined);
+    static readonly defaultPriority = 40;
+    edgeDistance: number;
+    static of(group: string): OverviewModifier;
+    protected onAttached(interaction: ChartInteraction): void;
+    onCaptureLost(): void;
+    protected onDetached(interaction: ChartInteraction): void;
+    onPointer(input: PointerInputEvent): ModifierResult;
+    readonly overlay: OverviewOverlay;
+}
+
+// @public
+export class OverviewOverlay extends ChartOverlay {
+    constructor(targetAxis: () => Axis | undefined);
+    draw(canvas: OverlayCanvas): void;
+    get version(): number;
+    get window(): {
+        readonly left: number;
+        readonly right: number;
+    } | undefined;
+}
+
+// @public
 export class PackedBits implements DigitalSource {
     constructor(
     words: Uint32Array,
@@ -3242,6 +3297,12 @@ export function stackLayers(layers: readonly ArrayLike<number>[], isPercent: boo
 
 // @public
 export function stepOneTwoFive(value: number, steps: number): number;
+
+// @public
+export interface SurfaceGroup {
+    onFrameStarting(chart: ChartSurface): void;
+    onMeasured(chart: ChartSurface, left: number, right: number): void;
+}
 
 // @public
 export interface SurfaceHandle {

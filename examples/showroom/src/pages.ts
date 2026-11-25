@@ -84,6 +84,7 @@ import {
   LegendModifier,
   SelectionModifier,
   MeasureCursorModifier,
+  OverviewModifier,
   type ThemeDocument,
   type Axis,
   type ChartSurface,
@@ -279,9 +280,25 @@ function liveChartPage(): Page {
         .addModifier(() => new LegendModifier())
         .addModifier(() => new KeyboardNavigationModifier())
         .addModifier(() => new SelectionModifier())
-        .addModifier(() => new MeasureCursorModifier());
+        .addModifier(() => new MeasureCursorModifier())
+        .group('live-chart');
     },
     start: () => {
+      // The overview below shows the whole signal and frames the window of the chart; dragging it moves the window.
+      const main = document.querySelector<HTMLElement>('#chart');
+      const overview = document.createElement('tachyon-chart');
+      const theme = main?.getAttribute('theme');
+      if (theme) {
+        overview.setAttribute('theme', theme);
+      }
+      overview.chart = new ChartBuilder()
+        .xAxis((a) => a.numeric('x').autoRange())
+        .yAxis((a) => a.numeric('y').autoRange())
+        .addLine(fixed, (s) => s.stroke({ r: 80, g: 170, b: 240, a: 255 }).thickness(1))
+        .addLine(live, (s) => s.stroke({ r: 240, g: 130, b: 90, a: 255 }).thickness(1))
+        .addModifier(() => OverviewModifier.of('live-chart'));
+      main?.after(overview);
+      main?.parentElement?.classList.add('with-overview');
       const x = new Float64Array(500);
       const y = new Float64Array(500);
       const begin = performance.now();
@@ -301,6 +318,65 @@ function liveChartPage(): Page {
       return {
         dispose: () => {
           clearInterval(timer);
+          overview.remove();
+          main?.parentElement?.classList.remove('with-overview');
+        },
+      };
+    },
+  };
+}
+
+// Three charts of one group with very different values: zooming one zooms all, the plots line up although the
+// numbers of their axes differ in width, and the crosshair line runs through all three, as the group page of the .NET
+// showroom.
+function linkedChartsPage(): Page {
+  const charts: [string, number][] = [
+    ['Small', 1],
+    ['Large', 100_000],
+    ['Medium', 25],
+  ];
+  const describe = (c: ChartBuilder, title: string, scale: number): ChartBuilder => {
+    const source = new DataSource(2000);
+    for (let i = 0; i < 2000; i++) {
+      source.append(i * 0.01, scale * Math.sin(i * 0.01 * (1 + (scale % 3))));
+    }
+    return c
+      .title(t(title))
+      .xAxis((a) => a.numeric('x').range(0, 20))
+      .yAxis((a) => a.numeric('y').autoRange())
+      .addLine(source, (s) => s.thickness(1.5))
+      .group('linked-charts')
+      .addModifier(() => new ZoomPanModifier())
+      .addModifier(() => new CrosshairModifier());
+  };
+  const [first, ...others] = charts as [[string, number], ...[string, number][]];
+  return {
+    id: 'linked-charts',
+    name: 'Group (3 charts)',
+    group: 'Interactive',
+    hint: 'Zoom and crosshair apply to all three charts',
+    configure: (c) => {
+      describe(c, first[0], first[1]);
+    },
+    start: () => {
+      const main = document.querySelector<HTMLElement>('#chart');
+      const theme = main?.getAttribute('theme');
+      const added = others.map(([title, scale]) => {
+        const chart = document.createElement('tachyon-chart');
+        if (theme) {
+          chart.setAttribute('theme', theme);
+        }
+        chart.chart = describe(new ChartBuilder(), title, scale);
+        return chart;
+      });
+      main?.after(...added);
+      main?.parentElement?.classList.add('with-linked');
+      return {
+        dispose: () => {
+          for (const chart of added) {
+            chart.remove();
+          }
+          main?.parentElement?.classList.remove('with-linked');
         },
       };
     },
@@ -1810,6 +1886,7 @@ export const pages: readonly Page[] = [
   candlesPage(),
   drawingToolsPage(),
   liveChartPage(),
+  linkedChartsPage(),
   marketProfilePage(),
   candlesWithoutWeekendsPage(),
   {

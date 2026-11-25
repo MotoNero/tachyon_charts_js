@@ -36,3 +36,4 @@ export {
 } from './drawings';
 export { SelectionModifier, SelectionOverlay, type SelectionMode } from './selection';
 export { MeasureCursorModifier, MeasureResult } from './measure-cursor';
+export { OverviewModifier, OverviewOverlay } from './overview';

@@ -810,6 +810,29 @@ pipeline.add(selection);
 pipeline.add(new MeasureCursorModifier());
 ```
 
+## Chart groups and overview
+
+![A chart of a slow sine above an overview that frames the window the chart shows](docs/images/overview.png)
+
+Charts described with the same `group(name)` show the same X range: zooming or panning one moves all, their plots
+start and end at the same places however wide the numbers of their axes are, and the crosshair of one draws its line
+in all others. An overview chart with `OverviewModifier.of(name)` shades what lies outside the window of the first
+chart of the group; dragging the window moves it, dragging an edge scales it, a press beside it centers it there.
+`ChartGroup.get(name)` adds and removes charts by hand and reports the crosshair (`onCursorMoved`).
+
+```ts
+chart.chart = new ChartBuilder()
+  .xAxis((a) => a.numeric('x').range(3, 6))
+  .yAxis((a) => a.numeric('y').autoRange())
+  .addLine(signal)
+  .group('signal');
+overview.chart = new ChartBuilder()
+  .xAxis((a) => a.numeric('x').autoRange())
+  .yAxis((a) => a.numeric('y').autoRange())
+  .addLine(signal)
+  .addModifier(() => OverviewModifier.of('signal'));
+```
+
 ## Themes
 
 ![The theme preview in the light theme: a line and markers with titled axes](docs/images/theme-light.png)
