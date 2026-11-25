@@ -85,6 +85,10 @@ const german: Readonly<Record<string, string>> = {
   'Level in dB': 'Pegel in dB',
   Surface: 'Fläche',
   'Surface 4096 × 4096': 'Fläche 4096 × 4096',
+  'Path of 200,000 points': 'Pfad aus 200.000 Punkten',
+  'Path of a particle': 'Pfad eines Teilchens',
+  'Scatter of 3,000 points': 'Punktwolke aus 3.000 Punkten',
+  'Three clouds': 'Drei Wolken',
   'Drag: turn | Shift+drag: move | Wheel: zoom | Arrow keys: turn | Double click, Home: start':
     'Ziehen: drehen | Umschalt+Ziehen: verschieben | Rad: Zoom | Pfeiltasten: drehen | Doppelklick, Pos1: Anfang',
   'Last value at the axis': 'Letzter Wert an der Achse',

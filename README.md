@@ -855,10 +855,14 @@ builder
 ## 3D charts
 
 ![A surface of a wave and a hill in Viridis inside a box with grid and labels on three walls](docs/images/surface-3d.png)
+![The path of a particle of 200,000 points colored from start to end](docs/images/line-3d.png)
 
 `@tachyon-charts/3d` draws a scene in an axis box: the walls behind the box seen from the eye with their grid, the
 numbers and titles of the three axes along the edges, and height fields (`Surface3D`) colored by height and lit, with
-gaps where values are missing. A 4096 × 4096 surface keeps its 16.7 million heights in one GPU buffer. Drag to turn,
+gaps where values are missing. A 4096 × 4096 surface keeps its 16.7 million heights in one GPU buffer. Lines through
+points in space (`Line3D`) keep their width on the screen, meet without gaps at bends and break at a gap; points in
+space (`Scatter3D`) are round spots of their own size and color. Both keep their points in a ring (`Points3D`) that a
+live source appends to. Drag to turn,
 Shift and drag to move, wheel and + and − to zoom, arrows to turn, Home or a double click for the first view. The
 scene draws with WebGPU; on a chart drawn with WebGL 2, Canvas 2D or in a render worker it draws on a WebGPU device of
 its own and hands the picture over.

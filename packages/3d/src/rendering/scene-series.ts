@@ -15,6 +15,7 @@ import {
 } from '@tachyon-charts/core';
 import { createWebGpuDevice, WebGpuDevice } from '@tachyon-charts/render-webgpu';
 import { addBoxLines, selectWalls, tickPlaces, toBox } from '../scene/axis-box';
+import { BoxMap, toSizeCode, type Line3D, type Scatter3D } from '../scene/points';
 import type { Scene3D } from '../scene/scene';
 import { fullMaterial, type Surface3D } from '../scene/surface';
 import { LineVertices, Renderer3D } from './renderer';
@@ -48,6 +49,10 @@ export class Scene3DSeries extends ChartSeries {
   private readonly surfaceVersions = new Map<Surface3D, number>();
   private heights = new Float32Array(0);
   private ranges = '';
+  private palette: readonly Rgba8[] = [];
+  private paletteVersion = 0;
+  private themeColors = new Map<object, Rgba8>();
+  private themeColorsStamp = '';
   private waiting: Promise<void> | undefined;
 
   /**
@@ -72,6 +77,12 @@ export class Scene3DSeries extends ChartSeries {
   /** @internal Settles once the work started by the last frame is done, so that the next frame shows the picture. */
   whenReady(): Promise<void> {
     return this.waiting ?? Promise.resolve();
+  }
+
+  /** {@inheritDoc @tachyon-charts/core#ChartSeries.onPalette} */
+  override onPalette(palette: readonly Rgba8[]): void {
+    this.palette = [...palette];
+    this.paletteVersion++;
   }
 
   /** @internal Connects the series with its chart, for the theme. */
@@ -170,6 +181,16 @@ export class Scene3DSeries extends ChartSeries {
     for (const surface of this.scene.surfaces) {
       this.updateSurface(surface);
     }
+    const map = new BoxMap(this.scene.xAxis, this.scene.yAxis, this.scene.zAxis);
+    const renderer = this.renderer as Renderer3D;
+    for (const line of this.scene.lines) {
+      const color = this.colorOf(line, line.hasOwnColor, line.color);
+      renderer.traceOf(line).upload(map, color, this.ranges + ' ' + colorKey(color));
+    }
+    for (const scatter of this.scene.scatters) {
+      const color = this.colorOf(scatter, scatter.hasOwnColor, scatter.color);
+      renderer.spotsOf(scatter).upload(map, color, this.ranges + ' ' + colorKey(color), toSizeCode(scatter.size));
+    }
     const aspect = size.width / size.height;
     const camera = this.scene.camera;
     camera.createMatrix(aspect).toGpu(this.matrix);
@@ -184,6 +205,26 @@ export class Scene3DSeries extends ChartSeries {
       this.lines,
       [walls.x, walls.y, walls.z, 0],
     );
+  }
+
+  // The color an element draws with: its own, or the color of the palette its place among the elements without one
+  // gives.
+  private colorOf(element: Line3D | Scatter3D, hasOwn: boolean, own: Rgba8): Rgba8 {
+    if (hasOwn || this.palette.length === 0) {
+      return own;
+    }
+    const stamp = String(this.scene.version) + ' ' + String(this.paletteVersion);
+    if (stamp !== this.themeColorsStamp) {
+      this.themeColors = new Map();
+      let next = 0;
+      for (const item of [...this.scene.lines, ...this.scene.scatters]) {
+        if (!item.hasOwnColor) {
+          this.themeColors.set(item, this.palette[next++ % this.palette.length] as Rgba8);
+        }
+      }
+      this.themeColorsStamp = stamp;
+    }
+    return this.themeColors.get(element) ?? own;
   }
 
   // New ranges move everything in the box: a chart group zooms from outside, so all data reach the GPU anew.
@@ -268,6 +309,10 @@ export class Scene3DSeries extends ChartSeries {
     this.lines.addAll(this.grid, themeColor(theme?.grid?.major, defaultGrid));
     this.lines.addAll(this.frameLines, themeColor(theme?.axis?.line, defaultFrame));
   }
+}
+
+function colorKey(color: Rgba8): string {
+  return [color.r, color.g, color.b, color.a].join(',');
 }
 
 // The colors of the colormap as a table of four floats each, opaque.

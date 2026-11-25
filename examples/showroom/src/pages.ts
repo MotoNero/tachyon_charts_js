@@ -90,7 +90,7 @@ import {
   type Axis,
   type ChartSurface,
 } from '@tachyon-charts/core';
-import { scene3D, Surface3D } from '@tachyon-charts/3d';
+import { Line3D, Points3D, Scatter3D, scene3D, Surface3D } from '@tachyon-charts/3d';
 import {
   BitColumn,
   BitFileWriter,
@@ -549,6 +549,65 @@ function pages3D(): Page[] {
             .xAxis(0, 10, t('Time in s'))
             .yAxis(-5, 5, t('Offset in mm'))
             .zAxis(0, 100, t('Level in dB')),
+        );
+      },
+    },
+    {
+      id: 'path-200000',
+      name: 'Path of 200,000 points',
+      group: '3D',
+      hint: hint3D,
+      configure: (c) => {
+        const count = 200_000;
+        const viridis = Colormap.builtIn('viridis');
+        const points = new Points3D(count);
+        let [x, y, z] = [1, 1, 20];
+        for (let i = 0; i < count; i++) {
+          [x, y, z] = [x + 0.02 * (y - x), y + 0.002 * (x * (28 - z) - y), z + 0.002 * (x * y - (8 / 3) * z)];
+          points.append(x, y, z, viridis.sample(i / count));
+        }
+        scene3D(c, (s) =>
+          s
+            .title(t('Path of a particle'))
+            .xAxis(-25, 25, 'x')
+            .yAxis(-30, 30, 'y')
+            .zAxis(0, 55, 'z')
+            .addLine(new Line3D(points)),
+        );
+      },
+    },
+    {
+      id: 'scatter-3000',
+      name: 'Scatter of 3,000 points',
+      group: '3D',
+      hint: hint3D,
+      configure: (c) => {
+        const points = new Points3D(3000);
+        const centers = [
+          [-0.45, -0.3, -0.3],
+          [0.4, 0.35, 0.1],
+          [-0.1, 0.45, 0.5],
+        ];
+        const spread = (): number => 0.24 * (Math.random() + Math.random() + Math.random() - 1.5);
+        const viridis = Colormap.builtIn('viridis');
+        for (let i = 0; i < 3000; i++) {
+          const center = centers[i % 3] as number[];
+          const z = (center[2] as number) + spread();
+          points.append(
+            (center[0] as number) + spread(),
+            (center[1] as number) + spread(),
+            z,
+            viridis.sample((z + 1) / 2),
+            3 + 8 * Math.random(),
+          );
+        }
+        scene3D(c, (s) =>
+          s
+            .title(t('Three clouds'))
+            .xAxis(-1, 1, 'x')
+            .yAxis(-1, 1, 'y')
+            .zAxis(-1, 1, 'z')
+            .addScatter(new Scatter3D(points)),
         );
       },
     },

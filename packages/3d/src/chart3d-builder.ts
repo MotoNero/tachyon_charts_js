@@ -6,6 +6,7 @@ import { Orbit3DModifier } from './rendering/orbit-modifier';
 import { Scene3DSeries } from './rendering/scene-series';
 import type { CameraProjection } from './scene/camera';
 import { createBoxAxis, Scene3D } from './scene/scene';
+import type { Line3D, Scatter3D } from './scene/points';
 import type { Surface3D } from './scene/surface';
 
 /** Describes a 3D chart: its title, theme, camera and axes, then the elements of the scene. */
@@ -54,6 +55,18 @@ export class Chart3DBuilder {
   /** Adds a height field. */
   addSurface(surface: Surface3D): this {
     this.scene.addSurface(surface);
+    return this;
+  }
+
+  /** Adds a line through points in space. */
+  addLine(line: Line3D): this {
+    this.scene.addLine(line);
+    return this;
+  }
+
+  /** Adds points in space. */
+  addScatter(scatter: Scatter3D): this {
+    this.scene.addScatter(scatter);
     return this;
   }
 

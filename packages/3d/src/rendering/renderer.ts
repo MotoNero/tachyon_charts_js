@@ -5,7 +5,9 @@ import type { GpuTexture, PixelSize, Rgba8 } from '@tachyon-charts/core';
 import type { WebGpuDevice } from '@tachyon-charts/render-webgpu';
 import { clipWgsl, lightWgsl, linesWgsl, surfaceWgsl } from '../generated/shaders';
 import type { FullMaterial } from '../scene/surface';
+import type { Line3D, Scatter3D } from '../scene/points';
 import { SurfaceBuffers, type SurfacePipelines, type SurfaceShape } from './surfaces';
+import { createTracePipelines, TraceBuffer, type TracePipelines } from './traces';
 
 const sampleCount = 4;
 const colorFormat: GPUTextureFormat = 'rgba8unorm';
@@ -73,6 +75,9 @@ export class Renderer3D {
   private readonly lineBindGroup: GPUBindGroup;
   private readonly surfacePipelines: SurfacePipelines;
   private readonly surfaces = new Map<object, SurfaceBuffers>();
+  private readonly tracePipelines: TracePipelines;
+  private readonly traces = new Map<Line3D, TraceBuffer>();
+  private readonly spots = new Map<Scatter3D, TraceBuffer>();
   // No plane cuts the scene: each column keeps every point (0, 0, 0, 1).
   private readonly cuts = new Float32Array([0, 0, 0, 1, 0, 0, 0, 1, 0, 0, 0, 1, 0, 0, 0, 1]);
   private lines: GPUBuffer | undefined;
@@ -159,6 +164,7 @@ export class Renderer3D {
         multisample: { count: sampleCount },
       }),
     };
+    this.tracePipelines = createTracePipelines(gpu, colorFormat, depthFormat, sampleCount);
     this.lineBindGroup = gpu.createBindGroup({
       layout: this.linePipeline.getBindGroupLayout(0),
       entries: [{ binding: 0, resource: { buffer: this.lineUniforms, size: lineUniformSize } }],
@@ -180,6 +186,26 @@ export class Renderer3D {
       this.surfaces.set(owner, buffers);
     }
     buffers.write(shape, heights);
+  }
+
+  /** The buffer of a line, made on first use. */
+  traceOf(line: Line3D): TraceBuffer {
+    let buffer = this.traces.get(line);
+    if (!buffer) {
+      buffer = new TraceBuffer(this.gpu, this.tracePipelines.trace, line.points, line.width, 0, line.drawsOnTop);
+      this.traces.set(line, buffer);
+    }
+    return buffer;
+  }
+
+  /** The buffer of a scatter, made on first use. */
+  spotsOf(scatter: Scatter3D): TraceBuffer {
+    let buffer = this.spots.get(scatter);
+    if (!buffer) {
+      buffer = new TraceBuffer(this.gpu, this.tracePipelines.spots, scatter.points, 0, scatter.pointBudget);
+      this.spots.set(scatter, buffer);
+    }
+    return buffer;
   }
 
   /** Whether the renderer holds the buffers of a surface. */
@@ -216,6 +242,9 @@ export class Renderer3D {
     for (const surface of this.surfaces.values()) {
       surface.writeUniforms(matrix, eye, planes, this.cuts);
     }
+    for (const trace of [...this.traces.values(), ...this.spots.values()]) {
+      trace.writeUniforms(matrix, size.width, size.height, this.cuts);
+    }
     const encoder = this.gpu.createCommandEncoder({ label: 'scene 3D' });
     const pass = encoder.beginRenderPass({
       colorAttachments: [
@@ -240,6 +269,18 @@ export class Renderer3D {
       pass.setVertexBuffer(0, this.lines, 0, lines.count * lineVertexSize);
       pass.draw(lines.count);
     }
+    pass.setPipeline(this.tracePipelines.trace);
+    for (const trace of this.traces.values()) {
+      if (!trace.isOnTop) {
+        trace.draw(pass);
+      }
+    }
+    if (this.spots.size > 0) {
+      pass.setPipeline(this.tracePipelines.spots);
+      for (const spots of this.spots.values()) {
+        spots.drawSpots(pass);
+      }
+    }
     for (const surface of this.surfaces.values()) {
       if (!surface.isTransparent) {
         pass.setPipeline(this.surfacePipelines.opaque);
@@ -249,6 +290,13 @@ export class Renderer3D {
     pass.setPipeline(this.surfacePipelines.projection);
     for (const surface of this.surfaces.values()) {
       surface.drawProjection(pass);
+    }
+    // The lines over everything, after all that is opaque.
+    pass.setPipeline(this.tracePipelines.onTop);
+    for (const trace of this.traces.values()) {
+      if (trace.isOnTop) {
+        trace.draw(pass);
+      }
     }
     pass.end();
     // The picture reaches a texture of the chart's device, which the chart draws like any image.
@@ -272,6 +320,11 @@ export class Renderer3D {
       surface.dispose();
     }
     this.surfaces.clear();
+    for (const trace of [...this.traces.values(), ...this.spots.values()]) {
+      trace.dispose();
+    }
+    this.traces.clear();
+    this.spots.clear();
     this.lines?.destroy();
     this.lineUniforms.destroy();
   }

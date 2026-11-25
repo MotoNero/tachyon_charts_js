@@ -2,6 +2,7 @@
 // part by part; a scene without them shows the axis box.
 import { DoubleRange, NumericAxis, type Axis } from '@tachyon-charts/core';
 import { Camera3D } from './camera';
+import type { Line3D, Scatter3D } from './points';
 import type { Surface3D } from './surface';
 
 /** An element of a scene with a version that grows with each change of its content. */
@@ -30,6 +31,8 @@ export class Scene3D {
   zAxis: Axis = createBoxAxis('z3d');
   private readonly elementList: SceneElement[] = [];
   private readonly surfaceList: Surface3D[] = [];
+  private readonly lineList: Line3D[] = [];
+  private readonly scatterList: Scatter3D[] = [];
   private axesShown = true;
   private changes = 0;
 
@@ -52,6 +55,28 @@ export class Scene3D {
   addSurface(surface: Surface3D): void {
     this.surfaceList.push(surface);
     this.addElement(surface);
+  }
+
+  /** The lines. */
+  get lines(): readonly Line3D[] {
+    return this.lineList;
+  }
+
+  /** The scatters. */
+  get scatters(): readonly Scatter3D[] {
+    return this.scatterList;
+  }
+
+  /** Adds a line. */
+  addLine(line: Line3D): void {
+    this.lineList.push(line);
+    this.addElement(line);
+  }
+
+  /** Adds a scatter. */
+  addScatter(scatter: Scatter3D): void {
+    this.scatterList.push(scatter);
+    this.addElement(scatter);
   }
 
   /** @internal The elements of the scene. */
