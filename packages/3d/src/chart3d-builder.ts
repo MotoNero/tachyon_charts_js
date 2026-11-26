@@ -10,6 +10,7 @@ import type { Bars3D } from './scene/bars';
 import type { Bubbles3D } from './scene/bubbles';
 import type { Line3D, Scatter3D } from './scene/points';
 import type { Surface3D } from './scene/surface';
+import type { Waterfall3D } from './scene/waterfall';
 
 /** Describes a 3D chart: its title, theme, camera and axes, then the elements of the scene. */
 export class Chart3DBuilder {
@@ -51,6 +52,12 @@ export class Chart3DBuilder {
   /** The upward axis, by its range and title, or as an axis of its own. */
   zAxis(minimum: number | Axis, maximum?: number, title?: string): this {
     this.scene.zAxis = typeof minimum === 'number' ? createBoxAxis('z3d', minimum, maximum ?? 1, title) : minimum;
+    return this;
+  }
+
+  /** Adds a waterfall of the rows of a spectrogram. */
+  addWaterfall(waterfall: Waterfall3D): this {
+    this.scene.addWaterfall(waterfall);
     return this;
   }
 

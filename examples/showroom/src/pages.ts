@@ -90,7 +90,17 @@ import {
   type Axis,
   type ChartSurface,
 } from '@tachyon-charts/core';
-import { Bars3D, Bubbles3D, evenContours, Line3D, Points3D, Scatter3D, scene3D, Surface3D } from '@tachyon-charts/3d';
+import {
+  Bars3D,
+  Bubbles3D,
+  evenContours,
+  Line3D,
+  Points3D,
+  Scatter3D,
+  scene3D,
+  Surface3D,
+  Waterfall3D,
+} from '@tachyon-charts/3d';
 import {
   BitColumn,
   BitFileWriter,
@@ -535,8 +545,57 @@ function field3D(side: number): HeatmapData {
   return data;
 }
 
+// A spectrum of 512 frequencies arriving 20 times a second, its rows one behind the other: a peak wanders across.
+function waterfallPage(): Page {
+  const columns = 512;
+  const rows = 200;
+  const data = new SpectrogramData(columns, rows);
+  const row = new Float32Array(columns);
+  let time = 0;
+  const append = (): void => {
+    const center = 0.5 + 0.3 * Math.sin(time * 0.02);
+    for (let column = 0; column < columns; column++) {
+      const place = column / (columns - 1);
+      const peak = Math.exp(-Math.pow((place - center) / 0.03, 2));
+      const second = 0.6 * Math.exp(-Math.pow((place - 0.8) / 0.02, 2));
+      row[column] =
+        -80 + 70 * Math.max(peak, second) + 0.5 * Math.sin(column * 0.13 + time * 0.21) + (Math.random() - 0.5) * 2;
+    }
+    data.appendRow(row);
+    time++;
+  };
+  for (let i = 0; i < rows; i++) {
+    append();
+  }
+  return {
+    id: 'waterfall-3d',
+    name: 'Waterfall, live',
+    group: '3D',
+    hint: hint3D,
+    configure: (c) => {
+      scene3D(c, (s) =>
+        s
+          .title(t('Waterfall'))
+          .xAxis(0, 10, t('Frequency in MHz'))
+          .yAxis(0, 20, t('Age in s'))
+          .zAxis(-90, 0, t('Level in dBm'))
+          .addWaterfall(new Waterfall3D(data, new DoubleRange(0, 10), new DoubleRange(0, 20))),
+      );
+    },
+    start: () => {
+      const timer = setInterval(append, 50);
+      return {
+        dispose: () => {
+          clearInterval(timer);
+        },
+      };
+    },
+  };
+}
+
 function pages3D(): Page[] {
   return [
+    waterfallPage(),
     {
       id: 'axis-box',
       name: 'Axis box',

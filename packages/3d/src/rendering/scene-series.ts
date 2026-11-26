@@ -20,7 +20,8 @@ import { barStride, type Bars3D } from '../scene/bars';
 import type { Bubbles3D } from '../scene/bubbles';
 import { bubbleStride } from './bubbles';
 import type { Scene3D } from '../scene/scene';
-import { fullMaterial, type Surface3D } from '../scene/surface';
+import { fullMaterial, missingHeight, type Surface3D } from '../scene/surface';
+import type { Waterfall3D } from '../scene/waterfall';
 import { LineVertices, Renderer3D } from './renderer';
 
 const defaultBackground: Rgba8 = { r: 14, g: 17, b: 23, a: 255 };
@@ -51,6 +52,7 @@ export class Scene3DSeries extends ChartSeries {
   private readonly matrix = new Float32Array(16);
   private readonly surfaceVersions = new Map<Surface3D, number>();
   private readonly barVersions = new Map<Bars3D, number>();
+  private readonly waterfallRows = new Map<Waterfall3D, number>();
   private readonly bubbleKeys = new Map<Bubbles3D, string>();
   private heights = new Float32Array(0);
   private ranges = '';
@@ -186,6 +188,9 @@ export class Scene3DSeries extends ChartSeries {
     for (const surface of this.scene.surfaces) {
       this.updateSurface(surface);
     }
+    for (const waterfall of this.scene.waterfalls) {
+      this.updateWaterfall(waterfall);
+    }
     for (const bars of this.scene.bars) {
       this.updateBars(bars);
     }
@@ -249,6 +254,7 @@ export class Scene3DSeries extends ChartSeries {
       this.ranges = ranges;
       this.surfaceVersions.clear();
       this.barVersions.clear();
+      this.waterfallRows.clear();
       this.bubbleKeys.clear();
     }
   }
@@ -282,6 +288,59 @@ export class Scene3DSeries extends ChartSeries {
       count++;
     }
     renderer.uploadBubbles(bubbles, instances, count, fullMaterial(bubbles.material));
+  }
+
+  private updateWaterfall(waterfall: Waterfall3D): void {
+    const renderer = this.renderer as Renderer3D;
+    const data = waterfall.data;
+    const columns = data.columns;
+    const rows = data.rows;
+    const total = data.totalRows;
+    if (!renderer.holdsSurface(waterfall) || !this.waterfallRows.has(waterfall)) {
+      this.createWaterfall(waterfall);
+      this.waterfallRows.set(waterfall, 0);
+    }
+    const scene = this.scene;
+    const transform = scene.zAxis.createTransform(-1, 2);
+    const sign = scene.zAxis.isHorizontal ? 1 : -1;
+    const row = new Float32Array(columns);
+    for (let index = Math.max(this.waterfallRows.get(waterfall) ?? 0, total - rows); index < total; index++) {
+      for (let column = 0; column < columns; column++) {
+        const value = data.read(index, column);
+        const place = Number.isFinite(value) ? sign * transform.toPixel(value) : Number.NaN;
+        row[column] = Number.isFinite(place) ? place : missingHeight;
+      }
+      renderer.writeRow(waterfall, index % rows, row, (index + 1) % rows);
+    }
+    this.waterfallRows.set(waterfall, total);
+  }
+
+  private createWaterfall(waterfall: Waterfall3D): void {
+    const scene = this.scene;
+    const columns = waterfall.data.columns;
+    const rows = waterfall.data.rows;
+    const left = toBox(scene.xAxis, waterfall.x.min);
+    const right = toBox(scene.xAxis, waterfall.x.max);
+    const front = toBox(scene.yAxis, waterfall.y.min);
+    const back = toBox(scene.yAxis, waterfall.y.max);
+    const range = waterfall.colorRange ?? scene.zAxis.visibleRange;
+    // The oldest row comes first, at the far end, and the rows run towards the front.
+    (this.renderer as Renderer3D).updateSurface(
+      waterfall,
+      {
+        columns,
+        rows,
+        origin: [left, back, (right - left) / (columns - 1), (front - back) / (rows - 1)],
+        colors: [toBox(scene.zAxis, range.min), toBox(scene.zAxis, range.max)],
+        firstRow: 0,
+        levels: new Float32Array(0),
+        contours: undefined,
+        lineSpacing: waterfall.style === 'lines' ? Math.max(waterfall.lineSpacing, 1) : 0,
+      },
+      new Float32Array(columns * rows).fill(missingHeight),
+      colorTable(waterfall),
+      fullMaterial(waterfall.material),
+    );
   }
 
   private updateBars(bars: Bars3D): void {
@@ -327,6 +386,7 @@ export class Scene3DSeries extends ChartSeries {
         firstRow: 0,
         levels: Float32Array.from(contours?.levels ?? [], (level) => toBox(scene.zAxis, level)),
         contours,
+        lineSpacing: 0,
       },
       this.heights,
       colorTable(surface),
@@ -374,7 +434,7 @@ function colorKey(color: Rgba8): string {
 }
 
 // The colors of the colormap as a table of four floats each, opaque.
-function colorTable(surface: Surface3D): Float32Array {
+function colorTable(surface: Surface3D | Waterfall3D): Float32Array {
   const entries = surface.colormap.entries;
   const table = new Float32Array(entries.length * 4);
   entries.forEach((entry, i) => {

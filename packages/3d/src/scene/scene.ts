@@ -6,6 +6,7 @@ import type { Bars3D } from './bars';
 import type { Bubbles3D } from './bubbles';
 import type { Line3D, Scatter3D } from './points';
 import type { Surface3D } from './surface';
+import type { Waterfall3D } from './waterfall';
 
 /** An element of a scene with a version that grows with each change of its content. */
 export interface SceneElement {
@@ -33,6 +34,7 @@ export class Scene3D {
   zAxis: Axis = createBoxAxis('z3d');
   private readonly elementList: SceneElement[] = [];
   private readonly surfaceList: Surface3D[] = [];
+  private readonly waterfallList: Waterfall3D[] = [];
   private readonly lineList: Line3D[] = [];
   private readonly scatterList: Scatter3D[] = [];
   private readonly barList: Bars3D[] = [];
@@ -53,6 +55,17 @@ export class Scene3D {
   /** The height fields. */
   get surfaces(): readonly Surface3D[] {
     return this.surfaceList;
+  }
+
+  /** The waterfalls. */
+  get waterfalls(): readonly Waterfall3D[] {
+    return this.waterfallList;
+  }
+
+  /** Adds a waterfall. */
+  addWaterfall(waterfall: Waterfall3D): void {
+    this.waterfallList.push(waterfall);
+    this.addElement(waterfall);
   }
 
   /** Adds a height field. */

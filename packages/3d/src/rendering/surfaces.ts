@@ -17,12 +17,16 @@ export interface SurfaceShape {
   readonly firstRow: number;
   readonly levels: Float32Array;
   readonly contours: Contours3D | undefined;
+  /** Every how many rows a line runs; 0 for a closed surface. */
+  readonly lineSpacing: number;
 }
 
 /** @internal The pipelines surfaces draw with. */
 export interface SurfacePipelines {
   readonly opaque: GPURenderPipeline;
   readonly projection: GPURenderPipeline;
+  readonly lines: GPURenderPipeline;
+  readonly depth: GPURenderPipeline;
 }
 
 /** @internal The buffers of one surface. */
@@ -35,6 +39,10 @@ export class SurfaceBuffers {
   private readonly bindGroup: GPUBindGroup;
   private readonly projectionBindGroup: GPUBindGroup | undefined;
   private readonly indexCount: number;
+  private readonly lineIndices: GPUBuffer | undefined;
+  private readonly lineBindGroup: GPUBindGroup | undefined;
+  private readonly depthBindGroup: GPUBindGroup | undefined;
+  private readonly lineIndexCount: number = 0;
   private readonly data = new ArrayBuffer(surfaceUniformSize);
   private readonly floats = new Float32Array(this.data);
   private readonly words = new Uint32Array(this.data);
@@ -75,6 +83,23 @@ export class SurfaceBuffers {
         { binding: 3, resource: { buffer: this.levels, size: Math.max(levels.length, 4) * 4 } },
       ],
     });
+    if (shape.lineSpacing > 0) {
+      const entries = (layout: GPUBindGroupLayout): GPUBindGroupDescriptor => ({
+        layout,
+        entries: [
+          { binding: 0, resource: { buffer: this.uniforms, size: surfaceUniformSize } },
+          { binding: 1, resource: { buffer: this.heights, size: values * 4 } },
+          { binding: 2, resource: { buffer: this.colors, size: colors.byteLength } },
+          { binding: 3, resource: { buffer: this.levels, size: Math.max(levels.length, 4) * 4 } },
+        ],
+      });
+      this.lineBindGroup = gpu.createBindGroup(entries(pipelines.lines.getBindGroupLayout(0)));
+      this.depthBindGroup = gpu.createBindGroup(entries(pipelines.depth.getBindGroupLayout(0)));
+      this.lineIndexCount =
+        Math.trunc((shape.rows + shape.lineSpacing - 1) / shape.lineSpacing) * (shape.columns - 1) * 2;
+      this.lineIndices = storage(this.lineIndexCount * 4, GPUBufferUsage.INDEX);
+      this.writeLineIndices(shape);
+    }
     if (shape.contours) {
       this.projectionBindGroup = gpu.createBindGroup({
         layout: pipelines.projection.getBindGroupLayout(0),
@@ -90,6 +115,41 @@ export class SurfaceBuffers {
   /** Whether the surface lets what lies behind shine through. */
   get isTransparent(): boolean {
     return this.material.opacity < 1;
+  }
+
+  /** Whether the surface shows a line per row instead of a closed surface. */
+  get isLines(): boolean {
+    return this.shape.lineSpacing > 0;
+  }
+
+  /** Writes one row into its slot of the ring, the oldest row then at `firstRow`. */
+  writeRow(slot: number, heights: Float32Array, firstRow: number): void {
+    this.shape = { ...this.shape, firstRow };
+    this.gpu.queue.writeBuffer(
+      this.heights,
+      slot * this.shape.columns * 4,
+      heights.buffer,
+      heights.byteOffset,
+      heights.byteLength,
+    );
+  }
+
+  /** Draws the hidden surface into the depth only, behind its own lines. */
+  drawDepth(pass: GPURenderPassEncoder): void {
+    if (this.depthBindGroup) {
+      pass.setBindGroup(0, this.depthBindGroup);
+      pass.setIndexBuffer(this.indices, 'uint32', 0, this.indexCount * 4);
+      pass.drawIndexed(this.indexCount);
+    }
+  }
+
+  /** Draws a line per row. */
+  drawLines(pass: GPURenderPassEncoder): void {
+    if (this.lineBindGroup && this.lineIndices) {
+      pass.setBindGroup(0, this.lineBindGroup);
+      pass.setIndexBuffer(this.lineIndices, 'uint32', 0, this.lineIndexCount * 4);
+      pass.drawIndexed(this.lineIndexCount);
+    }
   }
 
   /** Whether a new shape fits these buffers. */
@@ -157,6 +217,22 @@ export class SurfaceBuffers {
     this.indices.destroy();
     this.uniforms.destroy();
     this.levels.destroy();
+    this.lineIndices?.destroy();
+  }
+
+  private writeLineIndices(shape: SurfaceShape): void {
+    const indices = new Uint32Array(this.lineIndexCount);
+    let at = 0;
+    for (let row = 0; row < shape.rows; row += shape.lineSpacing) {
+      for (let column = 0; column < shape.columns - 1; column++) {
+        const start = row * shape.columns + column;
+        indices[at++] = start;
+        indices[at++] = start + 1;
+      }
+    }
+    if (this.lineIndices) {
+      this.gpu.queue.writeBuffer(this.lineIndices, 0, indices);
+    }
   }
 
   private writeIndices(columns: number, rows: number): void {

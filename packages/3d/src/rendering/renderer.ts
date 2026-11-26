@@ -150,6 +150,31 @@ export class Renderer3D {
         depthStencil: { format: depthFormat, depthWriteEnabled: true, depthCompare: 'less-equal' },
         multisample: { count: sampleCount },
       }),
+      lines: gpu.createRenderPipeline({
+        label: 'surface lines 3D',
+        layout: 'auto',
+        vertex: { module: surfaceModule, entryPoint: 'vs_main' },
+        fragment: { module: surfaceModule, entryPoint: 'fs_opaque', targets: [{ format: colorFormat }] },
+        primitive: { topology: 'line-list', frontFace: 'ccw', cullMode: 'none' },
+        depthStencil: { format: depthFormat, depthWriteEnabled: true, depthCompare: 'less-equal' },
+        multisample: { count: sampleCount },
+      }),
+      // Behind its own lines: the hidden surface must not swallow the curves that lie on it.
+      depth: gpu.createRenderPipeline({
+        label: 'surface depth 3D',
+        layout: 'auto',
+        vertex: { module: surfaceModule, entryPoint: 'vs_main' },
+        fragment: { module: surfaceModule, entryPoint: 'fs_opaque', targets: [{ format: colorFormat, writeMask: 0 }] },
+        primitive: { topology: 'triangle-list', frontFace: 'ccw', cullMode: 'none' },
+        depthStencil: {
+          format: depthFormat,
+          depthWriteEnabled: true,
+          depthCompare: 'less-equal',
+          depthBias: 6000,
+          depthBiasSlopeScale: 3,
+        },
+        multisample: { count: sampleCount },
+      }),
       projection: gpu.createRenderPipeline({
         label: 'surface projection 3D',
         layout: 'auto',
@@ -251,6 +276,11 @@ export class Renderer3D {
     return buffer;
   }
 
+  /** Writes one row of a waterfall into its slot of the ring. */
+  writeRow(owner: object, slot: number, heights: Float32Array, firstRow: number): void {
+    this.surfaces.get(owner)?.writeRow(slot, heights, firstRow);
+  }
+
   /** Whether the renderer holds the buffers of a surface. */
   holdsSurface(owner: object): boolean {
     return this.surfaces.has(owner);
@@ -343,7 +373,12 @@ export class Renderer3D {
       }
     }
     for (const surface of this.surfaces.values()) {
-      if (!surface.isTransparent) {
+      if (surface.isLines) {
+        pass.setPipeline(this.surfacePipelines.depth);
+        surface.drawDepth(pass);
+        pass.setPipeline(this.surfacePipelines.lines);
+        surface.drawLines(pass);
+      } else if (!surface.isTransparent) {
         pass.setPipeline(this.surfacePipelines.opaque);
         surface.draw(pass);
       }

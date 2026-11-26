@@ -865,7 +865,8 @@ points in space (`Line3D`) keep their width on the screen, meet without gaps at 
 space (`Scatter3D`) are round spots of their own size and color. Both keep their points in a ring (`Points3D`) that a
 live source appends to. Height lines (`Contours3D`) lie on a surface, on the floor and as cuts on the walls;
 columns (`Bars3D`) stand over the cells of a grid, colored by value; bubbles (`Bubbles3D`) are lit spheres sized by
-value or in pixels. Drag to turn,
+value or in pixels. A waterfall (`Waterfall3D`) puts the rows of a spectrogram one behind the other as a
+surface or as lines, the newest in front; a new row moves the others back without uploading them again. Drag to turn,
 Shift and drag to move, wheel and + and − to zoom, arrows to turn, Home or a double click for the first view. The
 scene draws with WebGPU; on a chart drawn with WebGL 2, Canvas 2D or in a render worker it draws on a WebGPU device of
 its own and hands the picture over.
