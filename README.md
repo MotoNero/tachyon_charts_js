@@ -868,8 +868,9 @@ columns (`Bars3D`) stand over the cells of a grid, colored by value; bubbles (`B
 value or in pixels. A waterfall (`Waterfall3D`) puts the rows of a spectrogram one behind the other as a
 surface or as lines, the newest in front; a new row moves the others back without uploading them again. Drag to turn,
 Shift and drag to move, wheel and + and − to zoom, arrows to turn, Home or a double click for the first view. The
-scene draws with WebGPU; on a chart drawn with WebGL 2, Canvas 2D or in a render worker it draws on a WebGPU device of
-its own and hands the picture over.
+scene draws with WebGPU directly: the chart element draws a 3D chart on the main thread with a WebGPU device of its own,
+also where the page draws its other charts in a render worker (`ChartBuilder.drawsOnMainThread()`); with WebGL 2,
+Canvas 2D or in an export the scene draws on a WebGPU device of its own and hands the picture over.
 
 ```ts
 import { scene3D, Surface3D } from '@tachyon-charts/3d';

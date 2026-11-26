@@ -101,18 +101,22 @@ export class Chart3DBuilder {
     if (this.themeDocument) {
       builder.theme(this.themeDocument);
     }
-    return builder
-      .xAxis((a) => a.numeric('x').range(0, 1).hidden())
-      .yAxis((a) => a.numeric('y').range(0, 1).hidden())
-      .addSeries((x, y) => {
-        series = new Scene3DSeries(scene, x, y);
-        return series;
-      })
-      .addOverlay((chart) => {
-        series?.bind(chart);
-        return new AxisLabels3D(scene);
-      })
-      .addModifier(() => new Orbit3DModifier(scene));
+    return (
+      builder
+        .xAxis((a) => a.numeric('x').range(0, 1).hidden())
+        .yAxis((a) => a.numeric('y').range(0, 1).hidden())
+        .addSeries((x, y) => {
+          series = new Scene3DSeries(scene, x, y);
+          return series;
+        })
+        .addOverlay((chart) => {
+          series?.bind(chart);
+          return new AxisLabels3D(scene);
+        })
+        .addModifier(() => new Orbit3DModifier(scene))
+        // The scene draws with the GPU directly; in a render worker it would hand its picture over through the main memory.
+        .drawsOnMainThread()
+    );
   }
 }
 

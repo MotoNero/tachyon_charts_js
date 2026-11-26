@@ -530,6 +530,8 @@ export class ChartBuilder {
     addSeries(factory: (xAxis: Axis, yAxis: Axis, axis: (id: string) => Axis) => ChartSeries, xAxis?: string, yAxis?: string): this;
     axisFont(font: TextFont): this;
     build(textEngine: TextEngine): BuiltChart;
+    drawsOnMainThread(): this;
+    get drawsOnMainThreadWanted(): boolean;
     group(name: string): this;
     legend(configure?: (legend: LegendBuilder) => unknown): this;
     theme(theme: ThemeDocument): this;
@@ -552,9 +554,11 @@ export class ChartDefinition {
     theme?: ThemeDocument | undefined,
     overlays?: readonly ((chart: ChartSurface) => ChartOverlay)[],
     modifiers?: readonly (() => ChartModifier)[],
-    groupName?: string | undefined);
+    groupName?: string | undefined,
+    drawsOnMainThread?: boolean);
     readonly axisFont?: TextFont | undefined;
     build(textEngine: TextEngine): BuiltChart;
+    readonly drawsOnMainThread: boolean;
     readonly groupName?: string | undefined;
     readonly modifiers: readonly (() => ChartModifier)[];
     readonly overlays: readonly ((chart: ChartSurface) => ChartOverlay)[];

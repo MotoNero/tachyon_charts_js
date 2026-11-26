@@ -37,11 +37,13 @@ export type ChartContent = ChartBuilder | ChartDefinition | ChartSurface;
 
 interface Shared {
   device: Promise<RenderDevice | undefined> | undefined;
+  /** The WebGPU device on this thread for charts that draw with the GPU directly, made on first use. */
+  mainDevice: Promise<RenderDevice | undefined> | undefined;
   engine: Promise<TextEngine> | undefined;
 }
 
 // All charts of a page share one device and one text engine with its glyph atlas.
-const shared: Shared = { device: undefined, engine: undefined };
+const shared: Shared = { device: undefined, mainDevice: undefined, engine: undefined };
 
 // The data worker of the page builds the pyramids of all series from shared memory, where the page has it.
 function startDataWorker(): void {
@@ -137,11 +139,27 @@ async function createDevice(): Promise<RenderDevice | undefined> {
   return undefined;
 }
 
+// The WebGPU device on this thread for charts that draw with the GPU directly; none where WebGPU does not work.
+async function createMainWebGpuDevice(): Promise<RenderDevice | undefined> {
+  try {
+    const device = await createWebGpuDevice();
+    if (device && (await works(device, 'webgpu'))) {
+      watchLoss(device, 'webgpu');
+      return device;
+    }
+    device?.dispose();
+  } catch {
+    // Without WebGPU on this thread the chart draws with the device of the page.
+  }
+  return undefined;
+}
+
 // A lost device is replaced: every chart lets go of it and starts again with a new one.
 function watchLoss(device: RenderDevice, kind: RendererKind): void {
   device.onLost(() => {
     losses.set(kind, (losses.get(kind) ?? 0) + 1);
     shared.device = undefined;
+    shared.mainDevice = undefined;
     void shared.engine?.then((engine) => {
       engine.releaseAtlas(device);
     });
@@ -202,6 +220,7 @@ export class TachyonChartElement extends HTMLElement {
   private joinedGroup: ChartGroup | undefined;
   private target: SurfaceRenderTarget | undefined;
   private device: RenderDevice | undefined;
+  private drawsOnMain = false;
   private engine: TextEngine | undefined;
   private readonly member: LoopMember = {
     draw: () => this.draw(),
@@ -239,8 +258,28 @@ export class TachyonChartElement extends HTMLElement {
 
   set chart(value: ChartContent | undefined) {
     this.content = value;
+    // A chart that wants the main thread, or no longer does, needs another device and so a new canvas.
+    if (this.target && this.wantsMainThread() !== this.drawsOnMain) {
+      this.restartAfterLoss();
+      return;
+    }
     this.build();
     wakeFrameLoop();
+  }
+
+  // Whether the chart draws with the GPU directly and so belongs on the main thread, where the page draws in a worker.
+  private wantsMainThread(): boolean {
+    const content = this.content;
+    if (
+      !TachyonChartElement.renderInWorker ||
+      (TachyonChartElement.renderer !== 'auto' && TachyonChartElement.renderer !== 'webgpu')
+    ) {
+      return false;
+    }
+    if (content instanceof ChartBuilder) {
+      return content.drawsOnMainThreadWanted;
+    }
+    return content instanceof ChartDefinition && content.drawsOnMainThread;
   }
 
   /** The chart as it is drawn, once the element has its text engine; `undefined` before. */
@@ -392,7 +431,15 @@ export class TachyonChartElement extends HTMLElement {
     shared.engine ??= fetch(TachyonChartElement.fontUrl)
       .then((response) => response.arrayBuffer())
       .then((font) => new TextEngine(font));
-    const [device, engine] = await Promise.all([shared.device, shared.engine]);
+    const [pageDevice, engine] = await Promise.all([shared.device, shared.engine]);
+    // The chart may have come while the page device was made: only now is it known whether it wants the main thread.
+    let mainDevice: RenderDevice | undefined;
+    if (this.wantsMainThread()) {
+      shared.mainDevice ??= createMainWebGpuDevice();
+      mainDevice = await shared.mainDevice;
+    }
+    const device = mainDevice ?? pageDevice;
+    this.drawsOnMain = mainDevice !== undefined;
     if (!this.isConnected || this.target) {
       return;
     }

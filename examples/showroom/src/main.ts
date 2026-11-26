@@ -70,8 +70,9 @@ function translate(): void {
   const thread = document.querySelector<HTMLElement>('#thread');
   if (thread && chart?.renderThread) {
     const place = t(chart.renderThread === 'worker' ? 'Drawn in the render worker' : 'Drawn on the main thread');
-    const fallbacks = { webgl2: ' (WebGL 2)', canvas2d: ' (Canvas 2D)', webgpu: '' };
-    thread.textContent = place + (chart.renderer ? fallbacks[chart.renderer] : '');
+    // The renderer with the graphics card it runs on, such as WebGPU (nvidia lovelace); a software renderer such as
+    // swiftshader means the processor draws.
+    thread.textContent = chart.rendererName ? `${place} · ${chart.rendererName}` : place;
   }
   for (const option of themeChoice?.options ?? []) {
     if (option.dataset.text) {
@@ -158,6 +159,8 @@ languageChoice?.addEventListener('change', () => {
 translate();
 route();
 void chart?.ready.then(translate);
+// A 3D page draws on the main thread with a device of its own: the label follows each new start.
+chart?.addEventListener('tachyon-ready', translate);
 
 // The point under the pointer, as the element reports it.
 chart?.addEventListener('tachyon-tooltip', (event) => {

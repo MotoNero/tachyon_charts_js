@@ -2102,33 +2102,28 @@ export const pages: readonly Page[] = [
     group: 'Coordinates',
     hint: 'Drag at a name: move the axis | Drag along an axis: filter | Double click: all',
     configure: (c) => {
-      const rows = 2000;
-      const columns: number[][] = [];
-      for (let column = 0; column < 6; column++) {
-        const values: number[] = [];
-        for (let row = 0; row < rows; row++) {
-          const noise = ((row * 2654435761 * (column + 3)) % 1000) / 1000;
-          values.push(column === 1 ? 100 - (columns[0]?.[row] ?? 0) * 0.8 - noise * 20 : noise * 100 * (column + 1));
-        }
-        columns.push(values);
+      // 20 000 rows of a machine under changing load, as the parallel page of the .NET showroom: voltage, current,
+      // temperature and level follow the load, pressure and frequency scatter around their values.
+      const rows = 20_000;
+      const columns: number[][] = Array.from({ length: 6 }, () => new Array<number>(rows));
+      const at = (column: number): number[] => columns[column] as number[];
+      for (let row = 0; row < rows; row++) {
+        const load = Math.random();
+        at(0)[row] = 3 + 2 * load + Math.random() * 0.3;
+        at(1)[row] = 10 * load * load;
+        at(2)[row] = 25 + 40 * load + Math.random() * 5;
+        at(3)[row] = 1000 + Math.random() * 50;
+        at(4)[row] = 50 + Math.random() * 0.2;
+        at(5)[row] = -60 + 30 * load;
       }
       return c
         .theme(instrument)
         .xAxis((a) => a.numeric('x').range(0, 1).hidden())
         .yAxis((a) => a.numeric('y').range(0, 1).hidden())
-        .addSeries((x, y) =>
-          Object.assign(new ParallelCoordinatesSeries(columns, x, y), { color: { r: 80, g: 170, b: 240, a: 50 } }),
-        )
+        .addSeries((x, y) => new ParallelCoordinatesSeries(columns, x, y))
         .addOverlay(
           (chart) =>
-            new ParallelAxesOverlay(chart.series[0] as ParallelCoordinatesSeries, [
-              t('Volt'),
-              t('Current'),
-              t('Temp'),
-              t('Pressure'),
-              'Hz',
-              'dB',
-            ]),
+            new ParallelAxesOverlay(chart.series[0] as ParallelCoordinatesSeries, ['V', 'A', '°C', 'hPa', 'Hz', 'dB']),
         )
         .addModifier(() => new ParallelAxesModifier());
     },

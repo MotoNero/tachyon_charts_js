@@ -172,6 +172,8 @@ export class ChartDefinition {
     readonly modifiers: readonly (() => ChartModifier)[] = [],
     /** The group of charts with the same X range the chart element puts the chart in; none when left out. */
     readonly groupName?: string,
+    /** Whether the chart draws on the main thread, with direct access to the GPU, also where the page uses a render worker. */
+    readonly drawsOnMainThread = false,
   ) {}
 
   /**
@@ -611,6 +613,7 @@ export class ChartBuilder {
   private readonly overlayList: ((chart: ChartSurface) => ChartOverlay)[] = [];
   private readonly modifierList: (() => ChartModifier)[] = [];
   private groupName: string | undefined;
+  private onMainThread = false;
   private hasLegendModifier = false;
   private titleText: string | undefined;
   private titleTextFont: TextFont | undefined;
@@ -711,7 +714,23 @@ export class ChartBuilder {
       [...this.overlayList],
       [...this.modifierList],
       this.groupName,
+      this.onMainThread,
     );
+  }
+
+  /** Whether the chart asked to draw on the main thread. */
+  get drawsOnMainThreadWanted(): boolean {
+    return this.onMainThread;
+  }
+
+  /**
+   * Lets the chart element draw this chart on the main thread with a WebGPU device of its own, also where the page draws
+   * in a render worker: for series that draw with the GPU directly, such as a 3D scene, which would otherwise hand
+   * their picture over through the main memory.
+   */
+  drawsOnMainThread(): this {
+    this.onMainThread = true;
+    return this;
   }
 
   /**
