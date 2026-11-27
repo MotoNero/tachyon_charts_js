@@ -97,10 +97,13 @@ import {
   Bubbles3D,
   evenContours,
   Line3D,
+  Mesh3D,
+  Point3D,
   Points3D,
   Scatter3D,
   scene3D,
   Surface3D,
+  type Vertex3D,
   Waterfall3D,
 } from '@tachyon-charts/3d';
 import {
@@ -606,8 +609,89 @@ function waterfallPage(): Page {
   };
 }
 
+// A ring around the z axis from triangles, colored along the ring from blue over green to orange.
+function torusMesh(): Mesh3D {
+  const around = 96;
+  const across = 48;
+  const vertices: Vertex3D[] = [];
+  const indices: number[] = [];
+  for (let i = 0; i <= around; i++) {
+    const u = (i / around) * 2 * Math.PI;
+    const share = 0.5 + 0.5 * Math.cos(u);
+    for (let j = 0; j <= across; j++) {
+      const v = (j / across) * 2 * Math.PI;
+      const radius = 3 + 1.2 * Math.cos(v);
+      vertices.push({
+        position: new Point3D(5 + radius * Math.cos(u), 5 + radius * Math.sin(u), 1.2 * Math.sin(v)),
+        color: {
+          r: Math.round(40 + 215 * share),
+          g: Math.round(120 + 60 * Math.sin(u)),
+          b: Math.round(230 - 190 * share),
+          a: 255,
+        },
+      });
+    }
+  }
+  for (let i = 0; i < around; i++) {
+    for (let j = 0; j < across; j++) {
+      const a = i * (across + 1) + j;
+      const b = a + across + 1;
+      indices.push(a, b, a + 1, a + 1, b, b + 1);
+    }
+  }
+  return new Mesh3D(vertices, indices, { material: { gloss: 0.6, sharpness: 48 } });
+}
+
 function pages3D(): Page[] {
   return [
+    {
+      id: 'mesh-3d',
+      name: 'Lit mesh',
+      group: '3D',
+      hint: hint3D,
+      configure: (c) => {
+        scene3D(c, (s) =>
+          s
+            .title(t('A ring from triangles in the light'))
+            .xAxis(0, 10, 'x')
+            .yAxis(0, 10, 'y')
+            .zAxis(-3, 3, 'z')
+            .addMesh(torusMesh()),
+        );
+      },
+    },
+    {
+      id: 'see-through-3d',
+      name: 'See-through',
+      group: '3D',
+      hint: hint3D,
+      configure: (c) => {
+        const side = 12;
+        const values = new Float32Array(side * side);
+        for (let row = 0; row < side; row++) {
+          for (let column = 0; column < side; column++) {
+            const x = (column + 0.5) / side;
+            const y = (row + 0.5) / side;
+            values[row * side + column] = 0.2 + 0.6 * Math.exp(-8 * ((x - 0.5) * (x - 0.5) + (y - 0.5) * (y - 0.5)));
+          }
+        }
+        const data = new HeatmapData(side, side);
+        data.setValues(values);
+        scene3D(c, (s) =>
+          s
+            .title(t('A see-through surface over see-through columns'))
+            .xAxis(0, 6, 'x')
+            .yAxis(0, 6, 'y')
+            .zAxis(-1.5, 2, 'z')
+            .addBars(new Bars3D(data, new DoubleRange(0, 6), new DoubleRange(0, 6), { material: { opacity: 0.6 } }))
+            .addSurface(
+              new Surface3D(field3D(256), new DoubleRange(0, 6), new DoubleRange(0, 6), {
+                material: { opacity: 0.5, gloss: 0.5 },
+              }),
+            ),
+        );
+      },
+    },
     waterfallPage(),
     {
       id: 'axis-box',

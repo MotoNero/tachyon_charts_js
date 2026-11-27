@@ -24,6 +24,7 @@ export interface SurfaceShape {
 /** @internal The pipelines surfaces draw with. */
 export interface SurfacePipelines {
   readonly opaque: GPURenderPipeline;
+  readonly transparent: GPURenderPipeline;
   readonly projection: GPURenderPipeline;
   readonly lines: GPURenderPipeline;
   readonly depth: GPURenderPipeline;
@@ -75,7 +76,7 @@ export class SurfaceBuffers {
       gpu.queue.writeBuffer(this.levels, 0, levels.buffer, levels.byteOffset, levels.byteLength);
     }
     this.bindGroup = gpu.createBindGroup({
-      layout: pipelines.opaque.getBindGroupLayout(0),
+      layout: (material.opacity < 1 ? pipelines.transparent : pipelines.opaque).getBindGroupLayout(0),
       entries: [
         { binding: 0, resource: { buffer: this.uniforms, size: surfaceUniformSize } },
         { binding: 1, resource: { buffer: this.heights, size: values * 4 } },

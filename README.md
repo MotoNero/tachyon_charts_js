@@ -862,6 +862,7 @@ builder
 ![A surface of a wave and a hill in Viridis inside a box with grid and labels on three walls](docs/images/surface-3d.png)
 ![The path of a particle of 200,000 points colored from start to end](docs/images/line-3d.png)
 ![Columns over a raster of 16 × 16 cells colored by value](docs/images/bars-3d.png)
+![A lit wavy mesh between two see-through planes that cross it](docs/images/mesh-3d.png)
 
 `@tachyon-charts/3d` draws a scene in an axis box: the walls behind the box seen from the eye with their grid, the
 numbers and titles of the three axes along the edges, and height fields (`Surface3D`) colored by height and lit, with
@@ -871,7 +872,9 @@ space (`Scatter3D`) are round spots of their own size and color. Both keep their
 live source appends to. Height lines (`Contours3D`) lie on a surface, on the floor and as cuts on the walls;
 columns (`Bars3D`) stand over the cells of a grid, colored by value; bubbles (`Bubbles3D`) are lit spheres sized by
 value or in pixels. A waterfall (`Waterfall3D`) puts the rows of a spectrogram one behind the other as a
-surface or as lines, the newest in front; a new row moves the others back without uploading them again. Drag to turn,
+surface or as lines, the newest in front; a new row moves the others back without uploading them again. Meshes (`Mesh3D`) are surfaces from triangles
+with a color per corner, flat or lit. Meshes, surfaces and columns with an opacity below 1 let what lies behind shine
+through without sorting their triangles (weighted transparency). Drag to turn,
 Shift and drag to move, wheel and + and − to zoom, arrows to turn, Home or a double click for the first view. The
 scene draws with WebGPU directly: the chart element draws a 3D chart on the main thread with a WebGPU device of its own,
 also where the page draws its other charts in a render worker (`ChartBuilder.drawsOnMainThread()`); with WebGL 2,

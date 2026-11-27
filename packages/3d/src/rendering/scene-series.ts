@@ -18,6 +18,9 @@ import { addBoxLines, selectWalls, tickPlaces, toBox } from '../scene/axis-box';
 import { BoxMap, toSizeCode, type Line3D, type Scatter3D } from '../scene/points';
 import { barStride, type Bars3D } from '../scene/bars';
 import type { Bubbles3D } from '../scene/bubbles';
+import { calculateNormals, validIndices, type Mesh3D, type Vertex3D } from '../scene/mesh';
+import { Point3D } from '../scene/matrix';
+import { meshVertexStride } from './meshes';
 import { bubbleStride } from './bubbles';
 import type { Scene3D } from '../scene/scene';
 import { fullMaterial, missingHeight, type Surface3D } from '../scene/surface';
@@ -54,6 +57,7 @@ export class Scene3DSeries extends ChartSeries {
   private readonly barVersions = new Map<Bars3D, number>();
   private readonly waterfallRows = new Map<Waterfall3D, number>();
   private readonly bubbleKeys = new Map<Bubbles3D, string>();
+  private readonly meshKeys = new Map<Mesh3D, string>();
   private heights = new Float32Array(0);
   private ranges = '';
   private palette: readonly Rgba8[] = [];
@@ -195,6 +199,9 @@ export class Scene3DSeries extends ChartSeries {
       this.updateBars(bars);
     }
     const boxMap = new BoxMap(this.scene.xAxis, this.scene.yAxis, this.scene.zAxis);
+    for (const mesh of this.scene.meshes) {
+      this.uploadMesh(mesh);
+    }
     for (const bubbles of this.scene.bubbles) {
       this.uploadBubbles(bubbles, boxMap);
     }
@@ -226,7 +233,7 @@ export class Scene3DSeries extends ChartSeries {
 
   // The color an element draws with: its own, or the color of the palette its place among the elements without one
   // gives.
-  private colorOf(element: Line3D | Scatter3D | Bubbles3D, hasOwn: boolean, own: Rgba8): Rgba8 {
+  private colorOf(element: Line3D | Scatter3D | Bubbles3D | Mesh3D, hasOwn: boolean, own: Rgba8): Rgba8 {
     if (hasOwn || this.palette.length === 0) {
       return own;
     }
@@ -237,6 +244,11 @@ export class Scene3DSeries extends ChartSeries {
       for (const item of [...this.scene.lines, ...this.scene.scatters, ...this.scene.bubbles]) {
         if (!item.hasOwnColor) {
           this.themeColors.set(item, this.palette[next++ % this.palette.length] as Rgba8);
+        }
+      }
+      for (const mesh of this.scene.meshes) {
+        if (mesh.takesThemeColor) {
+          this.themeColors.set(mesh, this.palette[next++ % this.palette.length] as Rgba8);
         }
       }
       this.themeColorsStamp = stamp;
@@ -256,7 +268,43 @@ export class Scene3DSeries extends ChartSeries {
       this.barVersions.clear();
       this.waterfallRows.clear();
       this.bubbleKeys.clear();
+      this.meshKeys.clear();
     }
+  }
+
+  // The places move into the box once; a new range of the axes or a new theme color uploads them again.
+  private uploadMesh(mesh: Mesh3D): void {
+    const renderer = this.renderer as Renderer3D;
+    const themeColor =
+      mesh.takesThemeColor && this.palette.length > 0
+        ? this.colorOf(mesh, false, mesh.vertices[0]?.color ?? { r: 0, g: 0, b: 0, a: 255 })
+        : undefined;
+    const key = themeColor ? colorKey(themeColor) : '';
+    if (this.meshKeys.get(mesh) === key && renderer.holdsMesh(mesh)) {
+      return;
+    }
+    this.meshKeys.set(mesh, key);
+    const scene = this.scene;
+    const positions = mesh.vertices.map(
+      (vertex) =>
+        new Point3D(
+          toBox(scene.xAxis, vertex.position.x),
+          toBox(scene.yAxis, vertex.position.y),
+          toBox(scene.zAxis, vertex.position.z),
+        ),
+    );
+    const normals = calculateNormals(positions, mesh.indices);
+    const vertices = new ArrayBuffer(positions.length * meshVertexStride);
+    const floats = new Float32Array(vertices);
+    const bytes = new Uint8Array(vertices);
+    positions.forEach((p, i) => {
+      const n = normals[i] as Point3D;
+      const at = (i * meshVertexStride) / 4;
+      floats.set([p.x, p.y, p.z, n.x, n.y, n.z], at);
+      const color = themeColor ?? (mesh.vertices[i] as Vertex3D).color;
+      bytes.set([color.r, color.g, color.b, color.a], (at + 6) * 4);
+    });
+    renderer.uploadMesh(mesh, vertices, validIndices(positions, mesh.indices), fullMaterial(mesh.material));
   }
 
   private uploadBubbles(bubbles: Bubbles3D, map: BoxMap): void {

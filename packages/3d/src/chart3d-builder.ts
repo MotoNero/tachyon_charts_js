@@ -8,6 +8,7 @@ import type { CameraProjection } from './scene/camera';
 import { createBoxAxis, Scene3D } from './scene/scene';
 import type { Bars3D } from './scene/bars';
 import type { Bubbles3D } from './scene/bubbles';
+import type { Mesh3D } from './scene/mesh';
 import type { Line3D, Scatter3D } from './scene/points';
 import type { Surface3D } from './scene/surface';
 import type { Waterfall3D } from './scene/waterfall';
@@ -64,6 +65,12 @@ export class Chart3DBuilder {
   /** Adds a height field. */
   addSurface(surface: Surface3D): this {
     this.scene.addSurface(surface);
+    return this;
+  }
+
+  /** Adds a surface from triangles. */
+  addMesh(mesh: Mesh3D): this {
+    this.scene.addMesh(mesh);
     return this;
   }
 

@@ -4,6 +4,7 @@ import { DoubleRange, NumericAxis, type Axis } from '@tachyon-charts/core';
 import { Camera3D } from './camera';
 import type { Bars3D } from './bars';
 import type { Bubbles3D } from './bubbles';
+import type { Mesh3D } from './mesh';
 import type { Line3D, Scatter3D } from './points';
 import type { Surface3D } from './surface';
 import type { Waterfall3D } from './waterfall';
@@ -39,6 +40,7 @@ export class Scene3D {
   private readonly scatterList: Scatter3D[] = [];
   private readonly barList: Bars3D[] = [];
   private readonly bubbleList: Bubbles3D[] = [];
+  private readonly meshList: Mesh3D[] = [];
   private axesShown = true;
   private changes = 0;
 
@@ -87,6 +89,17 @@ export class Scene3D {
   /** The columns. */
   get bars(): readonly Bars3D[] {
     return this.barList;
+  }
+
+  /** The meshes. */
+  get meshes(): readonly Mesh3D[] {
+    return this.meshList;
+  }
+
+  /** Adds a mesh. */
+  addMesh(mesh: Mesh3D): void {
+    this.meshList.push(mesh);
+    this.addElement(mesh);
   }
 
   /** The bubbles. */

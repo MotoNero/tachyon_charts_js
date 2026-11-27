@@ -106,6 +106,8 @@ const german: Readonly<Record<string, string>> = {
   'Height lines': 'Höhenlinien',
   Columns: 'Säulen',
   'Columns over a raster': 'Säulen über einem Raster',
+  'A ring from triangles in the light': 'Ein Ring aus Dreiecken im Licht',
+  'A see-through surface over see-through columns': 'Eine durchsichtige Fläche über durchsichtigen Säulen',
   Bubbles: 'Blasen',
   'Wells, volume by yield in m³ per day': 'Brunnen, Volumen nach Ertrag in m³ je Tag',
   'Depth in 100 m': 'Tiefe in 100 m',

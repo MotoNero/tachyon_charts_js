@@ -8,7 +8,9 @@ import type { FullMaterial } from '../scene/surface';
 import type { Line3D, Scatter3D } from '../scene/points';
 import { SurfaceBuffers, type SurfacePipelines, type SurfaceShape } from './surfaces';
 import { createTracePipelines, TraceBuffer, type TracePipelines } from './traces';
-import { BarBuffer, createBarPipeline } from './bars';
+import { BarBuffer, createBarPipelines, type BarPipelines } from './bars';
+import { createCompositePipeline, createMeshPipelines, MeshBuffers, type MeshPipelines } from './meshes';
+import { accumulationFormat, revealFormat, transparentTargets } from './transparency';
 import { BubbleBuffer, createBubblePipeline } from './bubbles';
 import type { Bubbles3D } from '../scene/bubbles';
 import type { Bars3D, GridPlace } from '../scene/bars';
@@ -82,10 +84,13 @@ export class Renderer3D {
   private readonly tracePipelines: TracePipelines;
   private readonly traces = new Map<Line3D, TraceBuffer>();
   private readonly spots = new Map<Scatter3D, TraceBuffer>();
-  private readonly barPipeline: GPURenderPipeline;
+  private readonly barPipelines: BarPipelines;
   private readonly bars = new Map<Bars3D, BarBuffer>();
   private readonly bubblePipeline: GPURenderPipeline;
   private readonly bubbles = new Map<Bubbles3D, BubbleBuffer>();
+  private readonly meshPipelines: MeshPipelines;
+  private readonly compositePipeline: GPURenderPipeline;
+  private readonly meshes = new Map<object, MeshBuffers>();
   // No plane cuts the scene: each column keeps every point (0, 0, 0, 1).
   private readonly cuts = new Float32Array([0, 0, 0, 1, 0, 0, 0, 1, 0, 0, 0, 1, 0, 0, 0, 1]);
   private lines: GPUBuffer | undefined;
@@ -94,6 +99,11 @@ export class Renderer3D {
   private msaaColor: GPUTexture | undefined;
   private depth: GPUTexture | undefined;
   private resolved: GPUTexture | undefined;
+  private msaaAccumulation: GPUTexture | undefined;
+  private msaaReveal: GPUTexture | undefined;
+  private accumulation: GPUTexture | undefined;
+  private reveal: GPUTexture | undefined;
+  private compositeBindGroup: GPUBindGroup | undefined;
   private shown: GpuTexture | undefined;
   private disposed = false;
 
@@ -150,6 +160,15 @@ export class Renderer3D {
         depthStencil: { format: depthFormat, depthWriteEnabled: true, depthCompare: 'less-equal' },
         multisample: { count: sampleCount },
       }),
+      transparent: gpu.createRenderPipeline({
+        label: 'surface transparent 3D',
+        layout: 'auto',
+        vertex: { module: surfaceModule, entryPoint: 'vs_main' },
+        fragment: { module: surfaceModule, entryPoint: 'fs_transparent', targets: transparentTargets() },
+        primitive: { topology: 'triangle-list', frontFace: 'ccw', cullMode: 'none' },
+        depthStencil: { format: depthFormat, depthWriteEnabled: false, depthCompare: 'less-equal' },
+        multisample: { count: sampleCount },
+      }),
       lines: gpu.createRenderPipeline({
         label: 'surface lines 3D',
         layout: 'auto',
@@ -198,8 +217,10 @@ export class Renderer3D {
       }),
     };
     this.tracePipelines = createTracePipelines(gpu, colorFormat, depthFormat, sampleCount);
-    this.barPipeline = createBarPipeline(gpu, colorFormat, depthFormat, sampleCount);
+    this.barPipelines = createBarPipelines(gpu, colorFormat, depthFormat, sampleCount);
     this.bubblePipeline = createBubblePipeline(gpu, colorFormat, depthFormat, sampleCount);
+    this.meshPipelines = createMeshPipelines(gpu, colorFormat, depthFormat, sampleCount);
+    this.compositePipeline = createCompositePipeline(gpu, colorFormat);
     this.lineBindGroup = gpu.createBindGroup({
       layout: this.linePipeline.getBindGroupLayout(0),
       entries: [{ binding: 0, resource: { buffer: this.lineUniforms, size: lineUniformSize } }],
@@ -228,11 +249,22 @@ export class Renderer3D {
     let buffer = this.bars.get(bars);
     if (buffer?.count !== count) {
       buffer?.dispose();
-      buffer = new BarBuffer(this.gpu, this.barPipeline, material, count);
+      buffer = new BarBuffer(this.gpu, this.barPipelines, material, count);
       this.bars.set(bars, buffer);
     }
     buffer.place = place;
     buffer.write(instances);
+  }
+
+  /** Uploads a mesh: corners with normals and colors, and its triangles. */
+  uploadMesh(owner: object, vertices: ArrayBuffer, indices: Uint32Array, material: FullMaterial): void {
+    this.meshes.get(owner)?.dispose();
+    this.meshes.set(owner, new MeshBuffers(this.gpu, this.meshPipelines, material, vertices, indices));
+  }
+
+  /** Whether the renderer holds the buffers of a mesh. */
+  holdsMesh(owner: object): boolean {
+    return this.meshes.has(owner);
   }
 
   /** Uploads bubbles, with a new buffer when there are more than it holds. */
@@ -321,8 +353,21 @@ export class Renderer3D {
     for (const bars of this.bars.values()) {
       bars.writeUniforms(matrix, eye, this.cuts);
     }
+    const anyTransparent = (buffers: Iterable<{ readonly isTransparent: boolean }>): boolean => {
+      for (const buffer of buffers) {
+        if (buffer.isTransparent) {
+          return true;
+        }
+      }
+      return false;
+    };
     for (const bubbles of this.bubbles.values()) {
       bubbles.writeUniforms(matrix, eye, this.cuts, size.width, size.height);
+    }
+    let hasTransparency = anyTransparent(this.bars.values()) || anyTransparent(this.surfaces.values());
+    for (const mesh of this.meshes.values()) {
+      mesh.writeUniforms(matrix, eye, this.cuts);
+      hasTransparency ||= mesh.isTransparent;
     }
     const encoder = this.gpu.createCommandEncoder({ label: 'scene 3D' });
     const pass = encoder.beginRenderPass({
@@ -338,7 +383,8 @@ export class Renderer3D {
       depthStencilAttachment: {
         view: (this.depth as GPUTexture).createView(),
         depthLoadOp: 'clear',
-        depthStoreOp: 'discard',
+        // See-through surfaces test against the depth of the opaque ones.
+        depthStoreOp: hasTransparency ? 'store' : 'discard',
         depthClearValue: 1,
       },
     });
@@ -347,6 +393,12 @@ export class Renderer3D {
       pass.setBindGroup(0, this.lineBindGroup);
       pass.setVertexBuffer(0, this.lines, 0, lines.count * lineVertexSize);
       pass.draw(lines.count);
+    }
+    pass.setPipeline(this.meshPipelines.opaque);
+    for (const mesh of this.meshes.values()) {
+      if (!mesh.isTransparent) {
+        mesh.draw(pass);
+      }
     }
     pass.setPipeline(this.tracePipelines.trace);
     for (const trace of this.traces.values()) {
@@ -360,7 +412,7 @@ export class Renderer3D {
         spots.drawSpots(pass);
       }
     }
-    pass.setPipeline(this.barPipeline);
+    pass.setPipeline(this.barPipelines.opaque);
     for (const bars of this.bars.values()) {
       if (!bars.isTransparent) {
         bars.draw(pass, eye[1]);
@@ -395,6 +447,9 @@ export class Renderer3D {
       }
     }
     pass.end();
+    if (hasTransparency) {
+      this.encodeTransparent(encoder, eye[1]);
+    }
     // The picture reaches a texture of the chart's device, which the chart draws like any image.
     const shown = this.shown as GpuTexture & { texture: GPUTexture };
     encoder.copyTextureToTexture(
@@ -429,8 +484,66 @@ export class Renderer3D {
       bubbles.dispose();
     }
     this.bubbles.clear();
+    for (const mesh of this.meshes.values()) {
+      mesh.dispose();
+    }
+    this.meshes.clear();
     this.lines?.destroy();
     this.lineUniforms.destroy();
+  }
+
+  // Weighted blended transparency: the see-through surfaces sum their colors and what still shows through, then lay
+  // over the picture in one pass, so that surfaces that cut through each other need no sorting.
+  private encodeTransparent(encoder: GPUCommandEncoder, eyeY: number): void {
+    const pass = encoder.beginRenderPass({
+      colorAttachments: [
+        {
+          view: (this.msaaAccumulation as GPUTexture).createView(),
+          resolveTarget: (this.accumulation as GPUTexture).createView(),
+          loadOp: 'clear',
+          storeOp: 'discard',
+          clearValue: { r: 0, g: 0, b: 0, a: 0 },
+        },
+        {
+          view: (this.msaaReveal as GPUTexture).createView(),
+          resolveTarget: (this.reveal as GPUTexture).createView(),
+          loadOp: 'clear',
+          storeOp: 'discard',
+          clearValue: { r: 1, g: 1, b: 1, a: 1 },
+        },
+      ],
+      depthStencilAttachment: {
+        view: (this.depth as GPUTexture).createView(),
+        depthLoadOp: 'load',
+        depthStoreOp: 'discard',
+      },
+    });
+    pass.setPipeline(this.meshPipelines.transparent);
+    for (const mesh of this.meshes.values()) {
+      if (mesh.isTransparent) {
+        mesh.draw(pass);
+      }
+    }
+    pass.setPipeline(this.barPipelines.transparent);
+    for (const bars of this.bars.values()) {
+      if (bars.isTransparent) {
+        bars.draw(pass, eyeY);
+      }
+    }
+    pass.setPipeline(this.surfacePipelines.transparent);
+    for (const surface of this.surfaces.values()) {
+      if (surface.isTransparent && !surface.isLines) {
+        surface.draw(pass);
+      }
+    }
+    pass.end();
+    const composite = encoder.beginRenderPass({
+      colorAttachments: [{ view: (this.resolved as GPUTexture).createView(), loadOp: 'load', storeOp: 'store' }],
+    });
+    composite.setPipeline(this.compositePipeline);
+    composite.setBindGroup(0, this.compositeBindGroup as GPUBindGroup);
+    composite.draw(3);
+    composite.end();
   }
 
   private writeLines(lines: LineVertices): void {
@@ -474,6 +587,24 @@ export class Renderer3D {
       usage: GPUTextureUsage.RENDER_ATTACHMENT | GPUTextureUsage.COPY_SRC,
     });
     this.shown = this.device.createTexture({ size, format: 'rgba8unorm' });
+    const attachment = (format: GPUTextureFormat, samples: number): GPUTexture =>
+      this.gpu.createTexture({
+        size: extent,
+        format,
+        sampleCount: samples,
+        usage: GPUTextureUsage.RENDER_ATTACHMENT | (samples === 1 ? GPUTextureUsage.TEXTURE_BINDING : 0),
+      });
+    this.msaaAccumulation = attachment(accumulationFormat, sampleCount);
+    this.msaaReveal = attachment(revealFormat, sampleCount);
+    this.accumulation = attachment(accumulationFormat, 1);
+    this.reveal = attachment(revealFormat, 1);
+    this.compositeBindGroup = this.gpu.createBindGroup({
+      layout: this.compositePipeline.getBindGroupLayout(0),
+      entries: [
+        { binding: 0, resource: this.accumulation.createView() },
+        { binding: 1, resource: this.reveal.createView() },
+      ],
+    });
   }
 
   private releaseAttachments(): void {
@@ -481,6 +612,15 @@ export class Renderer3D {
     this.depth?.destroy();
     this.resolved?.destroy();
     this.shown?.dispose();
+    this.msaaAccumulation?.destroy();
+    this.msaaReveal?.destroy();
+    this.accumulation?.destroy();
+    this.reveal?.destroy();
+    this.msaaAccumulation = undefined;
+    this.msaaReveal = undefined;
+    this.accumulation = undefined;
+    this.reveal = undefined;
+    this.compositeBindGroup = undefined;
     this.msaaColor = undefined;
     this.depth = undefined;
     this.resolved = undefined;

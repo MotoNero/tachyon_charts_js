@@ -1,6 +1,7 @@
 // Columns on the GPU: one instance per cell, 36 corners of a box each, drawn row by row away from the eye, as the bar
 // part of Renderer3D in the .NET version.
 import { barsWgsl, clipWgsl, lightWgsl } from '../generated/shaders';
+import { transparentTargets } from './transparency';
 import { barStride, type GridPlace } from '../scene/bars';
 import type { FullMaterial } from '../scene/surface';
 
@@ -8,37 +9,68 @@ const barCorners = 36;
 /** @internal The size of the uniforms of meshes and bars: camera, eye, material, cuts. */
 export const meshUniformSize = 160;
 
-/** @internal Creates the pipeline of opaque columns. */
-export function createBarPipeline(
+/** @internal The pipelines of columns, opaque and see-through. */
+export interface BarPipelines {
+  readonly opaque: GPURenderPipeline;
+  readonly transparent: GPURenderPipeline;
+}
+
+/** @internal Creates the pipelines of columns. */
+export function createBarPipelines(
   gpu: GPUDevice,
   colorFormat: GPUTextureFormat,
   depthFormat: GPUTextureFormat,
   sampleCount: number,
-): GPURenderPipeline {
+): BarPipelines {
   const module = gpu.createShaderModule({ label: 'bars.wgsl', code: clipWgsl + lightWgsl + barsWgsl });
-  return gpu.createRenderPipeline({
-    label: 'bars 3D',
-    layout: 'auto',
-    vertex: {
-      module,
-      entryPoint: 'vs_main',
-      buffers: [
-        {
-          arrayStride: barStride,
-          stepMode: 'instance',
-          attributes: [
-            { format: 'float32x4', offset: 0, shaderLocation: 0 },
-            { format: 'float32x2', offset: 16, shaderLocation: 1 },
-            { format: 'unorm8x4', offset: 24, shaderLocation: 2 },
-          ],
-        },
-      ],
-    },
-    fragment: { module, entryPoint: 'fs_opaque', targets: [{ format: colorFormat }] },
-    primitive: { topology: 'triangle-list', frontFace: 'ccw', cullMode: 'none' },
-    depthStencil: { format: depthFormat, depthWriteEnabled: true, depthCompare: 'less-equal' },
-    multisample: { count: sampleCount },
-  });
+  return {
+    opaque: gpu.createRenderPipeline({
+      label: 'bars 3D',
+      layout: 'auto',
+      vertex: {
+        module,
+        entryPoint: 'vs_main',
+        buffers: [
+          {
+            arrayStride: barStride,
+            stepMode: 'instance',
+            attributes: [
+              { format: 'float32x4', offset: 0, shaderLocation: 0 },
+              { format: 'float32x2', offset: 16, shaderLocation: 1 },
+              { format: 'unorm8x4', offset: 24, shaderLocation: 2 },
+            ],
+          },
+        ],
+      },
+      fragment: { module, entryPoint: 'fs_opaque', targets: [{ format: colorFormat }] },
+      primitive: { topology: 'triangle-list', frontFace: 'ccw', cullMode: 'none' },
+      depthStencil: { format: depthFormat, depthWriteEnabled: true, depthCompare: 'less-equal' },
+      multisample: { count: sampleCount },
+    }),
+    transparent: gpu.createRenderPipeline({
+      label: 'bars transparent 3D',
+      layout: 'auto',
+      vertex: {
+        module,
+        entryPoint: 'vs_main',
+        buffers: [
+          {
+            arrayStride: barStride,
+            stepMode: 'instance',
+            attributes: [
+              { format: 'float32x4', offset: 0, shaderLocation: 0 },
+              { format: 'float32x2', offset: 16, shaderLocation: 1 },
+              { format: 'unorm8x4', offset: 24, shaderLocation: 2 },
+            ],
+          },
+        ],
+      },
+      fragment: { module, entryPoint: 'fs_transparent', targets: transparentTargets() },
+      primitive: { topology: 'triangle-list', frontFace: 'ccw', cullMode: 'none' },
+      depthStencil: { format: depthFormat, depthWriteEnabled: false, depthCompare: 'less-equal' },
+      multisample: { count: sampleCount },
+    }),
+  };
 }
 
 /** @internal The columns of one element on the GPU. */
@@ -53,7 +85,7 @@ export class BarBuffer {
 
   constructor(
     private readonly gpu: GPUDevice,
-    pipeline: GPURenderPipeline,
+    pipelines: BarPipelines,
     private readonly material: FullMaterial,
     /** The number of columns. */
     readonly count: number,
@@ -67,7 +99,7 @@ export class BarBuffer {
       usage: GPUBufferUsage.UNIFORM | GPUBufferUsage.COPY_DST,
     });
     this.bindGroup = gpu.createBindGroup({
-      layout: pipeline.getBindGroupLayout(0),
+      layout: (material.opacity < 1 ? pipelines.transparent : pipelines.opaque).getBindGroupLayout(0),
       entries: [{ binding: 0, resource: { buffer: this.uniforms, size: meshUniformSize } }],
     });
   }
