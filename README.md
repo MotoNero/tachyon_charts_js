@@ -865,6 +865,7 @@ builder
 ![A lit wavy mesh between two see-through planes that cross it](docs/images/mesh-3d.png)
 ![A knot of tube of a million triangles colored by height, with its color scale beside the box](docs/images/knot-3d.png)
 ![A lit pie of ten slices with one pulled out, labels on the slices and beside the pie](docs/images/pie-3d.png)
+![The gain of an antenna as a shape around the center, its main lobe marked with gain and widths](docs/images/antenna-3d.png)
 
 `@tachyon-charts/3d` draws a scene in an axis box: the walls behind the box seen from the eye with their grid, the
 numbers and titles of the three axes along the edges, and height fields (`Surface3D`) colored by height and lit, with
@@ -881,7 +882,9 @@ files (`ModelFile.read`, `readStl`, `readObj`): equal corners are joined, edges 
 sharp in the light. `toValueMesh` colors a model by a value per point and shows the color scale beside the box;
 `addToScale` gives the three axes the same length so that the model keeps its proportions. A pie or donut
 (`Pie3D`, `addPie`) is a lit body with a slice per value, clockwise from the top, one slice pulled out if wanted
-(`explodedIndex`); labels sit on wide slices and beside the pie on lines for narrow ones, as on a pie in 2D. Drag to turn,
+(`explodedIndex`); labels sit on wide slices and beside the pie on lines for narrow ones, as on a pie in 2D. The pattern of an antenna (`AntennaPattern3D`, `addAntenna`) is a shape around
+the center whose distance is the gain above a floor 40 dB below the peak; the main lobe is marked with its gain and its
+widths at half power, and `azimuthCut` and `elevationCut` give cuts for a polar chart. Drag to turn,
 Shift and drag to move, wheel and + and − to zoom, arrows to turn, Home or a double click for the first view. The
 scene draws with WebGPU directly: the chart element draws a 3D chart on the main thread with a WebGPU device of its own,
 also where the page draws its other charts in a render worker (`ChartBuilder.drawsOnMainThread()`); with WebGL 2,

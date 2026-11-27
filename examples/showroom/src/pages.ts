@@ -125,7 +125,7 @@ import {
   opfsSource,
   writableSink,
 } from '@tachyon-charts/large-data';
-import { createKnot } from './models3d';
+import { createAntenna, createKnot } from './models3d';
 import { t } from './texts';
 
 /**
@@ -646,6 +646,15 @@ function torusMesh(): Mesh3D {
 
 function pages3D(): Page[] {
   return [
+    {
+      id: 'antenna-3d',
+      name: 'Antenna pattern',
+      group: '3D',
+      hint: hint3D,
+      configure: (c) => {
+        scene3D(c, (s) => s.title(t('Antenna gain')).addAntenna(createAntenna()));
+      },
+    },
     {
       id: 'pie-3d',
       name: 'Pie 3D',

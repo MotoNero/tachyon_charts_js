@@ -5,6 +5,7 @@ import { Camera3D } from './camera';
 import type { Bars3D } from './bars';
 import type { Bubbles3D } from './bubbles';
 import type { Mesh3D } from './mesh';
+import type { AntennaPattern3D } from './antenna';
 import type { Pie3D } from './pie';
 import type { Line3D, Scatter3D } from './points';
 import type { Surface3D } from './surface';
@@ -43,6 +44,7 @@ export class Scene3D {
   private readonly bubbleList: Bubbles3D[] = [];
   private readonly meshList: Mesh3D[] = [];
   private readonly pieList: Pie3D[] = [];
+  private readonly antennaList: AntennaPattern3D[] = [];
   private axesShown = true;
   private changes = 0;
 
@@ -102,6 +104,17 @@ export class Scene3D {
   addMesh(mesh: Mesh3D): void {
     this.meshList.push(mesh);
     this.addElement(mesh);
+  }
+
+  /** The antenna patterns. */
+  get antennas(): readonly AntennaPattern3D[] {
+    return this.antennaList;
+  }
+
+  /** Adds an antenna pattern. */
+  addAntenna(antenna: AntennaPattern3D): void {
+    this.antennaList.push(antenna);
+    this.addElement(antenna);
   }
 
   /** The pies. */

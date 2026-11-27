@@ -3,6 +3,7 @@
 import { findBuiltInTheme, type Axis, type ChartBuilder, type ThemeDocument } from '@tachyon-charts/core';
 import { AxisLabels3D } from './rendering/axis-labels';
 import { PieLabels3D } from './rendering/pie-labels';
+import type { AntennaPattern3D } from './scene/antenna';
 import type { Pie3D } from './scene/pie';
 import { Orbit3DModifier } from './rendering/orbit-modifier';
 import { Scene3DSeries } from './rendering/scene-series';
@@ -87,6 +88,13 @@ export class Chart3DBuilder {
     this.scene.camera.zoom(0.62);
     this.scene.addPie(pie);
     return this;
+  }
+
+  /** Adds the pattern of an antenna; the three axes reach just beyond its main lobe and count in dB. */
+  addAntenna(antenna: AntennaPattern3D): this {
+    this.scene.addAntenna(antenna);
+    const reach = antenna.reach;
+    return this.xAxis(-reach, reach, 'X in dB').yAxis(-reach, reach, 'Y in dB').zAxis(-reach, reach, 'Z in dB');
   }
 
   /** Adds bubbles. */

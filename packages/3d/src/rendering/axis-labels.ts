@@ -12,7 +12,8 @@ import {
 } from '@tachyon-charts/core';
 import { boxTicks, keepApart, selectWalls, toBox, xEdge, yEdge, zEdge, type LabelEdge } from '../scene/axis-box';
 import type { Matrix3D } from '../scene/matrix';
-import type { Point3D } from '../scene/matrix';
+import { Point3D } from '../scene/matrix';
+import type { AntennaPattern3D } from '../scene/antenna';
 import type { ColorScale3D } from '../scene/mesh';
 import type { Scene3D } from '../scene/scene';
 
@@ -109,6 +110,52 @@ function drawScale(canvas: OverlayCanvas, scale: ColorScale3D, pane: DipRect): v
   }
 }
 
+function drawAntenna(
+  canvas: OverlayCanvas,
+  antenna: AntennaPattern3D,
+  pane: DipRect,
+  view: Projector,
+  scene: Scene3D,
+): void {
+  if (!Number.isFinite(antenna.mainLobe.gain)) {
+    return;
+  }
+  const x = pane.x + pane.width - scaleMargin;
+  const top = pane.y + (pane.height - scaleHeight) / 2;
+  const step = scaleHeight / scaleSteps;
+  for (let i = 0; i < scaleSteps; i++) {
+    canvas.fillRectangle(
+      new DipRect(x, top + i * step, scaleWidth, step + 0.5),
+      antenna.colormap.sample(1 - (i + 0.5) / scaleSteps),
+    );
+  }
+  const size = canvas.labelSize;
+  const color = canvas.colors.text;
+  const height = canvas.lineHeight(size);
+  const peak = antenna.peakText;
+  const floor = antenna.floorText;
+  const middle = x + scaleWidth / 2;
+  canvas.drawText(
+    peak,
+    roundHalfEven(middle - canvas.measureWidth(peak, size) / 2),
+    roundHalfEven(top - height / 2),
+    size,
+    color,
+  );
+  canvas.drawText(
+    floor,
+    roundHalfEven(middle - canvas.measureWidth(floor, size) / 2),
+    roundHalfEven(top + scaleHeight + height),
+    size,
+    color,
+  );
+  const tip = antenna.markTip;
+  const [tipX, tipY] = view.toDips(
+    new Point3D(toBox(scene.xAxis, tip.x), toBox(scene.yAxis, tip.y), toBox(scene.zAxis, tip.z)),
+  );
+  canvas.drawText(antenna.lobeText, roundHalfEven(tipX + labelGap), roundHalfEven(tipY), size, color);
+}
+
 /** @internal Writes the labels of the box of a scene. */
 export class AxisLabels3D extends ChartOverlay {
   private readonly x = new AxisText();
@@ -142,6 +189,11 @@ export class AxisLabels3D extends ChartOverlay {
     if (Math.abs(scene.camera.elevation) <= highestUpAxisView) {
       this.z.update(scene.zAxis);
       this.drawUpAxis(canvas, zEdge(walls, matrix), view);
+    }
+    const antenna = scene.antennas[0];
+    if (antenna) {
+      drawAntenna(canvas, antenna, pane, view, scene);
+      return;
     }
     // The first surface whose colors come from a color scale shows it.
     for (const mesh of scene.meshes) {

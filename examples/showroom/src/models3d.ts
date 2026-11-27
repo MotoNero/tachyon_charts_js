@@ -1,5 +1,25 @@
-// Models for the 3D pages: a large knot of tube made in code.
-import { ModelFileData, Point3D } from '@tachyon-charts/3d';
+// Models for the 3D pages: a large knot of tube and the pattern of an antenna, made in code.
+import { AntennaPattern3D, ModelFileData, Point3D } from '@tachyon-charts/3d';
+
+/** The pattern of an antenna, measured every degree: a main lobe toward 30° azimuth and 20° up over side lobes. */
+export function createAntenna(): AntennaPattern3D {
+  const columns = 361;
+  const rows = 181;
+  const azimuths = Array.from({ length: columns }, (_, column) => column - 180);
+  const elevations = Array.from({ length: rows }, (_, row) => row - 90);
+  const radians = (degrees: number): number => (degrees * Math.PI) / 180;
+  const gains = elevations.map((elevation) =>
+    azimuths.map((azimuth) => {
+      const a = (((azimuth - 30 + 540) % 360) - 180) / 40;
+      const e = (elevation - 20) / 24;
+      const main = 15 - 12 * (a * a + e * e);
+      const side =
+        -14 + 6 * Math.cos(radians(elevation)) * Math.cos(radians(5 * azimuth)) + 4 * Math.cos(radians(4 * elevation));
+      return 10 * Math.log10(Math.pow(10, main / 10) + Math.pow(10, side / 10));
+    }),
+  );
+  return new AntennaPattern3D(azimuths, elevations, gains);
+}
 
 // A knot that winds three times around and twice through a ring.
 function knot(t: number): Point3D {

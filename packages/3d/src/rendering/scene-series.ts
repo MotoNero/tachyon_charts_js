@@ -19,6 +19,7 @@ import { BoxMap, toSizeCode, type Line3D, type Scatter3D } from '../scene/points
 import { barStride, type Bars3D } from '../scene/bars';
 import type { Bubbles3D } from '../scene/bubbles';
 import { calculateNormals, validIndices, type Mesh3D, type Vertex3D } from '../scene/mesh';
+import type { AntennaPattern3D } from '../scene/antenna';
 import type { Pie3D } from '../scene/pie';
 import { Point3D } from '../scene/matrix';
 import { meshVertexStride } from './meshes';
@@ -60,6 +61,7 @@ export class Scene3DSeries extends ChartSeries {
   private readonly bubbleKeys = new Map<Bubbles3D, string>();
   private readonly meshKeys = new Map<Mesh3D, string>();
   private readonly pieKeys = new Map<Pie3D, string>();
+  private readonly antennaMeshes = new Map<AntennaPattern3D, Mesh3D>();
   private heights = new Float32Array(0);
   private ranges = '';
   private palette: readonly Rgba8[] = [];
@@ -209,6 +211,15 @@ export class Scene3DSeries extends ChartSeries {
     }
     for (const pie of this.scene.pies) {
       this.uploadPie(pie);
+    }
+    // Antennas become meshes once.
+    for (const antenna of this.scene.antennas) {
+      let mesh = this.antennaMeshes.get(antenna);
+      if (!mesh) {
+        mesh = antenna.createMesh();
+        this.antennaMeshes.set(antenna, mesh);
+      }
+      this.uploadMesh(mesh);
     }
     const map = new BoxMap(this.scene.xAxis, this.scene.yAxis, this.scene.zAxis);
     const renderer = this.renderer as Renderer3D;
@@ -476,6 +487,7 @@ export class Scene3DSeries extends ChartSeries {
       scene.yAxis.version,
       scene.zAxis.version,
       scene.showsAxes,
+      scene.antennas.length,
     ].join(' ');
     if (key === this.linesKey) {
       return;
@@ -496,6 +508,14 @@ export class Scene3DSeries extends ChartSeries {
     }
     this.lines.addAll(this.grid, themeColor(theme?.grid?.major, defaultGrid));
     this.lines.addAll(this.frameLines, themeColor(theme?.axis?.line, defaultFrame));
+    const mark: Rgba8 = { r: 255, g: 255, b: 255, a: 255 };
+    for (const antenna of scene.antennas) {
+      const ends: Point3D[] = [];
+      antenna.addMarks(ends);
+      for (const end of ends) {
+        this.lines.add(toBox(scene.xAxis, end.x), toBox(scene.yAxis, end.y), toBox(scene.zAxis, end.z), mark);
+      }
+    }
   }
 }
 
