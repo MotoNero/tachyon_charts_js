@@ -21,6 +21,8 @@ export interface TracePipelines {
   readonly trace: GPURenderPipeline;
   readonly onTop: GPURenderPipeline;
   readonly spots: GPURenderPipeline;
+  /** Single pixels of a very large cloud. */
+  readonly points: GPURenderPipeline;
 }
 
 /** @internal Creates the pipelines of lines and scatters. */
@@ -83,6 +85,19 @@ export function createTracePipelines(
       primitive: { topology: 'triangle-list', frontFace: 'ccw', cullMode: 'none' },
       depthStencil: { format: depthFormat, depthWriteEnabled: true, depthCompare: 'less-equal' },
       multisample: { count: sampleCount, alphaToCoverageEnabled: true },
+    }),
+    points: gpu.createRenderPipeline({
+      label: 'points 3D',
+      layout: pipelineLayout,
+      vertex: {
+        module: spotModule,
+        entryPoint: 'vs_point',
+        buffers: [{ arrayStride: traceStride, stepMode: 'vertex', attributes: [point(0), color(1)] }],
+      },
+      fragment: { module: spotModule, entryPoint: 'fs_point', targets: [{ format: colorFormat }] },
+      primitive: { topology: 'point-list' },
+      depthStencil: { format: depthFormat, depthWriteEnabled: true, depthCompare: 'less-equal' },
+      multisample: { count: sampleCount },
     }),
   };
 }

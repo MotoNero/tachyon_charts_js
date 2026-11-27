@@ -1,5 +1,5 @@
 // The random numbers of System.Random with a seed (the subtractive generator of Knuth that .NET keeps for seeded
-// instances), so that point tiles mix their points in the same order as the .NET version.
+// instances), so that point tiles and clouds mix their points in the same order as the .NET version.
 
 const seedBase = 161_803_398;
 const intMax = 2_147_483_647;
@@ -48,6 +48,24 @@ export class SeededRandom {
   /** A number from 0 to 1, exclusive, as NextDouble(). */
   nextDouble(): number {
     return this.sample() * (1 / intMax);
+  }
+
+  /** A whole number from `minValue` to `maxValue`, exclusive, as Next(minValue, maxValue) for ranges below 2^31. */
+  nextIntBetween(minValue: number, maxValue: number): number {
+    return Math.trunc(this.sample() * (1 / intMax) * (maxValue - minValue)) + minValue;
+  }
+
+  /** Mixes the items in place, as Shuffle of .NET: each place swaps with a random one at or after it. */
+  shuffle(items: { [index: number]: number; readonly length: number }): void {
+    const count = items.length;
+    for (let i = 0; i < count - 1; i++) {
+      const j = this.nextIntBetween(i, count);
+      if (j !== i) {
+        const kept = items[i] as number;
+        items[i] = items[j] as number;
+        items[j] = kept;
+      }
+    }
   }
 
   /** A whole number from 0 to `maxValue`, exclusive, as Next(maxValue). */

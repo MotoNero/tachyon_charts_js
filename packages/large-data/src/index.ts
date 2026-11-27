@@ -118,7 +118,6 @@ export {
   type PointTilesBuildOptions,
   type PointTilesHeader,
 } from './point-tiles-file';
-export { SeededRandom } from './seeded-random';
 export { PointDensitySeries } from './point-density-series';
 export { PointTiles, type CountedView, type PointTilesOptions } from './point-tiles';
 export { servePointTiles, type PointTilesReply, type PointTilesRequest } from './point-tiles-worker';

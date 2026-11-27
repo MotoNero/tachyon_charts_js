@@ -1,6 +1,8 @@
 // Draws the scene with WebGPU into a picture of its own, which the chart then shows as an image, as Renderer3D of the
 // .NET version: four samples per pixel, a depth buffer, the pipelines of shared/shaders/3d. The elements come part by
 // part; this first part draws the lines of the axis box.
+import { CloudBuffer } from './clouds';
+import type { PointCloud3D } from '../scene/point-cloud';
 import type { GpuTexture, PixelSize, Rgba8 } from '@tachyon-charts/core';
 import type { WebGpuDevice } from '@tachyon-charts/render-webgpu';
 import { clipWgsl, lightWgsl, linesWgsl, surfaceWgsl } from '../generated/shaders';
@@ -84,6 +86,7 @@ export class Renderer3D {
   private readonly tracePipelines: TracePipelines;
   private readonly traces = new Map<Line3D, TraceBuffer>();
   private readonly spots = new Map<Scatter3D, TraceBuffer>();
+  private readonly clouds = new Map<PointCloud3D, CloudBuffer>();
   private readonly barPipelines: BarPipelines;
   private readonly bars = new Map<Bars3D, BarBuffer>();
   private readonly bubblePipeline: GPURenderPipeline;
@@ -315,6 +318,16 @@ export class Renderer3D {
     return buffer;
   }
 
+  /** The buffer of a cloud with room for a number of points, made on first use. */
+  cloudOf(cloud: PointCloud3D, capacity: number): CloudBuffer {
+    let buffer = this.clouds.get(cloud);
+    if (!buffer) {
+      buffer = new CloudBuffer(this.gpu, this.tracePipelines, capacity, 0);
+      this.clouds.set(cloud, buffer);
+    }
+    return buffer;
+  }
+
   /** Writes one row of a waterfall into its slot of the ring. */
   writeRow(owner: object, slot: number, heights: Float32Array, firstRow: number): void {
     this.surfaces.get(owner)?.writeRow(slot, heights, firstRow);
@@ -356,6 +369,9 @@ export class Renderer3D {
     }
     for (const trace of [...this.traces.values(), ...this.spots.values()]) {
       trace.writeUniforms(matrix, size.width, size.height, this.cuts);
+    }
+    for (const cloud of this.clouds.values()) {
+      cloud.writeUniforms(matrix, size.width, size.height, this.cuts);
     }
     for (const bars of this.bars.values()) {
       bars.writeUniforms(matrix, eye, this.cuts);
@@ -418,6 +434,9 @@ export class Renderer3D {
       for (const spots of this.spots.values()) {
         spots.drawSpots(pass);
       }
+    }
+    for (const cloud of this.clouds.values()) {
+      cloud.draw(pass);
     }
     pass.setPipeline(this.barPipelines.opaque);
     for (const bars of this.bars.values()) {
@@ -483,6 +502,10 @@ export class Renderer3D {
     }
     this.traces.clear();
     this.spots.clear();
+    for (const cloud of this.clouds.values()) {
+      cloud.dispose();
+    }
+    this.clouds.clear();
     for (const bars of this.bars.values()) {
       bars.dispose();
     }

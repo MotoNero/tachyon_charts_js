@@ -15,3 +15,4 @@ export {
   type Values,
 } from './statistics';
 export { marchingSquares } from './marching-squares';
+export { SeededRandom } from './seeded-random';

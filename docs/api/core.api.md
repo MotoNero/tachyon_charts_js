@@ -2993,6 +2993,19 @@ export class ScopeTrigger {
 export const scopeVerticalDivisions = 8;
 
 // @public
+export class SeededRandom {
+    constructor(seed: number);
+    nextDouble(): number;
+    nextInt(maxValue: number): number;
+    nextInt64(maxValue: number): number;
+    nextIntBetween(minValue: number, maxValue: number): number;
+    shuffle(items: {
+        [index: number]: number;
+        readonly length: number;
+    }): void;
+}
+
+// @public
 export interface SelectedPoint {
     readonly series: ChartSeries;
     readonly x: number;

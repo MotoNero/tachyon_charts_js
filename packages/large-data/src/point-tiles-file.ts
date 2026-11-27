@@ -4,7 +4,7 @@
 import type { ColumnFile } from './column-file';
 import { Fnv1a64 } from './column-pyramid';
 import type { StagesStore } from './raster-file';
-import { SeededRandom } from './seeded-random';
+import { SeededRandom } from '@tachyon-charts/core';
 
 /** Tiles per side. */
 export const tilesPerSide = 1024;

@@ -11,6 +11,12 @@ export { AntennaPattern3D, type AntennaCut, type AntennaLobe, type AntennaPatter
 export { ClipPlane3D, type ClipPlane3DOptions, type CutCurve } from './scene/clip-plane';
 export { Shapes3D } from './scene/shapes';
 export { MeasuredMap3D, type MeasuredMap3DOptions } from './scene/measured-map';
+export {
+  PointCloud3D,
+  type PointCloud3DOptions,
+  type PointCloudArrays,
+  type PointCloudLoad,
+} from './scene/point-cloud';
 export { Pie3D, type Pie3DOptions } from './scene/pie';
 export { Mesh3D, type ColorScale3D, type Mesh3DOptions, type Vertex3D } from './scene/mesh';
 export { Camera3D, type CameraProjection, type CameraView, type Ray3D } from './scene/camera';

@@ -8,11 +8,12 @@ import {
   ModelFile,
   ModelFileData,
   Point3D,
+  PointCloud3D,
   Points3D,
   Scatter3D,
+  type PointCloudArrays,
 } from '@tachyon-charts/3d';
-import { Colormap, DoubleRange } from '@tachyon-charts/core';
-import { SeededRandom } from '@tachyon-charts/large-data';
+import { Colormap, DoubleRange, SeededRandom } from '@tachyon-charts/core';
 
 /** Temperature over speed and load from 160 measurements at uneven places, connected to a surface. */
 export function measuredMap(chart: Chart3DBuilder): Chart3DBuilder {
@@ -277,4 +278,43 @@ export function pipeModel(chart: Chart3DBuilder): Chart3DBuilder {
     points.append(place.x, place.y - 1, place.z, { r: 255, g: 255, b: 255, a: 255 }, 10);
   }
   return chart.addScatter(new Scatter3D(points)).addPlane(new ClipPlane3D(new Point3D(0, 1, 0), -0.05));
+}
+
+/**
+ * The points of a scanned landscape: hills and ripples over -1 to 1, colored by height. A fixed number of parts with a
+ * random generator each, so that the points are those of the .NET version.
+ */
+export function createLandscape(count: number, report: (share: number) => void = () => undefined): PointCloudArrays {
+  const x = new Float64Array(count);
+  const y = new Float64Array(count);
+  const z = new Float64Array(count);
+  const colors = new Uint8Array(count * 4);
+  const viridis = Colormap.builtIn('viridis');
+  const parts = 32;
+  for (let part = 0; part < parts; part++) {
+    const random = new SeededRandom(part);
+    const end = Math.trunc((count * (part + 1)) / parts);
+    for (let i = Math.trunc((count * part) / parts); i < end; i++) {
+      const a = random.nextDouble() * 2 - 1;
+      const b = random.nextDouble() * 2 - 1;
+      const height =
+        0.45 * Math.sin(a * 4) * Math.cos(b * 3) + 0.15 * Math.sin((a + b) * 11) + 0.02 * random.nextDouble();
+      x[i] = a;
+      y[i] = b;
+      z[i] = height;
+      const color = viridis.sample((height + 0.65) / 1.3);
+      colors.set([color.r, color.g, color.b, color.a], i * 4);
+    }
+    report((part + 1) / parts);
+  }
+  return { x, y, z, colors };
+}
+
+/** A scanned landscape of a number of points; a large one forms after the first picture. */
+export function landscape(chart: Chart3DBuilder, count: number): Chart3DBuilder {
+  const cloud =
+    count <= PointCloud3D.previewLimit
+      ? new PointCloud3D(createLandscape(count))
+      : new PointCloud3D((report) => Promise.resolve().then(() => createLandscape(count, report)));
+  return chart.title('Scanned landscape').xAxis(-1, 1, 'x').yAxis(-1, 1, 'y').zAxis(-1, 1, 'z').addCloud(cloud);
 }

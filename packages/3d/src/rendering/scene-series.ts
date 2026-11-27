@@ -21,6 +21,8 @@ import type { Bubbles3D } from '../scene/bubbles';
 import { calculateNormals, validIndices, type Mesh3D, type Vertex3D } from '../scene/mesh';
 import type { AntennaPattern3D } from '../scene/antenna';
 import type { MeasuredMap3D } from '../scene/measured-map';
+import type { PointCloud3D } from '../scene/point-cloud';
+import { CloudLoader } from './cloud-loader';
 import type { Pie3D } from '../scene/pie';
 import { Point3D } from '../scene/matrix';
 import { meshVertexStride } from './meshes';
@@ -64,6 +66,7 @@ export class Scene3DSeries extends ChartSeries {
   private readonly pieKeys = new Map<Pie3D, string>();
   private readonly antennaMeshes = new Map<AntennaPattern3D, Mesh3D>();
   private readonly mapMeshes = new Map<MeasuredMap3D, Mesh3D>();
+  private readonly cloudLoaders = new Map<PointCloud3D, CloudLoader>();
   private heights = new Float32Array(0);
   private ranges = '';
   private palette: readonly Rgba8[] = [];
@@ -127,6 +130,10 @@ export class Scene3DSeries extends ChartSeries {
 
   /** {@inheritDoc ChartSeries.releaseResources} */
   override releaseResources(): void {
+    for (const loader of this.cloudLoaders.values()) {
+      loader.dispose();
+    }
+    this.cloudLoaders.clear();
     this.renderer?.dispose();
     this.renderer = undefined;
     this.rendererDevice = undefined;
@@ -214,6 +221,14 @@ export class Scene3DSeries extends ChartSeries {
     for (const pie of this.scene.pies) {
       this.uploadPie(pie);
     }
+    for (const cloud of this.scene.clouds) {
+      let loader = this.cloudLoaders.get(cloud);
+      if (!loader) {
+        loader = new CloudLoader(cloud);
+        this.cloudLoaders.set(cloud, loader);
+      }
+      loader.load(this.scene, this.renderer as Renderer3D);
+    }
     // Maps become meshes once.
     for (const map of this.scene.maps) {
       let mesh = this.mapMeshes.get(map);
@@ -254,7 +269,11 @@ export class Scene3DSeries extends ChartSeries {
     );
     const aspect = size.width / size.height;
     const camera = this.scene.camera;
-    camera.createMatrix(aspect).toGpu(this.matrix);
+    const sceneMatrix = camera.createMatrix(aspect);
+    sceneMatrix.toGpu(this.matrix);
+    for (const loader of this.cloudLoaders.values()) {
+      loader.select(this.scene, sceneMatrix, size.width, size.height);
+    }
     const eye = camera.eye;
     const walls = selectWalls(eye);
     const background = themeColor(theme?.surface?.background, defaultBackground);

@@ -818,14 +818,6 @@ export interface RecordingSettings {
 }
 
 // @public
-export class SeededRandom {
-    constructor(seed: number);
-    nextDouble(): number;
-    nextInt(maxValue: number): number;
-    nextInt64(maxValue: number): number;
-}
-
-// @public
 export function serveColumn(endpoint: ColumnEndpoint): void;
 
 // @public

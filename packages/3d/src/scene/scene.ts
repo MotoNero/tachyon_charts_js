@@ -7,6 +7,7 @@ import type { Bubbles3D } from './bubbles';
 import type { Mesh3D } from './mesh';
 import type { AntennaPattern3D } from './antenna';
 import type { ClipPlane3D } from './clip-plane';
+import type { PointCloud3D } from './point-cloud';
 import type { MeasuredMap3D } from './measured-map';
 import type { Pie3D } from './pie';
 import type { Line3D, Scatter3D } from './points';
@@ -49,6 +50,7 @@ export class Scene3D {
   private readonly antennaList: AntennaPattern3D[] = [];
   private readonly mapList: MeasuredMap3D[] = [];
   private readonly planeList: ClipPlane3D[] = [];
+  private readonly cloudList: PointCloud3D[] = [];
   private axesShown = true;
   private changes = 0;
 
@@ -108,6 +110,17 @@ export class Scene3D {
   addMesh(mesh: Mesh3D): void {
     this.meshList.push(mesh);
     this.addElement(mesh);
+  }
+
+  /** The very large clouds of points. */
+  get clouds(): readonly PointCloud3D[] {
+    return this.cloudList;
+  }
+
+  /** Adds a very large cloud of points. */
+  addCloud(cloud: PointCloud3D): void {
+    this.cloudList.push(cloud);
+    this.addElement(cloud);
   }
 
   /** The planes that cut the scene. */

@@ -3,8 +3,10 @@
 import { findBuiltInTheme, type Axis, type ChartBuilder, type ThemeDocument } from '@tachyon-charts/core';
 import { AxisLabels3D } from './rendering/axis-labels';
 import { PieLabels3D } from './rendering/pie-labels';
+import { SceneState3D } from './rendering/scene-state';
 import type { AntennaPattern3D } from './scene/antenna';
 import type { ClipPlane3D } from './scene/clip-plane';
+import type { PointCloud3D } from './scene/point-cloud';
 import type { MeasuredMap3D } from './scene/measured-map';
 import type { Pie3D } from './scene/pie';
 import { Orbit3DModifier } from './rendering/orbit-modifier';
@@ -101,6 +103,15 @@ export class Chart3DBuilder {
     return this;
   }
 
+  /**
+   * Adds a very large cloud of points: up to a million show whole at once, a larger cloud shows a sample at once and
+   * finer points as they arrive, with its progress above the box.
+   */
+  addCloud(cloud: PointCloud3D): this {
+    this.scene.addCloud(cloud);
+    return this;
+  }
+
   /** Adds a map from measured points at uneven places. */
   addMap(map: MeasuredMap3D): this {
     this.scene.addMap(map);
@@ -161,6 +172,7 @@ export class Chart3DBuilder {
           return new AxisLabels3D(scene);
         })
         .addOverlay(() => new PieLabels3D(scene))
+        .addOverlay(() => new SceneState3D(scene))
         .addModifier(() => new Orbit3DModifier(scene))
         // The scene draws with the GPU directly; in a render worker it would hand its picture over through the main memory.
         .drawsOnMainThread()

@@ -127,7 +127,7 @@ import {
   opfsSource,
   writableSink,
 } from '@tachyon-charts/large-data';
-import { createAntenna, createKnot, measuredMap, pipeModel } from './models3d';
+import { createAntenna, createKnot, landscape, measuredMap, pipeModel } from './models3d';
 import { t } from './texts';
 
 /**
@@ -720,6 +720,24 @@ function pages3D(): Page[] {
               ),
             ),
         );
+      },
+    },
+    {
+      id: 'cloud-3d',
+      name: 'Point cloud',
+      group: '3D',
+      hint: hint3D,
+      configure: (c) => {
+        scene3D(c, (s) => landscape(s, 500_000).title(t('Scanned landscape')));
+      },
+    },
+    {
+      id: 'cloud-10m-3d',
+      name: 'Point cloud, 10 million',
+      group: '3D',
+      hint: hint3D,
+      configure: (c) => {
+        scene3D(c, (s) => landscape(s, 10_000_000).title(t('Scanned landscape')));
       },
     },
     {
