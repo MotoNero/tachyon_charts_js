@@ -3,7 +3,7 @@
 import { DoubleRange } from '@tachyon-charts/core';
 import type { Chart3DBuilder } from '../chart3d-builder';
 import { Volume3D, VolumeData } from '../scene/volume';
-import { PointFileError } from './point-file';
+import { PointFileError } from './file-error';
 
 const niftiHeader = 348;
 const niftiTwoHeader = 540;

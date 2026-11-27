@@ -3,16 +3,13 @@
 // million points is never held twice; files are read in slices, so they may be larger than one buffer. LAZ is not
 // supported.
 import type { PointCloudArrays } from '../scene/point-cloud';
+import { PointFileError } from './file-error';
+
+export { PointFileError } from './file-error';
 
 const sliceBytes = 1 << 23;
 const longestPlyHeader = 1 << 20;
 const largestCount = 2 ** 31 - 1;
-
-/** A file that cannot be read as points, with the reason in the message. */
-export class PointFileError extends Error {
-  /** The name of the error. */
-  override readonly name = 'PointFileError';
-}
 
 /** Tells how far the reading has come, from 0 to 1. */
 export type ReadProgress = (share: number) => void;

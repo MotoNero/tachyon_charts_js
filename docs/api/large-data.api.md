@@ -53,6 +53,12 @@ export function blobSource(blob: Blob): ByteSource;
 export function blockExtremes(values: ArrayLike<number>, type: Exclude<ColumnType, 'bit'>, min: Float64Array, max: Float64Array): void;
 
 // @public
+export function buildCloudPages(file: ColumnFile, columns: readonly [number, number, number], store: StagesStore, options?: CloudPagesBuildOptions): Promise<CloudPagesHeader | undefined>;
+
+// @public
+export function buildCloudPagesInWorker(location: ColumnLocation, columns: readonly [number, number, number], worker?: Worker): CloudPagesBuild;
+
+// @public
 export function buildPointTiles(file: ColumnFile, xColumn: number, yColumn: number, store: StagesStore, options?: PointTilesBuildOptions): Promise<PointTilesHeader | undefined>;
 
 // @public
@@ -73,6 +79,60 @@ export interface ByteSource {
     read(offset: number, length: number): Promise<Uint8Array>;
     readSync?(offset: number, length: number): Uint8Array;
     readonly size: number;
+}
+
+// @public
+export const cloudPageBytes = 40;
+
+// @public
+export interface CloudPagesBuild {
+    readonly file: Promise<Blob>;
+    share(): number;
+}
+
+// @public
+export interface CloudPagesBuildOptions {
+    readonly bandPoints?: number;
+    readonly isStopped?: () => boolean;
+    readonly onProgress?: (share: number) => void;
+}
+
+// @public
+export function cloudPagesFingerprint(file: ColumnFile, columns: readonly [number, number, number]): Promise<bigint>;
+
+// @public
+export interface CloudPagesHeader {
+    readonly count: number;
+    readonly fingerprint: bigint;
+    readonly high: readonly [number, number, number];
+    readonly low: readonly [number, number, number];
+    readonly pageCount: number;
+    readonly sourceCount: number;
+}
+
+// @public
+export const cloudPagesHeaderSize = 128;
+
+// @public
+export const cloudPageSize = 32768;
+
+// @public
+export type CloudPagesReply = {
+    readonly kind: 'progress';
+    readonly share: number;
+} | {
+    readonly kind: 'ready';
+    readonly name: string;
+    readonly fromCache: boolean;
+} | {
+    readonly kind: 'error';
+    readonly message: string;
+};
+
+// @public
+export interface CloudPagesRequest {
+    readonly columns: readonly [number, number, number];
+    readonly location: ColumnLocation;
 }
 
 // @public
@@ -510,6 +570,9 @@ export function opfsSource(path: string): Promise<ByteSource>;
 export const pageRows: number;
 
 // @public
+export const pagesFolder = "tachyon-points";
+
+// @public
 export function parseCsvPiece(bytes: Uint8Array, layout: CsvLayout): CsvPiece;
 
 // @public
@@ -763,6 +826,9 @@ export type RasterRequest = {
 };
 
 // @public
+export function readCloudPagesHeader(bytes: Uint8Array): CloudPagesHeader | undefined;
+
+// @public
 export function readColumnHeader(bytes: Uint8Array): ColumnHeader;
 
 // @public
@@ -816,6 +882,9 @@ export interface RecordingSettings {
     readonly xStart: number;
     readonly xStep: number;
 }
+
+// @public
+export function serveCloudPages(endpoint: ColumnEndpoint): void;
 
 // @public
 export function serveColumn(endpoint: ColumnEndpoint): void;
@@ -920,6 +989,9 @@ export abstract class WorkerColumn {
 
 // @public
 export function writableSink(stream: FileSystemWritableFileStream): ByteSink;
+
+// @public
+export function writeCloudPagesHeader(header: CloudPagesHeader): Uint8Array;
 
 // @public
 export function writeColumnHeader(header: ColumnHeader): Uint8Array;

@@ -899,7 +899,11 @@ in space (`polygon`, `polygonThrough`), rectangles and level planes at a limit (
 (`PointCloud3D`, `addCloud`) take the points or a function that creates or reads them while the chart shows the
 progress. Up to a million points show whole in the first picture; a larger cloud shows an even sample at once while a
 worker sorts it into an octree, then every frame draws a budget of real points shared out by what each part covers on
-the screen (`pointBudget`, 30 million by default), so the density stays the same while turning and at rest. Point files come from XYZ text (with
+the screen (`pointBudget`, 30 million by default), so the density stays the same while turning and at rest. A cloud far larger than memory is sorted once into pages beside its
+column file (`buildCloudPagesInWorker` of `@tachyon-charts/large-data`, kept in the origin private file system for the
+next visit) and opened as `CloudPages`: a sample of every page stays on the GPU, so the whole cloud shows at once, and
+the pages a view needs finer come into a cache on the GPU, the ones longest unused leaving first (`pageMemory`,
+`heightColors`). Point files come from XYZ text (with
 colors from the first line on), PLY (text or binary in either byte order) and LAS 1.0 to 1.4 (`PointFile.read`,
 `readXyz`, `readPly`, `readLas`), read in slices so that a file may be larger than one buffer:
 

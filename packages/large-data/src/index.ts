@@ -121,3 +121,22 @@ export {
 export { PointDensitySeries } from './point-density-series';
 export { PointTiles, type CountedView, type PointTilesOptions } from './point-tiles';
 export { servePointTiles, type PointTilesReply, type PointTilesRequest } from './point-tiles-worker';
+export {
+  buildCloudPages,
+  cloudPageBytes,
+  cloudPageSize,
+  cloudPagesFingerprint,
+  cloudPagesHeaderSize,
+  readCloudPagesHeader,
+  writeCloudPagesHeader,
+  type CloudPagesBuildOptions,
+  type CloudPagesHeader,
+} from './cloud-pages-file';
+export {
+  buildCloudPagesInWorker,
+  pagesFolder,
+  serveCloudPages,
+  type CloudPagesBuild,
+  type CloudPagesReply,
+  type CloudPagesRequest,
+} from './cloud-pages-worker';

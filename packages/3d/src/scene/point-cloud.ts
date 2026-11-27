@@ -1,5 +1,6 @@
 // A very large cloud of points, as PointCloud3D of the .NET version.
-import type { Rgba8 } from '@tachyon-charts/core';
+import type { Colormap, Rgba8 } from '@tachyon-charts/core';
+import { CloudPages } from '../files/cloud-pages';
 
 /** The points of a cloud: coordinates and, if wanted, a color per point as red, green, blue and alpha bytes. */
 export interface PointCloudArrays {
@@ -26,6 +27,10 @@ export interface PointCloud3DOptions {
   readonly pointBudget?: number;
   /** The diameter of the points once so few are in view that single pixels would leave gaps; 2.5 by default. */
   readonly pointSize?: number;
+  /** The colors by height of a cloud from pages; the color of the cloud when left out. */
+  readonly heightColors?: Colormap;
+  /** The most bytes of the GPU a cloud from pages keeps its pages in; 1 GB, about 64 million points, by default. */
+  readonly pageMemory?: number;
 }
 
 const treeShare = 0.5;
@@ -47,6 +52,12 @@ export class PointCloud3D {
   readonly pointBudget: number;
   /** The diameter of the points once few are in view. */
   readonly pointSize: number;
+  /** The colors by height of a cloud from pages, or undefined for the color of the cloud. */
+  readonly heightColors: Colormap | undefined;
+  /** The most bytes of the GPU a cloud from pages keeps its pages in. */
+  readonly pageMemory: number;
+  /** The pages of a cloud from a file, or undefined for points in memory. */
+  readonly pages: CloudPages | undefined;
   private readonly load: PointCloudLoad | undefined;
   private points: PointCloudArrays | undefined;
   private started = false;
@@ -56,20 +67,24 @@ export class PointCloud3D {
   private failure: unknown;
 
   /**
-   * @param source - The points, or a function that creates or reads them, so that the page stays free while a large
-   * cloud forms; the chart then shows the progress.
+   * @param source - The points, a function that creates or reads them, so that the page stays free while a large cloud
+   * forms, or the pages of a cloud far larger than memory, sorted into a file beside its data; the chart then shows the
+   * progress.
    * @param options - Color, budget and size of the points.
    */
-  constructor(source: PointCloudArrays | PointCloudLoad, options: PointCloud3DOptions = {}) {
+  constructor(source: PointCloudArrays | PointCloudLoad | CloudPages, options: PointCloud3DOptions = {}) {
+    this.pages = source instanceof CloudPages ? source : undefined;
     if (typeof source === 'function') {
       this.load = source;
     } else {
       this.load = undefined;
-      this.points = source;
+      this.points = source instanceof CloudPages ? undefined : source;
     }
     this.color = options.color ?? { r: 90, g: 170, b: 255, a: 255 };
     this.pointBudget = options.pointBudget ?? 30_000_000;
     this.pointSize = options.pointSize ?? 2.5;
+    this.heightColors = options.heightColors;
+    this.pageMemory = options.pageMemory ?? 2 ** 30;
     this.showsValues = options.showsValues ?? false;
   }
 
@@ -95,7 +110,7 @@ export class PointCloud3D {
 
   /** The number of points. */
   get count(): number {
-    return Math.min(this.x.length, this.y.length, this.z.length);
+    return this.pages ? this.pages.count : Math.min(this.x.length, this.y.length, this.z.length);
   }
 
   /** Whether all points have reached the GPU. */
@@ -115,17 +130,24 @@ export class PointCloud3D {
 
   /** Grows as finer points arrive and the progress moves, so that the chart draws again. */
   get version(): number {
-    return this.stamp;
+    // Pages are built in the background; their progress asks for pictures, so that the chart follows it.
+    const pages = this.pages;
+    return this.stamp + (pages ? Math.trunc(pages.share * 100) + (pages.isComplete ? 1 : 0) : 0);
   }
 
   /** @internal Whether the points exist. */
   get isLoaded(): boolean {
-    return this.points !== undefined;
+    return this.points !== undefined || this.pages !== undefined;
   }
 
   /** @internal Whether the chart shows how far the cloud has come. A small cloud shows whole at once. */
   get showsProgress(): boolean {
-    return !this.ready && this.failure === undefined && (!this.isLoaded || this.count > PointCloud3D.previewLimit);
+    return (
+      !this.ready &&
+      this.failure === undefined &&
+      this.pages?.error === undefined &&
+      (this.pages !== undefined || !this.isLoaded || this.count > PointCloud3D.previewLimit)
+    );
   }
 
   /** @internal Starts creating or reading the points, once. */

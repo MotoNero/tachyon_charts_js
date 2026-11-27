@@ -24,6 +24,7 @@ import type { AntennaPattern3D } from '../scene/antenna';
 import type { MeasuredMap3D } from '../scene/measured-map';
 import type { PointCloud3D } from '../scene/point-cloud';
 import { CloudLoader } from './cloud-loader';
+import { PagedCloudLoader } from './paged-cloud-loader';
 import { ScenePicker } from './scene-picker';
 import { sceneToCsv } from './scene-csv';
 import { addSpectrumLines, spectrumLevels } from '../scene/spectrum-links';
@@ -78,7 +79,7 @@ export class Scene3DSeries extends ChartSeries {
   private readonly pieKeys = new Map<Pie3D, string>();
   private readonly antennaMeshes = new Map<AntennaPattern3D, Mesh3D>();
   private readonly mapMeshes = new Map<MeasuredMap3D, Mesh3D>();
-  private readonly cloudLoaders = new Map<PointCloud3D, CloudLoader>();
+  private readonly cloudLoaders = new Map<PointCloud3D, CloudLoader | PagedCloudLoader>();
   private group: ChartGroup | undefined;
   private wantedGroup: ChartGroup | undefined;
   /** @internal Tells the pointer of the chart which group shows its place as crosshair. */
@@ -294,11 +295,11 @@ export class Scene3DSeries extends ChartSeries {
     for (const cloud of this.scene.clouds) {
       let loader = this.cloudLoaders.get(cloud);
       if (!loader) {
-        loader = new CloudLoader(cloud);
+        loader = cloud.pages ? new PagedCloudLoader(cloud, cloud.pages) : new CloudLoader(cloud);
         this.cloudLoaders.set(cloud, loader);
       }
       loader.load(this.scene, this.renderer as Renderer3D);
-      const octree = loader.octree;
+      const octree = loader instanceof CloudLoader ? loader.octree : undefined;
       if (octree) {
         this.picker.addCloud(cloud, octree);
       }

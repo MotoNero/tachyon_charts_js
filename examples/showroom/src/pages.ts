@@ -28,6 +28,7 @@ import {
   volumeProfile,
   SweepData,
   NumericAxis,
+  SeededRandom,
   SpectrumDisplay,
   SmithGridOverlay,
   SmithMarkerModifier,
@@ -100,9 +101,11 @@ import {
   Line3D,
   Chart3DBuilder,
   ClipPlane3D,
+  CloudPages,
   CutCurveFeed,
   Mesh3D,
   Pie3D,
+  PointCloud3D,
   Point3D,
   Points3D,
   Scatter3D,
@@ -129,6 +132,8 @@ import {
   opfsFile,
   opfsSource,
   writableSink,
+  buildCloudPagesInWorker,
+  type CloudPagesBuild,
 } from '@tachyon-charts/large-data';
 import {
   cloudFromLas,
@@ -853,11 +858,73 @@ function cut3DPage(): Page {
   };
 }
 
+// 50 million points of a scanned landscape (600 MB as three float32 columns in OPFS), sorted into pages beside the file
+// on the first visit and taken again later: a sample of every page shows the whole at once, the pages a view needs
+// finer come in as it moves.
+// A smaller cloud for a quick look or a test: ?points=2000000 before the #.
+const cloudPoints = Number(new URLSearchParams(location.search).get('points') ?? '') || 50_000_000;
+const cloudFile = { path: `showroom/cloud-${String(cloudPoints)}.tcol`, count: cloudPoints };
+
+async function writeCloudFile(progress: (share: number) => void): Promise<void> {
+  const handle = await opfsFile(cloudFile.path, true);
+  if ((await handle.getFile()).size >= 64 + cloudFile.count * 12) {
+    return;
+  }
+  const writer = new ColumnFileWriter(writableSink(await handle.createWritable()), { type: 'float32', columns: 3 });
+  const chunk = new Float32Array(3 * (1 << 20));
+  const part = 1 << 20;
+  for (let first = 0; first < cloudFile.count; first += part) {
+    const size = Math.min(part, cloudFile.count - first);
+    // Hills and ripples over -10 to 10, each part with a random generator of its own.
+    const random = new SeededRandom(first / part);
+    for (let i = 0; i < size; i++) {
+      const a = random.nextDouble() * 2 - 1;
+      const b = random.nextDouble() * 2 - 1;
+      chunk[i * 3] = a * 10;
+      chunk[i * 3 + 1] = b * 10;
+      chunk[i * 3 + 2] =
+        0.45 * Math.sin(a * 12) * Math.cos(b * 9) + 0.15 * Math.sin((a + b) * 33) + 0.02 * random.nextDouble();
+    }
+    await writer.append(size * 3 === chunk.length ? chunk : chunk.subarray(0, size * 3));
+    progress((first + size) / cloudFile.count);
+  }
+  await writer.close();
+}
+
+function cloudPagesPage(): Page {
+  return {
+    id: 'cloud-pages-3d',
+    name: 'Cloud from pages, 50 million',
+    group: '3D',
+    hint: hint3D + ' | The first visit writes a test file of 600 MB',
+    configure: (c) => {
+      let written = 0;
+      let build: CloudPagesBuild | undefined;
+      const file = writeCloudFile((share) => {
+        written = share;
+      }).then(() => {
+        build = buildCloudPagesInWorker({ opfs: cloudFile.path }, [0, 1, 2]);
+        return build.file;
+      });
+      const pages = new CloudPages(file, () => 0.5 * written + 0.5 * (build?.share() ?? 0));
+      scene3D(c, (s) =>
+        s
+          .title(t('Scanned landscape'))
+          .xAxis(-10, 10, 'x')
+          .yAxis(-10, 10, 'y')
+          .zAxis(-1, 1, 'z')
+          .addCloud(new PointCloud3D(pages, { heightColors: Colormap.builtIn('viridis'), pointSize: 2 })),
+      );
+    },
+  };
+}
+
 function pages3D(): Page[] {
   return [
     spectrumWaterfallPage(),
     coupled3DPage(),
     cut3DPage(),
+    cloudPagesPage(),
     {
       id: 'cut-planes-3d',
       name: 'Cut planes',

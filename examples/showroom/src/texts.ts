@@ -139,6 +139,8 @@ const german: Readonly<Record<string, string>> = {
     'Ziehen: drehen | Umschalt+Ziehen: verschieben | Rad: Zoom | Pfeiltasten: drehen | Doppelklick, Pos1: Anfang',
   'Drag: turn | Shift+drag: move | Wheel: zoom | Arrow keys: turn | Double click, Home: start | Pointer: values | Click: marker, Delete removes it':
     'Ziehen: drehen | Umschalt+Ziehen: verschieben | Rad: Zoom | Pfeiltasten: drehen | Doppelklick, Pos1: Anfang | Zeiger: Werte | Klick: Marker, Entf entfernt ihn',
+  'Drag: turn | Shift+drag: move | Wheel: zoom | Arrow keys: turn | Double click, Home: start | Pointer: values | Click: marker, Delete removes it | The first visit writes a test file of 600 MB':
+    'Ziehen: drehen | Umschalt+Ziehen: verschieben | Rad: Zoom | Pfeiltasten: drehen | Doppelklick, Pos1: Anfang | Zeiger: Werte | Klick: Marker, Entf entfernt ihn | Der erste Besuch schreibt eine Testdatei von 600 MB',
   'Drag the orange outline: move the plane | Drag: turn | Shift+drag: move | Wheel: zoom | Arrow keys: turn | Double click, Home: start':
     'Orangen Umriss ziehen: Ebene verschieben | Ziehen: drehen | Umschalt+Ziehen: verschieben | Rad: Zoom | Pfeiltasten: drehen | Doppelklick, Pos1: Anfang',
   'Last value at the axis': 'Letzter Wert an der Achse',

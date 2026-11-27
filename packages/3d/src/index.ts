@@ -14,6 +14,7 @@ export {
   type VolumeFileReaders,
   type VolumeValueType,
 } from './files/volume-file';
+export { CloudPages, pageSize, type CloudPage } from './files/cloud-pages';
 export { PointFile, PointFileError, type PointFileReaders, type ReadProgress } from './files/point-file';
 export { ModelFile, ModelFileData, ModelFileError, type ModelMeshOptions } from './files/model-file';
 export { AntennaPattern3D, type AntennaCut, type AntennaLobe, type AntennaPattern3DOptions } from './scene/antenna';
