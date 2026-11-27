@@ -917,7 +917,14 @@ budget shows with 16-bit floats or every second, third … value (`gpuFit`, `des
 A 3D chart joins 2D charts with `group(name)`: the first axis of the box shares its range with their X axes, so
 zooming a 2D chart narrows the box, and their crosshair shows as a frame across the box. `Waterfall3D.from(display)`
 shows the history of a spectrum display; its mask stands as a red fence across the depth, its markers as orange frames
-numbered as in the spectrum, and the box follows its levels. Drag to turn,
+numbered as in the spectrum, and the box follows its levels.
+
+The pointer shows what lies under it on every kind of data — surfaces, waterfalls, columns, meshes and models, pies,
+bubbles, lines, scatters, clouds and volumes — with its place and value, found on the CPU so that no frame waits. A
+click sets a numbered marker (`scene.markers`, `onMarkerAdded`), a click on a marker removes it, Delete removes the
+newest; a click on a slice of a pie pulls it out or back, and on the waterfall of a spectrum it sets a marker of the
+spectrum. Elements with `showsValues` write their values above their points, evenly thinned and never covering each
+other. Drag to turn,
 Shift and drag to move, wheel and + and − to zoom, arrows to turn, Home or a double click for the first view. The
 scene draws with WebGPU directly: the chart element draws a 3D chart on the main thread with a WebGPU device of its own,
 also where the page draws its other charts in a render worker (`ChartBuilder.drawsOnMainThread()`); with WebGL 2,

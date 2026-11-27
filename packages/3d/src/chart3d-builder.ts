@@ -4,6 +4,9 @@ import { ChartGroup, findBuiltInTheme, type Axis, type ChartBuilder, type ThemeD
 import { AxisLabels3D } from './rendering/axis-labels';
 import { PieLabels3D } from './rendering/pie-labels';
 import { SceneState3D } from './rendering/scene-state';
+import { PickLabels3D, PointerPick3D } from './rendering/pick-labels';
+import { ScenePicker } from './rendering/scene-picker';
+import { ValueLabels3D } from './rendering/value-labels';
 import type { AntennaPattern3D } from './scene/antenna';
 import type { ClipPlane3D } from './scene/clip-plane';
 import type { PointCloud3D } from './scene/point-cloud';
@@ -171,6 +174,8 @@ export class Chart3DBuilder {
   apply(builder: ChartBuilder): ChartBuilder {
     const scene = this.scene;
     let series: Scene3DSeries | undefined;
+    const picker = new ScenePicker(scene);
+    const pointer = new PointerPick3D(scene, picker);
     if (this.titleText !== undefined) {
       builder.title(this.titleText);
     }
@@ -182,7 +187,10 @@ export class Chart3DBuilder {
         .xAxis((a) => a.numeric('x').range(0, 1).hidden())
         .yAxis((a) => a.numeric('y').range(0, 1).hidden())
         .addSeries((x, y) => {
-          series = new Scene3DSeries(scene, x, y);
+          series = new Scene3DSeries(scene, x, y, picker);
+          series.pointerGroup = (group) => {
+            pointer.group = group;
+          };
           return series;
         })
         .addOverlay((chart) => {
@@ -190,8 +198,10 @@ export class Chart3DBuilder {
           return new AxisLabels3D(scene);
         })
         .addOverlay(() => new PieLabels3D(scene))
+        .addOverlay(() => new ValueLabels3D(scene))
+        .addOverlay(() => new PickLabels3D(scene, pointer))
         .addOverlay(() => new SceneState3D(scene))
-        .addModifier(() => new Orbit3DModifier(scene))
+        .addModifier(() => new Orbit3DModifier(scene, pointer))
         // The scene draws with the GPU directly; in a render worker it would hand its picture over through the main memory.
         .drawsOnMainThread()
     );

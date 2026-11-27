@@ -8,6 +8,8 @@ export type BubbleSizeUnit = 'data' | 'screen';
 
 /** The options of bubbles. */
 export interface Bubbles3DOptions {
+  /** Whether the values show as labels above their points; labels that would cover others are left out. */
+  readonly showsValues?: boolean;
   /** Whether the diameters are in units of the X axis or in pixels; in units of the X axis by default. */
   readonly sizeUnit?: BubbleSizeUnit;
   /** The color of all bubbles; the next color of the theme when left out. */
@@ -22,6 +24,8 @@ export interface Bubbles3DOptions {
 
 /** Spheres at points in space, each with its diameter. */
 export class Bubbles3D {
+  /** Whether the values show as labels above their points. */
+  readonly showsValues: boolean;
   /** Whether the diameters are in units of the X axis or in pixels. */
   readonly sizeUnit: BubbleSizeUnit;
   /** A color for each bubble. */
@@ -67,6 +71,7 @@ export class Bubbles3D {
     this.colors = options.colors;
     this.values = options.values;
     this.material = options.material ?? { gloss: 0.35, sharpness: 40 };
+    this.showsValues = options.showsValues ?? false;
   }
 
   /** The number of bubbles. */

@@ -83,6 +83,7 @@ export type CloudMessage =
       readonly gpuFirst: Int32Array;
       readonly bounds: Float64Array;
       readonly gpuCount: number;
+      readonly order: Int32Array;
     }
   | { readonly kind: 'failed'; readonly message: string };
 
@@ -164,6 +165,7 @@ export function runCloudJob(job: CloudJob, say: (message: CloudMessage, transfer
       gpuFirst: leaves.gpuFirst,
       bounds: leaves.bounds,
       gpuCount: tree.gpuCount,
+      order: tree.order,
     },
     [],
   );

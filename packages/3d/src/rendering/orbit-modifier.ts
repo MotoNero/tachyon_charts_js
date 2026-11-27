@@ -13,6 +13,8 @@ import {
 import type { ClipPlane3D } from '../scene/clip-plane';
 import type { Point3D } from '../scene/matrix';
 import type { Scene3D } from '../scene/scene';
+import { Waterfall3D } from '../scene/waterfall';
+import { isPieSlice, type PointerPick3D } from './pick-labels';
 import type { TransferFunction3D } from '../scene/transfer';
 import type { Volume3D } from '../scene/volume';
 import { editorArea, editorPlace } from './scene-state';
@@ -24,6 +26,9 @@ const degreesPerKey = 5;
 const gripReach = 8;
 const probe = 0.1;
 const handleReach = 9;
+const clickReach = 4;
+const markerReach = 10;
+const spectrumReach = 0.015;
 
 function distanceToPiece(position: Point, a: Point, b: Point): number {
   const px = b.x - a.x;
@@ -41,12 +46,20 @@ export class Orbit3DModifier extends ChartModifier {
   private isDragging = false;
   private isPanning = false;
   private last: Point = { x: 0, y: 0 };
+  private pressed: Point = { x: 0, y: 0 };
+  private isClick = false;
   private plane: ClipPlane3D | undefined;
   private handle: { readonly transfer: TransferFunction3D; readonly index: number } | undefined;
   private level: Volume3D | undefined;
 
-  /** @param scene - The scene whose camera moves. */
-  constructor(private readonly scene: Scene3D) {
+  /**
+   * @param scene - The scene whose camera moves.
+   * @param pointer - What lies under the pointer; without it there are no values and markers.
+   */
+  constructor(
+    private readonly scene: Scene3D,
+    private readonly pointer?: PointerPick3D,
+  ) {
     super(ZoomPanModifier.defaultPriority);
   }
 
@@ -56,9 +69,14 @@ export class Orbit3DModifier extends ChartModifier {
       return this.press(input);
     }
     if (!this.isDragging) {
+      this.hover(input);
       return 'ignored';
     }
     if (input.kind === 'moved') {
+      this.isClick &&= Math.hypot(input.position.x - this.pressed.x, input.position.y - this.pressed.y) <= clickReach;
+      if (this.isClick) {
+        return 'handled';
+      }
       const delta = { x: input.position.x - this.last.x, y: input.position.y - this.last.y };
       this.last = input.position;
       const pane = this.interaction?.chart.currentLayout?.panes[0];
@@ -84,6 +102,9 @@ export class Orbit3DModifier extends ChartModifier {
     }
     if (input.kind === 'released' || input.kind === 'canceled') {
       this.isDragging = false;
+      if (input.kind === 'released' && this.isClick) {
+        this.click(input.position);
+      }
       return 'release';
     }
     return 'ignored';
@@ -127,6 +148,9 @@ export class Orbit3DModifier extends ChartModifier {
       case 'Home':
         camera.show('default');
         break;
+      case 'Delete':
+        this.removeNewestMarker();
+        break;
       default:
         return 'ignored';
     }
@@ -148,11 +172,100 @@ export class Orbit3DModifier extends ChartModifier {
     this.isDragging = true;
     this.isPanning = input.changedButton === 'middle' || (input.modifiers & InputModifiers.shift) !== 0;
     this.last = input.position;
+    this.pressed = input.position;
     const isPrimary = input.changedButton === 'primary';
     this.handle = isPrimary ? this.findHandle(input.position) : undefined;
     this.level = isPrimary && !this.handle ? this.findLevel(input.position) : undefined;
     this.plane = isPrimary && !this.handle && !this.level ? this.findPlane(input.position) : undefined;
+    this.isClick = isPrimary && !this.isPanning && !this.plane && !this.handle && !this.level;
+    this.pointer?.hide();
     return 'capture';
+  }
+
+  // The newest marker goes: of the scene first, then of a spectrum behind a waterfall.
+  private removeNewestMarker(): void {
+    if (this.scene.markers.length > 0) {
+      this.scene.removeLastMarker();
+      return;
+    }
+    for (const waterfall of this.scene.waterfalls) {
+      const extra = waterfall.display?.extraMarkers;
+      if (waterfall.display && extra && extra.length > 0) {
+        waterfall.display.removeMarker(extra[extra.length - 1] as number, 0);
+        return;
+      }
+    }
+  }
+
+  // The value under the pointer, or none once it leaves.
+  private hover(input: PointerInputEvent): void {
+    const pane = this.interaction?.chart.currentLayout?.panes[0];
+    if (!this.pointer || !pane) {
+      return;
+    }
+    if (input.kind === 'moved') {
+      this.pointer.move(pane, input.position.x, input.position.y);
+      this.redraw();
+    } else if (input.kind === 'exited' || input.kind === 'canceled') {
+      this.pointer.hide();
+      this.redraw();
+    }
+  }
+
+  // A click on a slice of a pie pulls it out or back, as in 2D; elsewhere it sets a marker, or removes the one it meets.
+  // On a waterfall of a spectrum the marker belongs to the spectrum.
+  private click(position: Point): void {
+    const pane = this.interaction?.chart.currentLayout?.panes[0];
+    const pointer = this.pointer;
+    if (!pointer || !pane) {
+      return;
+    }
+    pointer.move(pane, position.x, position.y);
+    const pick = pointer.current;
+    const scene = this.scene;
+    if (pick && isPieSlice(pick.source)) {
+      const pie = pick.source.pie;
+      pie.explodedIndex = pie.explodedIndex === pick.source.index ? -1 : pick.source.index;
+      this.redraw();
+      return;
+    }
+    const nearest = this.findMarker(pane, position);
+    if (pick && pick.source instanceof Waterfall3D && pick.source.display) {
+      const display = pick.source.display;
+      const range = scene.xAxis.visibleRange;
+      if (!display.removeMarker(pick.position.x, spectrumReach * Math.abs(range.max - range.min))) {
+        display.addMarker(pick.position.x);
+      }
+    } else if (nearest !== undefined) {
+      scene.removeMarker(nearest);
+    } else if (pick) {
+      scene.addMarker(pick);
+    } else {
+      return;
+    }
+    this.redraw();
+  }
+
+  // The marker of the scene that lies under a point of the picture.
+  private findMarker(
+    pane: { x: number; y: number; width: number; height: number },
+    position: Point,
+  ): number | undefined {
+    const matrix = this.scene.camera.createMatrix(pane.width / pane.height);
+    let nearest: number | undefined;
+    let best = markerReach;
+    this.scene.markers.forEach((marker, i) => {
+      const { x, y } = matrix.project(marker.box);
+      const distance = Math.hypot(
+        pane.x + ((x + 1) / 2) * pane.width - position.x,
+        pane.y + ((1 - y) / 2) * pane.height - position.y,
+      );
+      if (distance <= best) {
+        nearest = i;
+        best = distance;
+      }
+    });
+    return nearest;
   }
 
   // A point of the editor of a transfer function within reach of the pointer.

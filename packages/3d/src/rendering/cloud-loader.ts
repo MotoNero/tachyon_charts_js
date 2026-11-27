@@ -9,6 +9,7 @@ import type { Scene3D } from '../scene/scene';
 import type { CloudBuffer } from './clouds';
 import { CloudWriter, cloudStride, describeAxis, runCloudJob, type CloudJob, type CloudMessage } from './cloud-work';
 import type { Renderer3D } from './renderer';
+import type { CloudOrder } from './scene-picker';
 
 const spotsFrom = 8_000_000;
 const pointsTo = 10_000_000;
@@ -34,6 +35,7 @@ export class CloudLoader {
   private previewCount = 0;
   private nextLeaf = 0;
   private leaves: CloudLeaves | undefined;
+  private order: Int32Array | undefined;
   private boxes = new Float64Array(0);
   private usesSpots = false;
   private job = 0;
@@ -125,6 +127,13 @@ export class CloudLoader {
     buffer.setDraws(this.firsts, this.counts, drawCount, this.usesSpots);
   }
 
+  /** @internal The octree as far as its leaves are on the GPU, for the picker; none before the tree stands. */
+  get octree(): CloudOrder | undefined {
+    return this.leaves && this.order && this.nextLeaf > 0
+      ? { leaves: this.leaves, order: this.order, leafCount: this.nextLeaf }
+      : undefined;
+  }
+
   /** Stops the worker. */
   dispose(): void {
     this.worker?.terminate();
@@ -138,6 +147,7 @@ export class CloudLoader {
     this.previewCount = 0;
     this.nextLeaf = 0;
     this.leaves = undefined;
+    this.order = undefined;
     this.cloud.setReady(false);
   }
 
@@ -184,6 +194,7 @@ export class CloudLoader {
     }
     if (message.kind === 'tree') {
       this.leaves = { first: message.first, count: message.count, gpuFirst: message.gpuFirst, bounds: message.bounds };
+      this.order = message.order;
       // The corners of each leaf in the box, ordered low and high, for the choice of each view.
       const leafCount = message.count.length;
       this.boxes = new Float64Array(leafCount * 6);

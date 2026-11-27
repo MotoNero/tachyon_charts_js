@@ -64,6 +64,8 @@ export const missingHeight = 1e30;
 
 /** The options of a surface. */
 export interface Surface3DOptions {
+  /** Whether the values show as labels above their points; labels that would cover others are left out. */
+  readonly showsValues?: boolean;
   /** The colors by height; Viridis by default. */
   readonly colormap?: Colormap;
   /** The heights the ends of the colormap stand for; the range of the values by default. */
@@ -76,6 +78,8 @@ export interface Surface3DOptions {
 
 /** A height field: one value per cell of a grid over a rectangle of the floor. */
 export class Surface3D {
+  /** Whether the values show as labels above their points. */
+  readonly showsValues: boolean;
   /** The colors by height. */
   readonly colormap: Colormap;
   /** The heights the ends of the colormap stand for; the range of the values when left out. */
@@ -101,6 +105,7 @@ export class Surface3D {
     options: Surface3DOptions = {},
   ) {
     this.colormap = options.colormap ?? Colormap.builtIn('viridis');
+    this.showsValues = options.showsValues ?? false;
     this.colorRange = options.colorRange;
     this.material = options.material;
     this.contours = options.contours;

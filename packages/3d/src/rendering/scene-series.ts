@@ -24,6 +24,7 @@ import type { AntennaPattern3D } from '../scene/antenna';
 import type { MeasuredMap3D } from '../scene/measured-map';
 import type { PointCloud3D } from '../scene/point-cloud';
 import { CloudLoader } from './cloud-loader';
+import { ScenePicker } from './scene-picker';
 import { addSpectrumLines, spectrumLevels } from '../scene/spectrum-links';
 import { transferTableSize } from '../scene/transfer';
 import type { Volume3D } from '../scene/volume';
@@ -79,6 +80,8 @@ export class Scene3DSeries extends ChartSeries {
   private readonly cloudLoaders = new Map<PointCloud3D, CloudLoader>();
   private group: ChartGroup | undefined;
   private wantedGroup: ChartGroup | undefined;
+  /** @internal Tells the pointer of the chart which group shows its place as crosshair. */
+  pointerGroup: ((group: ChartGroup | undefined) => void) | undefined;
   private readonly volumeStates = new Map<Volume3D, { next: number; stamp: string; shares: Float32Array }>();
   private readonly transferTable = new Float32Array(transferTableSize * 4);
   private readonly corners = new Float32Array(24);
@@ -100,6 +103,8 @@ export class Scene3DSeries extends ChartSeries {
     readonly scene: Scene3D,
     xAxis: Axis,
     yAxis: Axis,
+    /** @internal What finds the things under the pointer; it learns what the series uploads. */
+    readonly picker: ScenePicker = new ScenePicker(scene),
   ) {
     super(xAxis, yAxis);
   }
@@ -130,6 +135,7 @@ export class Scene3DSeries extends ChartSeries {
   // The first axis shares its range with the X axes of the 2D charts of the group, and their cursor shows in the box.
   // The scene stays in the group while its chart lives, also when its GPU resources go.
   private joinGroup(): void {
+    this.pointerGroup?.(this.wantedGroup);
     const group = this.wantedGroup;
     const chart = this.chart;
     if (!group || !chart || this.group) {
@@ -279,6 +285,10 @@ export class Scene3DSeries extends ChartSeries {
         this.cloudLoaders.set(cloud, loader);
       }
       loader.load(this.scene, this.renderer as Renderer3D);
+      const octree = loader.octree;
+      if (octree) {
+        this.picker.addCloud(cloud, octree);
+      }
     }
     // Maps become meshes once.
     for (const map of this.scene.maps) {
@@ -287,7 +297,7 @@ export class Scene3DSeries extends ChartSeries {
         mesh = map.createMesh(this.scene.xAxis, this.scene.yAxis);
         this.mapMeshes.set(map, mesh);
       }
-      this.uploadMesh(mesh);
+      this.uploadMesh(mesh, map);
     }
     // Antennas become meshes once.
     for (const antenna of this.scene.antennas) {
@@ -296,7 +306,7 @@ export class Scene3DSeries extends ChartSeries {
         mesh = antenna.createMesh();
         this.antennaMeshes.set(antenna, mesh);
       }
-      this.uploadMesh(mesh);
+      this.uploadMesh(mesh, antenna);
     }
     const map = new BoxMap(this.scene.xAxis, this.scene.yAxis, this.scene.zAxis);
     const renderer = this.renderer as Renderer3D;
@@ -471,16 +481,16 @@ export class Scene3DSeries extends ChartSeries {
     }
     this.pieKeys.set(pie, key);
     pie.layout(this.palette);
-    for (const mesh of pie.meshes) {
+    pie.meshes.forEach((mesh, index) => {
       if (mesh) {
         this.meshKeys.delete(mesh);
-        this.uploadMesh(mesh);
+        this.uploadMesh(mesh, { pie, index });
       }
-    }
+    });
   }
 
   // The places move into the box once; a new range of the axes or a new theme color uploads them again.
-  private uploadMesh(mesh: Mesh3D): void {
+  private uploadMesh(mesh: Mesh3D, source: object = mesh): void {
     const renderer = this.renderer as Renderer3D;
     const themeColor =
       mesh.takesThemeColor && this.palette.length > 0
@@ -511,7 +521,9 @@ export class Scene3DSeries extends ChartSeries {
       const color = themeColor ?? (mesh.vertices[i] as Vertex3D).color;
       bytes.set([color.r, color.g, color.b, color.a], (at + 6) * 4);
     });
-    renderer.uploadMesh(mesh, vertices, validIndices(positions, mesh.indices), fullMaterial(mesh.material));
+    const indices = validIndices(positions, mesh.indices);
+    renderer.uploadMesh(mesh, vertices, indices, fullMaterial(mesh.material));
+    this.picker.addMesh(mesh, positions, indices, source);
   }
 
   private uploadBubbles(bubbles: Bubbles3D, map: BoxMap): void {
@@ -528,6 +540,7 @@ export class Scene3DSeries extends ChartSeries {
     const instances = new ArrayBuffer(bubbles.count * bubbleStride);
     const floats = new Float32Array(instances);
     const bytes = new Uint8Array(instances);
+    const numbers = new Int32Array(bubbles.count);
     let count = 0;
     for (let i = 0; i < bubbles.count; i++) {
       const at = (count * bubbleStride) / 4;
@@ -540,9 +553,16 @@ export class Scene3DSeries extends ChartSeries {
       floats[at + 3] = isScreen ? -diameter : diameter / span;
       const own = bubbles.colors?.[i] ?? color;
       bytes.set([own.r, own.g, own.b, own.a], (at + 4) * 4);
+      numbers[count] = i;
       count++;
     }
     renderer.uploadBubbles(bubbles, instances, count, fullMaterial(bubbles.material));
+    // The picker reads center and size of each bubble shown, and which bubble it is.
+    const places = new Float32Array(count * 4);
+    for (let i = 0; i < count; i++) {
+      places.set(floats.subarray((i * bubbleStride) / 4, (i * bubbleStride) / 4 + 4), i * 4);
+    }
+    this.picker.addBubbles(bubbles, places, numbers.subarray(0, count));
   }
 
   private updateWaterfall(waterfall: Waterfall3D): void {

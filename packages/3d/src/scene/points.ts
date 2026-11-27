@@ -168,6 +168,8 @@ export const fallbackColor: Rgba8 = { r: 90, g: 170, b: 255, a: 255 };
 
 /** The options of a line in space. */
 export interface Line3DOptions {
+  /** Whether the values show as labels above their points; labels that would cover others are left out. */
+  readonly showsValues?: boolean;
   /** The color; the next color of the theme when left out. */
   readonly color?: Rgba8;
   /** The width in pixels; 1.5 by default. */
@@ -178,6 +180,8 @@ export interface Line3DOptions {
 
 /** A line through points in space, as wide on the screen wherever it runs. */
 export class Line3D {
+  /** Whether the values show as labels above their points. */
+  readonly showsValues: boolean;
   /** The width in pixels. */
   readonly width: number;
   /** Whether the line lies over everything else. */
@@ -196,6 +200,7 @@ export class Line3D {
     this.own = options.color;
     this.width = options.width ?? 1.5;
     this.drawsOnTop = options.drawsOnTop ?? false;
+    this.showsValues = options.showsValues ?? false;
   }
 
   /** The color of its own, or the fallback. */
@@ -216,6 +221,8 @@ export class Line3D {
 
 /** The options of points in space. */
 export interface Scatter3DOptions {
+  /** Whether the values show as labels above their points; labels that would cover others are left out. */
+  readonly showsValues?: boolean;
   /** The color of points without one of their own; the next color of the theme when left out. */
   readonly color?: Rgba8;
   /** The size of points without one of their own, in pixels; 3 by default. */
@@ -226,6 +233,8 @@ export interface Scatter3DOptions {
 
 /** Points in space, each a round spot of its size and color. */
 export class Scatter3D {
+  /** Whether the values show as labels above their points. */
+  readonly showsValues: boolean;
   /** The size of points without one of their own, in pixels. */
   readonly size: number;
   /** The most points drawn, the newest. */
@@ -244,6 +253,7 @@ export class Scatter3D {
     this.own = options.color;
     this.size = options.size ?? 3;
     this.pointBudget = options.pointBudget ?? 15_000_000;
+    this.showsValues = options.showsValues ?? false;
   }
 
   /** The color of its own, or the fallback. */

@@ -8,6 +8,8 @@ import { triangulate } from './triangulation';
 
 /** The options of a measured map. */
 export interface MeasuredMap3DOptions {
+  /** Whether the values show as labels above their points; labels that would cover others are left out. */
+  readonly showsValues?: boolean;
   /** The colors from the lowest to the highest value; Viridis by default. */
   readonly colormap?: Colormap;
   /** How the surface takes the light. */
@@ -26,6 +28,8 @@ export interface MeasuredMap3DOptions {
  * surface. Beyond the outer points the surface ends, and points with a missing value are left out.
  */
 export class MeasuredMap3D {
+  /** Whether the values show as labels above their points. */
+  readonly showsValues: boolean;
   /** The first coordinates. */
   readonly x: readonly number[];
   /** The second coordinates. */
@@ -56,6 +60,7 @@ export class MeasuredMap3D {
     this.colormap = options.colormap ?? Colormap.builtIn('viridis');
     this.material = options.material ?? {};
     this.showsPoints = options.showsPoints ?? true;
+    this.showsValues = options.showsValues ?? false;
     this.longestEdge = options.longestEdge;
   }
 

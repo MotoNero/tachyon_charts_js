@@ -18,6 +18,8 @@ export type PointCloudLoad = (report: (share: number) => void) => Promise<PointC
 
 /** The options of a cloud. */
 export interface PointCloud3DOptions {
+  /** Whether the values show as labels above their points; labels that would cover others are left out. */
+  readonly showsValues?: boolean;
   /** The color of a cloud without colors; a light blue by default. */
   readonly color?: Rgba8;
   /** The number of points per frame; 30 million by default. It stays the same while turning and at rest. */
@@ -35,6 +37,8 @@ const empty = new Float64Array(0);
  * follow, and every point drawn is a real point at its exact place.
  */
 export class PointCloud3D {
+  /** Whether the values show as labels above their points. */
+  readonly showsValues: boolean;
   /** The size up to which a cloud shows whole in its first picture. */
   static readonly previewLimit = 1_000_000;
   /** The color of a cloud without colors. */
@@ -66,6 +70,7 @@ export class PointCloud3D {
     this.color = options.color ?? { r: 90, g: 170, b: 255, a: 255 };
     this.pointBudget = options.pointBudget ?? 30_000_000;
     this.pointSize = options.pointSize ?? 2.5;
+    this.showsValues = options.showsValues ?? false;
   }
 
   /** The first coordinates; empty until the points exist. */

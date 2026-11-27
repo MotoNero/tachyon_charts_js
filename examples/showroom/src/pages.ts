@@ -560,7 +560,8 @@ function linkedChartsPage(): Page {
 }
 
 // The 3D pages of the .NET showroom: a chart with its scene, turned with the pointer.
-const hint3D = 'Drag: turn | Shift+drag: move | Wheel: zoom | Arrow keys: turn | Double click, Home: start';
+const hint3D =
+  'Drag: turn | Shift+drag: move | Wheel: zoom | Arrow keys: turn | Double click, Home: start | Pointer: values | Click: marker, Delete removes it';
 const hintVolume =
   'Drag the orange outline: move the slice | Drag a point or the slider at the top right: change the look | Drag: turn | Wheel: zoom';
 const hintPlanes =

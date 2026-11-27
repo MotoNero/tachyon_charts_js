@@ -35,6 +35,8 @@ export function gridPlace(scene: SceneAxes, x: DoubleRange, y: DoubleRange, colu
 
 /** The options of columns. */
 export interface Bars3DOptions {
+  /** Whether the values show as labels above their points; labels that would cover others are left out. */
+  readonly showsValues?: boolean;
   /** The colors by value; Viridis by default. */
   readonly colormap?: Colormap;
   /** The values the ends of the colormap stand for; the range of the values by default. */
@@ -49,6 +51,8 @@ export interface Bars3DOptions {
 
 /** Columns over the cells of a grid, each as tall as its value and colored by it. */
 export class Bars3D {
+  /** Whether the values show as labels above their points. */
+  readonly showsValues: boolean;
   /** The colors by value. */
   readonly colormap: Colormap;
   /** The values the ends of the colormap stand for. */
@@ -80,6 +84,7 @@ export class Bars3D {
     this.material = options.material;
     this.width = options.width ?? 0.8;
     this.baseline = options.baseline ?? 0;
+    this.showsValues = options.showsValues ?? false;
   }
 
   /** Grows when the values change. */

@@ -7,6 +7,7 @@ import type { Bubbles3D } from './bubbles';
 import type { Mesh3D } from './mesh';
 import type { AntennaPattern3D } from './antenna';
 import type { ClipPlane3D } from './clip-plane';
+import type { Pick3D } from './picking';
 import type { PointCloud3D } from './point-cloud';
 import type { Volume3D } from './volume';
 import type { MeasuredMap3D } from './measured-map';
@@ -55,6 +56,9 @@ export class Scene3D {
   private readonly volumeList: Volume3D[] = [];
   private axesShown = true;
   private cursorPlace: number | undefined;
+  private markerList: Pick3D[] = [];
+  /** Called when a marker is set, by a click or in code. */
+  onMarkerAdded: ((marker: Pick3D) => void) | undefined;
   private changes = 0;
 
   /**
@@ -70,6 +74,31 @@ export class Scene3D {
       this.cursorPlace = value;
       this.changes++;
     }
+  }
+
+  /** The markers, set by a click or in code; the newest last. */
+  get markers(): readonly Pick3D[] {
+    return this.markerList;
+  }
+
+  /** Sets a marker. */
+  addMarker(marker: Pick3D): void {
+    this.markerList = [...this.markerList, marker];
+    this.changes++;
+    this.onMarkerAdded?.(marker);
+  }
+
+  /** Removes the marker at a place of the list; outside of it nothing happens. */
+  removeMarker(index: number): void {
+    if (index >= 0 && index < this.markerList.length) {
+      this.markerList = this.markerList.filter((_, i) => i !== index);
+      this.changes++;
+    }
+  }
+
+  /** Removes the newest marker. */
+  removeLastMarker(): void {
+    this.removeMarker(this.markerList.length - 1);
   }
 
   /** Whether the box shows its walls, grid and labels; true by default. */

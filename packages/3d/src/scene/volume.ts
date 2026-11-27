@@ -3,6 +3,10 @@ import { Colormap, DoubleRange } from '@tachyon-charts/core';
 import { ClipPlane3D } from './clip-plane';
 import { Point3D } from './matrix';
 import type { Material3D } from './surface';
+import type { SceneAxes } from './axis-box';
+import type { Ray3D } from './camera';
+import { limitToBox, rayAt } from './picking';
+import { BoxMap } from './points';
 import type { TransferFunction3D } from './transfer';
 
 /** The values of a volume: 8 bits, 16 bits (with a linear scale, as scanners store them) or 32-bit floats. */
@@ -315,4 +319,140 @@ export class Volume3D {
   setFit(fit: VolumeGpuFit): void {
     this.fit = fit;
   }
+  /** @internal The corners of the volume in the box. */
+  boxOf(scene: SceneAxes): [Point3D, Point3D] {
+    const map = new BoxMap(scene.xAxis, scene.yAxis, scene.zAxis);
+    const a = map.toBox(new Point3D(this.x.min, this.y.min, this.z.min));
+    const b = map.toBox(new Point3D(this.x.max, this.y.max, this.z.max));
+    return [
+      new Point3D(Math.min(a.x, b.x), Math.min(a.y, b.y), Math.min(a.z, b.z)),
+      new Point3D(Math.max(a.x, b.x), Math.max(a.y, b.y), Math.max(a.z, b.z)),
+    ];
+  }
+
+  /** @internal A place of the raster in the units of the axes. */
+  toData(place: readonly [number, number, number]): Point3D {
+    const data = this.data;
+    return new Point3D(
+      this.x.min + ((this.x.max - this.x.min) * place[0]) / (data.width - 1),
+      this.y.min + ((this.y.max - this.y.min) * place[1]) / (data.height - 1),
+      this.z.min + ((this.z.max - this.z.min) * place[2]) / (data.depth - 1),
+    );
+  }
+
+  /** @internal The slice that a ray meets first, as distance, place in the box and in the raster. */
+  findOnSlice(ray: Ray3D, scene: SceneAxes, near: number, far: number): VolumeHit | undefined {
+    const [low, high] = this.boxOf(scene);
+    let found: VolumeHit | undefined;
+    let limit = far;
+    for (const slice of [this.sliceX, this.sliceY, this.sliceZ]) {
+      const climb = Point3D.dot(ray.direction, slice.normal);
+      const along = climb === 0 ? Number.NaN : (slice.offset - Point3D.dot(ray.start, slice.normal)) / climb;
+      if (along >= near && along <= limit) {
+        const box = rayAt(ray, along);
+        if (contains(box, low, high)) {
+          const place = this.toRaster(box, low, high);
+          if (this.isShown(place)) {
+            limit = along;
+            found = { distance: along, box, place };
+          }
+        }
+      }
+    }
+    return found;
+  }
+
+  /** @internal Follows a ray through the volume as its mode shows it, as distance, place in the box and in the raster. */
+  findInside(ray: Ray3D, scene: SceneAxes, near: number, far: number): VolumeHit | undefined {
+    if (!this.marches) {
+      return undefined;
+    }
+    const [low, high] = this.boxOf(scene);
+    const span: [number, number] = [near, far];
+    if (!limitToBox(ray, low, high, span)) {
+      return undefined;
+    }
+    const [from, to] = span;
+    const step = (high.x - low.x) / this.data.width;
+    const range = this.data.valueRange;
+    const scale = range.max > range.min ? 1 / (range.max - range.min) : 0;
+    const valueAt = (place: readonly [number, number, number]): number => this.data.at(place[0], place[1], place[2]);
+    if (this.mode === 'maximum') {
+      let best = -Infinity;
+      let bestAlong = Number.NaN;
+      let bestPlace: [number, number, number] = [0, 0, 0];
+      for (let along = from; along <= to; along += step) {
+        const place = this.toRaster(rayAt(ray, along), low, high);
+        const value = valueAt(place);
+        if (value > best) {
+          best = value;
+          bestAlong = along;
+          bestPlace = place;
+        }
+      }
+      const share = (best - range.min) * scale;
+      return Number.isNaN(bestAlong) || share <= this.sliceThreshold
+        ? undefined
+        : { distance: bestAlong, box: rayAt(ray, bestAlong), place: bestPlace };
+    }
+    if (this.mode === 'surface') {
+      const level = this.isoValue;
+      const below = valueAt(this.toRaster(rayAt(ray, from), low, high)) < level;
+      for (let along = from + step; along <= to; along += step) {
+        const place = this.toRaster(rayAt(ray, along), low, high);
+        if (valueAt(place) < level !== below) {
+          return { distance: along, box: rayAt(ray, along), place };
+        }
+      }
+      return undefined;
+    }
+    // Adds up opacity until it covers half of what lies behind.
+    let covered = 0;
+    for (let along = from; along <= to; along += step) {
+      const place = this.toRaster(rayAt(ray, along), low, high);
+      covered += (1 - covered) * (this.transfer as TransferFunction3D).opacityAt((valueAt(place) - range.min) * scale);
+      if (covered >= 0.5) {
+        return { distance: along, box: rayAt(ray, along), place };
+      }
+    }
+    return undefined;
+  }
+
+  private toRaster(place: Point3D, low: Point3D, high: Point3D): [number, number, number] {
+    const index = (value: number, a: number, b: number, count: number): number =>
+      Math.min(Math.max(Math.round(((value - a) / (b - a)) * (count - 1)), 0), count - 1);
+    return [
+      index(place.x, low.x, high.x, this.data.width),
+      index(place.y, low.y, high.y, this.data.height),
+      index(place.z, low.z, high.z, this.data.depth),
+    ];
+  }
+
+  private isShown(place: readonly [number, number, number]): boolean {
+    const range = this.data.valueRange;
+    const value = this.data.at(place[0], place[1], place[2]);
+    const share = range.max > range.min ? (value - range.min) / (range.max - range.min) : 0;
+    return share >= this.sliceThreshold;
+  }
+}
+
+/** A hit in a volume. */
+export interface VolumeHit {
+  /** The distance along the ray. */
+  readonly distance: number;
+  /** The place in the box. */
+  readonly box: Point3D;
+  /** The place in the raster: column, row and slice. */
+  readonly place: [number, number, number];
+}
+
+function contains(place: Point3D, low: Point3D, high: Point3D): boolean {
+  return (
+    place.x >= low.x &&
+    place.x <= high.x &&
+    place.y >= low.y &&
+    place.y <= high.y &&
+    place.z >= low.z &&
+    place.z <= high.z
+  );
 }
