@@ -5,6 +5,7 @@ import { Camera3D } from './camera';
 import type { Bars3D } from './bars';
 import type { Bubbles3D } from './bubbles';
 import type { Mesh3D } from './mesh';
+import type { Pie3D } from './pie';
 import type { Line3D, Scatter3D } from './points';
 import type { Surface3D } from './surface';
 import type { Waterfall3D } from './waterfall';
@@ -41,6 +42,7 @@ export class Scene3D {
   private readonly barList: Bars3D[] = [];
   private readonly bubbleList: Bubbles3D[] = [];
   private readonly meshList: Mesh3D[] = [];
+  private readonly pieList: Pie3D[] = [];
   private axesShown = true;
   private changes = 0;
 
@@ -100,6 +102,17 @@ export class Scene3D {
   addMesh(mesh: Mesh3D): void {
     this.meshList.push(mesh);
     this.addElement(mesh);
+  }
+
+  /** The pies. */
+  get pies(): readonly Pie3D[] {
+    return this.pieList;
+  }
+
+  /** Adds a pie. */
+  addPie(pie: Pie3D): void {
+    this.pieList.push(pie);
+    this.addElement(pie);
   }
 
   /** The bubbles. */

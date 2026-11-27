@@ -98,6 +98,7 @@ import {
   evenContours,
   Line3D,
   Mesh3D,
+  Pie3D,
   Point3D,
   Points3D,
   Scatter3D,
@@ -645,6 +646,26 @@ function torusMesh(): Mesh3D {
 
 function pages3D(): Page[] {
   return [
+    {
+      id: 'pie-3d',
+      name: 'Pie 3D',
+      group: '3D',
+      hint: hint3D,
+      configure: (c) => {
+        scene3D(c, (s) => s.title(t('Power mix')).addPie(new Pie3D(pieValues, { names: pieNames, explodedIndex: 1 })));
+      },
+    },
+    {
+      id: 'donut-3d',
+      name: 'Donut 3D',
+      group: '3D',
+      hint: hint3D,
+      configure: (c) => {
+        scene3D(c, (s) =>
+          s.title(t('Power mix')).addPie(new Pie3D(pieValues, { names: pieNames, innerRadius: 0.55, height: 0.25 })),
+        );
+      },
+    },
     {
       id: 'model-1m-triangles',
       name: 'Model of 1 million triangles',

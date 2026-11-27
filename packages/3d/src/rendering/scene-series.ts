@@ -19,6 +19,7 @@ import { BoxMap, toSizeCode, type Line3D, type Scatter3D } from '../scene/points
 import { barStride, type Bars3D } from '../scene/bars';
 import type { Bubbles3D } from '../scene/bubbles';
 import { calculateNormals, validIndices, type Mesh3D, type Vertex3D } from '../scene/mesh';
+import type { Pie3D } from '../scene/pie';
 import { Point3D } from '../scene/matrix';
 import { meshVertexStride } from './meshes';
 import { bubbleStride } from './bubbles';
@@ -58,6 +59,7 @@ export class Scene3DSeries extends ChartSeries {
   private readonly waterfallRows = new Map<Waterfall3D, number>();
   private readonly bubbleKeys = new Map<Bubbles3D, string>();
   private readonly meshKeys = new Map<Mesh3D, string>();
+  private readonly pieKeys = new Map<Pie3D, string>();
   private heights = new Float32Array(0);
   private ranges = '';
   private palette: readonly Rgba8[] = [];
@@ -205,6 +207,9 @@ export class Scene3DSeries extends ChartSeries {
     for (const bubbles of this.scene.bubbles) {
       this.uploadBubbles(bubbles, boxMap);
     }
+    for (const pie of this.scene.pies) {
+      this.uploadPie(pie);
+    }
     const map = new BoxMap(this.scene.xAxis, this.scene.yAxis, this.scene.zAxis);
     const renderer = this.renderer as Renderer3D;
     for (const line of this.scene.lines) {
@@ -269,6 +274,23 @@ export class Scene3DSeries extends ChartSeries {
       this.waterfallRows.clear();
       this.bubbleKeys.clear();
       this.meshKeys.clear();
+      this.pieKeys.clear();
+    }
+  }
+
+  // A pie lays out its slices again when a slice moves out or the colors of the theme change.
+  private uploadPie(pie: Pie3D): void {
+    const key = `${String(pie.version)} ${String(this.paletteVersion)}`;
+    if (this.pieKeys.get(pie) === key) {
+      return;
+    }
+    this.pieKeys.set(pie, key);
+    pie.layout(this.palette);
+    for (const mesh of pie.meshes) {
+      if (mesh) {
+        this.meshKeys.delete(mesh);
+        this.uploadMesh(mesh);
+      }
     }
   }
 

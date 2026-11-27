@@ -7,6 +7,7 @@ export type { SceneAxes } from './scene/axis-box';
 export { Bars3D, type Bars3DOptions, type GridPlace } from './scene/bars';
 export { Bubbles3D, type Bubbles3DOptions, type BubbleSizeUnit } from './scene/bubbles';
 export { ModelFile, ModelFileData, ModelFileError, type ModelMeshOptions } from './files/model-file';
+export { Pie3D, type Pie3DOptions } from './scene/pie';
 export { Mesh3D, type ColorScale3D, type Mesh3DOptions, type Vertex3D } from './scene/mesh';
 export { Camera3D, type CameraProjection, type CameraView, type Ray3D } from './scene/camera';
 export { Matrix3D, Point3D } from './scene/matrix';

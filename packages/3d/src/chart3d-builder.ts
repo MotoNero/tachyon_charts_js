@@ -2,6 +2,8 @@
 // the labels of the box and the modifier that turns the camera, as Chart3DBuilder of the .NET version.
 import { findBuiltInTheme, type Axis, type ChartBuilder, type ThemeDocument } from '@tachyon-charts/core';
 import { AxisLabels3D } from './rendering/axis-labels';
+import { PieLabels3D } from './rendering/pie-labels';
+import type { Pie3D } from './scene/pie';
 import { Orbit3DModifier } from './rendering/orbit-modifier';
 import { Scene3DSeries } from './rendering/scene-series';
 import type { CameraProjection } from './scene/camera';
@@ -74,6 +76,19 @@ export class Chart3DBuilder {
     return this;
   }
 
+  /**
+   * Adds a pie or donut: the axes reach just beyond the pie and are hidden, and the view comes closer so that the pie
+   * fills the chart.
+   */
+  addPie(pie: Pie3D): this {
+    const reach = 1 + pie.explodeDistance + 0.05;
+    this.xAxis(-reach, reach).yAxis(-reach, reach).zAxis(-reach, reach);
+    this.scene.showsAxes = false;
+    this.scene.camera.zoom(0.62);
+    this.scene.addPie(pie);
+    return this;
+  }
+
   /** Adds bubbles. */
   addBubbles(bubbles: Bubbles3D): this {
     this.scene.addBubbles(bubbles);
@@ -120,6 +135,7 @@ export class Chart3DBuilder {
           series?.bind(chart);
           return new AxisLabels3D(scene);
         })
+        .addOverlay(() => new PieLabels3D(scene))
         .addModifier(() => new Orbit3DModifier(scene))
         // The scene draws with the GPU directly; in a render worker it would hand its picture over through the main memory.
         .drawsOnMainThread()
