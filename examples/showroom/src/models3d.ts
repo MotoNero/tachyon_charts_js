@@ -15,6 +15,7 @@ import {
   TransferFunction3D,
   Volume3D,
   VolumeData,
+  VolumeFile,
   type PointCloudArrays,
 } from '@tachyon-charts/3d';
 import { Colormap, DoubleRange, SeededRandom } from '@tachyon-charts/core';
@@ -448,4 +449,38 @@ export function volumeThrough(chart: Chart3DBuilder, side: number): Chart3DBuild
   return inBox(chart, 'Through a body').addVolume(
     new Volume3D(createBody(side), unit, unit, unit, { transfer: createTransfer(), showsSlices: false }),
   );
+}
+
+/** The body as a NIfTI-1 file of 16 bits, 0.8 mm apart across and 1.6 mm along, packed with gzip as scanners keep it. */
+export async function bodyNifti(side: number): Promise<Blob> {
+  const body = createBody(side);
+  const offset = 352;
+  const bytes = new Uint8Array(offset + body.values.length * 2);
+  const view = new DataView(bytes.buffer);
+  view.setInt32(0, 348, true);
+  [3, side, side, side, 1, 1, 1, 1].forEach((dim, i) => {
+    view.setInt16(40 + 2 * i, dim, true);
+  });
+  view.setInt16(70, 512, true);
+  view.setFloat32(80, 0.8, true);
+  view.setFloat32(84, 0.8, true);
+  view.setFloat32(88, 1.6, true);
+  view.setFloat32(108, offset, true);
+  bytes.set([110, 43, 49], 344);
+  new Uint16Array(bytes.buffer, offset, body.values.length).set(body.values);
+  const packed = new Blob([bytes]).stream().pipeThrough(new CompressionStream('gzip'));
+  return new Response(packed).blob();
+}
+
+/** A volume read from a NIfTI file, to scale, as the highest value along each ray. */
+export async function volumeFromNifti(chart: Chart3DBuilder, file: Blob): Promise<Chart3DBuilder> {
+  const read = await VolumeFile.readNifti(file);
+  const [x, y, z] = read.extent;
+  const volume = new Volume3D(read.data, new DoubleRange(0, x), new DoubleRange(0, y), new DoubleRange(0, z), {
+    mode: 'maximum',
+    showsSlices: false,
+    sliceThreshold: 0.05,
+    colormap: Colormap.builtIn('inferno'),
+  });
+  return read.addToScale(chart.title('A body from a NIfTI file'), volume);
 }

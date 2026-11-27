@@ -7,6 +7,13 @@ export { PointerPick3D } from './rendering/pick-labels';
 export type { SceneAxes } from './scene/axis-box';
 export { Bars3D, type Bars3DOptions, type GridPlace } from './scene/bars';
 export { Bubbles3D, type Bubbles3DOptions, type BubbleSizeUnit } from './scene/bubbles';
+export {
+  VolumeFile,
+  VolumeFileData,
+  type RawVolumeLayout,
+  type VolumeFileReaders,
+  type VolumeValueType,
+} from './files/volume-file';
 export { PointFile, PointFileError, type PointFileReaders, type ReadProgress } from './files/point-file';
 export { ModelFile, ModelFileData, ModelFileError, type ModelMeshOptions } from './files/model-file';
 export { AntennaPattern3D, type AntennaCut, type AntennaLobe, type AntennaPattern3DOptions } from './scene/antenna';

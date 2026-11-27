@@ -98,6 +98,7 @@ import {
   Bubbles3D,
   evenContours,
   Line3D,
+  Chart3DBuilder,
   ClipPlane3D,
   CutCurveFeed,
   Mesh3D,
@@ -141,6 +142,8 @@ import {
   volumeSlices,
   volumeSurface,
   volumeThrough,
+  bodyNifti,
+  volumeFromNifti,
 } from './models3d';
 import { t } from './texts';
 
@@ -988,6 +991,30 @@ function pages3D(): Page[] {
       hint: hintVolume,
       configure: (c) => {
         scene3D(c, (s) => volumeThrough(s, 192).title(t('Through a body')));
+      },
+    },
+    {
+      id: 'volume-nifti-3d',
+      name: 'Volume from a NIfTI file',
+      group: '3D',
+      hint: hint3D,
+      configure: (c) => {
+        scene3D(c, (s) => s.title(t('Reading the NIfTI file')));
+      },
+      start: () => {
+        const main = document.querySelector<HTMLElement & { chart: unknown }>('#chart');
+        let stopped = false;
+        void bodyNifti(192).then(async (file) => {
+          const chart = await volumeFromNifti(new Chart3DBuilder(), file);
+          if (!stopped && main) {
+            main.chart = chart.apply(new ChartBuilder());
+          }
+        });
+        return {
+          dispose: () => {
+            stopped = true;
+          },
+        };
       },
     },
     {

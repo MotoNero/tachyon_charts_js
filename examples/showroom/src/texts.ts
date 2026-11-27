@@ -108,6 +108,7 @@ const german: Readonly<Record<string, string>> = {
   'Columns over a raster': 'Säulen über einem Raster',
   'A ring from triangles in the light': 'Ein Ring aus Dreiecken im Licht',
   'Height in m': 'Höhe in m',
+  'Reading the NIfTI file': 'Die NIfTI-Datei wird gelesen',
   'Cut through a surface': 'Schnitt durch eine Fläche',
   'The cut along the plane': 'Der Schnitt entlang der Ebene',
   'Above: drag the orange outline to move the cut | Below: the cut as a line, wheel and drag zoom both':

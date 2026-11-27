@@ -912,7 +912,9 @@ Volumes (`Volume3D`, `VolumeData` of 8 bits, 16 bits with a scale or 32-bit floa
 move by their outlines, and rays through the volume: through a transfer function (`TransferFunction3D`, its points
 dragged in a small editor), the highest value along each ray (`mode: 'maximum'`) or the lit surface where the values
 cross a level (`mode: 'surface'`, with a slider). The values reach the GPU slice by slice; a volume larger than its
-budget shows with 16-bit floats or every second, third … value (`gpuFit`, `describeGpuFit`).
+budget shows with 16-bit floats or every second, third … value (`gpuFit`, `describeGpuFit`). Volume files come from NIfTI-1, also packed
+with gzip (`VolumeFile.readNifti`), and raw files with a layout the application gives (`readRaw`: size, type of 8, 16
+or 32 bits, byte order, offset, spacing); `addToScale` keeps uneven spacing in true proportion.
 
 A 3D chart joins 2D charts with `group(name)`: the first axis of the box shares its range with their X axes, so
 zooming a 2D chart narrows the box, and their crosshair shows as a frame across the box. `Waterfall3D.from(display)`
