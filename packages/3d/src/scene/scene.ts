@@ -54,7 +54,23 @@ export class Scene3D {
   private readonly cloudList: PointCloud3D[] = [];
   private readonly volumeList: Volume3D[] = [];
   private axesShown = true;
+  private cursorPlace: number | undefined;
   private changes = 0;
+
+  /**
+   * The place of the cursor of a chart group on the first axis, shown as a thin frame across the box; undefined for
+   * none.
+   */
+  get cursor(): number | undefined {
+    return this.cursorPlace;
+  }
+
+  set cursor(value: number | undefined) {
+    if (value !== this.cursorPlace) {
+      this.cursorPlace = value;
+      this.changes++;
+    }
+  }
 
   /** Whether the box shows its walls, grid and labels; true by default. */
   get showsAxes(): boolean {

@@ -9,8 +9,11 @@ import {
   roundHalfEven,
   type OverlayCanvas,
   type Point,
+  type SpectrumDisplay,
 } from '@tachyon-charts/core';
+import { BoxMap } from '../scene/points';
 import type { Scene3D } from '../scene/scene';
+import { markerColor, markerFrequencies, markerTop } from '../scene/spectrum-links';
 import type { TransferFunction3D, TransferPoint3D } from '../scene/transfer';
 import { describeGpuFit, type Volume3D } from '../scene/volume';
 
@@ -102,6 +105,7 @@ export class SceneState3D extends ChartOverlay {
     if (!pane) {
       return;
     }
+    this.drawSpectrumMarkers(canvas, pane);
     const cloud = this.scene.clouds.find((item) => item.showsProgress);
     if (cloud) {
       drawProgress(canvas, pane, cloud.progress);
@@ -116,6 +120,35 @@ export class SceneState3D extends ChartOverlay {
         this.drawEditor(canvas, editorArea(pane), volume.transfer);
         break;
       }
+    }
+  }
+
+  // The markers of a spectrum behind a waterfall carry the numbers of the 2D chart at the top of their posts.
+  private drawSpectrumMarkers(canvas: OverlayCanvas, pane: DipRect): void {
+    const scene = this.scene;
+    const waterfalls = scene.waterfalls.filter((waterfall) => waterfall.display !== undefined);
+    if (waterfalls.length === 0) {
+      return;
+    }
+    const map = new BoxMap(scene.xAxis, scene.yAxis, scene.zAxis);
+    const matrix = scene.camera.createMatrix(pane.width / pane.height);
+    for (const waterfall of waterfalls) {
+      const display = waterfall.display as SpectrumDisplay;
+      markerFrequencies(display).forEach((frequency, i) => {
+        const box = map.toBox(markerTop(waterfall, display, frequency));
+        if (Math.abs(box.x) <= 1) {
+          const { x, y } = matrix.project(box.withZ(Math.min(Math.max(box.z, -1), 1)));
+          const dipX = pane.x + ((x + 1) / 2) * pane.width;
+          const dipY = pane.y + ((1 - y) / 2) * pane.height;
+          canvas.drawText(
+            String(i + 1),
+            roundHalfEven(dipX - 10),
+            roundHalfEven(dipY - 6),
+            canvas.labelSize,
+            markerColor,
+          );
+        }
+      });
     }
   }
 

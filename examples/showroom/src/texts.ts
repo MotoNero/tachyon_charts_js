@@ -108,6 +108,14 @@ const german: Readonly<Record<string, string>> = {
   'Columns over a raster': 'Säulen über einem Raster',
   'A ring from triangles in the light': 'Ein Ring aus Dreiecken im Licht',
   'Height in m': 'Höhe in m',
+  'Waterfall with mask and markers': 'Wasserfall mit Maske und Markern',
+  'Traces ago': 'Spuren zurück',
+  'Narrowed by a 2D chart': 'Von einem 2D-Chart eingegrenzt',
+  'Profile at y = 0': 'Profil bei y = 0',
+  'Above: drag to turn | Below: wheel: frequency, Ctrl+click: add or remove a marker':
+    'Oben: ziehen dreht | Unten: Rad: Frequenz, Strg+Klick: Marker setzen oder entfernen',
+  'Below: wheel and drag zoom the box above, the crosshair shows in it | Above: drag to turn':
+    'Unten: Rad und Ziehen zoomen die Box oben, das Fadenkreuz erscheint darin | Oben: ziehen dreht',
   'Slices through a body': 'Schnitte durch einen Körper',
   'Highest value along each ray': 'Höchster Wert entlang jedes Strahls',
   'Surface of equal value': 'Fläche gleichen Werts',

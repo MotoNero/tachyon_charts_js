@@ -871,6 +871,7 @@ builder
 ![A surface against a see-through limit plane, with a vertical zone and a slanted area with a hole](docs/images/planes-3d.png)
 ![A scanned landscape of 500,000 points colored by height](docs/images/cloud-3d.png)
 ![Looking through a body with a transfer function, its small editor at the top right](docs/images/volume-3d.png)
+![The waterfall of a spectrum with its mask as a red fence and numbered markers](docs/images/waterfall-mask-3d.png)
 
 `@tachyon-charts/3d` draws a scene in an axis box: the walls behind the box seen from the eye with their grid, the
 numbers and titles of the three axes along the edges, and height fields (`Surface3D`) colored by height and lit, with
@@ -911,7 +912,12 @@ Volumes (`Volume3D`, `VolumeData` of 8 bits, 16 bits with a scale or 32-bit floa
 move by their outlines, and rays through the volume: through a transfer function (`TransferFunction3D`, its points
 dragged in a small editor), the highest value along each ray (`mode: 'maximum'`) or the lit surface where the values
 cross a level (`mode: 'surface'`, with a slider). The values reach the GPU slice by slice; a volume larger than its
-budget shows with 16-bit floats or every second, third … value (`gpuFit`, `describeGpuFit`). Drag to turn,
+budget shows with 16-bit floats or every second, third … value (`gpuFit`, `describeGpuFit`).
+
+A 3D chart joins 2D charts with `group(name)`: the first axis of the box shares its range with their X axes, so
+zooming a 2D chart narrows the box, and their crosshair shows as a frame across the box. `Waterfall3D.from(display)`
+shows the history of a spectrum display; its mask stands as a red fence across the depth, its markers as orange frames
+numbered as in the spectrum, and the box follows its levels. Drag to turn,
 Shift and drag to move, wheel and + and − to zoom, arrows to turn, Home or a double click for the first view. The
 scene draws with WebGPU directly: the chart element draws a 3D chart on the main thread with a WebGPU device of its own,
 also where the page draws its other charts in a render worker (`ChartBuilder.drawsOnMainThread()`); with WebGL 2,

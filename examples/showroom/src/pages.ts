@@ -27,6 +27,7 @@ import {
   volume,
   volumeProfile,
   SweepData,
+  NumericAxis,
   SpectrumDisplay,
   SmithGridOverlay,
   SmithMarkerModifier,
@@ -662,8 +663,135 @@ function torusMesh(): Mesh3D {
   return new Mesh3D(vertices, indices, { material: { gloss: 0.6, sharpness: 48 } });
 }
 
+// A spectrum of three carriers, 30 traces a second, in a 2D chart below and as a waterfall in 3D above: mask and
+// markers of the spectrum show in both.
+function spectrumWaterfallPage(): Page {
+  const display = new SpectrumDisplay();
+  display.mask = new FrequencyMask([0, 3e6, 3.2e6, 1e7], [-5, -5, -9, -9]);
+  display.setView(0, 1e7, 0);
+  display.markerFrequency = 7e6;
+  const frequencies = Float64Array.from({ length: 1024 }, (_, i) => (i * 1e7) / 1023);
+  const levels = new Float32Array(frequencies.length);
+  let time = 0;
+  const deliver = (): void => {
+    const center = 2e6 + 1.5e6 * Math.sin(time * 0.02);
+    for (let i = 0; i < levels.length; i++) {
+      const f = frequencies[i] as number;
+      const peak = Math.exp(-Math.pow((f - center) / 2e5, 2));
+      const second = 0.6 * Math.exp(-Math.pow((f - 7e6) / 1.5e5, 2));
+      levels[i] = -75 + 62 * Math.max(peak, second) + 2 * Math.random();
+    }
+    display.setTrace(frequencies, levels);
+    time++;
+  };
+  for (let i = 0; i < 200; i++) {
+    deliver();
+  }
+  return {
+    id: 'spectrum-waterfall-3d',
+    name: 'Spectrum waterfall',
+    group: '3D',
+    hint: 'Above: drag to turn | Below: wheel: frequency, Ctrl+click: add or remove a marker',
+    configure: (c) => {
+      const frequency = new NumericAxis('x3d', 'bottom');
+      frequency.visibleRange = new DoubleRange(0, 1e7);
+      frequency.title = t('Frequency');
+      frequency.labelFormat = { useSiPrefixes: true, unit: 'Hz' };
+      scene3D(c, (s) =>
+        s
+          .title(t('Waterfall with mask and markers'))
+          .xAxis(frequency)
+          .yAxis(0, 400, t('Traces ago'))
+          .zAxis(-80, 0, t('Level in dBm'))
+          .addWaterfall(Waterfall3D.from(display, new DoubleRange(0, 400))),
+      );
+    },
+    start: () => {
+      const main = document.querySelector<HTMLElement>('#chart');
+      const below = document.createElement('tachyon-chart');
+      const theme = main?.getAttribute('theme');
+      if (theme) {
+        below.setAttribute('theme', theme);
+      }
+      below.chart = spectrum(new ChartBuilder(), display).theme(instrument);
+      main?.after(below);
+      main?.parentElement?.classList.add('with-pair');
+      const timer = setInterval(deliver, 1000 / 30);
+      return {
+        dispose: () => {
+          clearInterval(timer);
+          below.remove();
+          main?.parentElement?.classList.remove('with-pair');
+        },
+      };
+    },
+  };
+}
+
+// A surface in 3D and its profile in a 2D chart of the same group: zooming the 2D chart narrows the first axis of the
+// box, and its crosshair shows as a frame across the box.
+function coupled3DPage(): Page {
+  const side = 256;
+  const values = new Float32Array(side * side);
+  for (let i = 0; i < values.length; i++) {
+    const px = (2 * (i % side)) / (side - 1) - 1;
+    const py = (2 * Math.trunc(i / side)) / (side - 1) - 1;
+    values[i] = 0.7 * Math.sin(px * 3) * Math.cos(py * 2.5);
+  }
+  const data = new HeatmapData(side, side);
+  data.setValues(values);
+  return {
+    id: 'coupled-3d',
+    name: 'Coupled with 2D',
+    group: '3D',
+    hint: 'Below: wheel and drag zoom the box above, the crosshair shows in it | Above: drag to turn',
+    configure: (c) => {
+      scene3D(c, (s) =>
+        s
+          .title(t('Narrowed by a 2D chart'))
+          .xAxis(-1, 1, 'x')
+          .yAxis(-1, 1, 'y')
+          .zAxis(-1, 1, 'z')
+          .addSurface(new Surface3D(data, new DoubleRange(-1, 1), new DoubleRange(-1, 1)))
+          .group('coupled-3d'),
+      );
+    },
+    start: () => {
+      const main = document.querySelector<HTMLElement>('#chart');
+      const below = document.createElement('tachyon-chart');
+      const theme = main?.getAttribute('theme');
+      if (theme) {
+        below.setAttribute('theme', theme);
+      }
+      const profile = new DataSource(side);
+      for (let i = 0; i < side; i++) {
+        const px = (2 * i) / (side - 1) - 1;
+        profile.append(px, 0.7 * Math.sin(px * 3));
+      }
+      below.chart = new ChartBuilder()
+        .title(t('Profile at y = 0'))
+        .xAxis((a) => a.numeric('x').range(-1, 1))
+        .yAxis((a) => a.numeric('z').range(-1, 1))
+        .addLine(profile, (line) => line.thickness(1.5))
+        .group('coupled-3d')
+        .addModifier(() => new ZoomPanModifier())
+        .addModifier(() => new CrosshairModifier());
+      main?.after(below);
+      main?.parentElement?.classList.add('with-pair');
+      return {
+        dispose: () => {
+          below.remove();
+          main?.parentElement?.classList.remove('with-pair');
+        },
+      };
+    },
+  };
+}
+
 function pages3D(): Page[] {
   return [
+    spectrumWaterfallPage(),
+    coupled3DPage(),
     {
       id: 'cut-planes-3d',
       name: 'Cut planes',

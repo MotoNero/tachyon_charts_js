@@ -5,6 +5,7 @@ import {
   ChartSeries,
   parseThemeColor,
   type Axis,
+  type ChartGroup,
   type ChartSurface,
   type CommandList,
   type GpuTexture,
@@ -23,9 +24,11 @@ import type { AntennaPattern3D } from '../scene/antenna';
 import type { MeasuredMap3D } from '../scene/measured-map';
 import type { PointCloud3D } from '../scene/point-cloud';
 import { CloudLoader } from './cloud-loader';
+import { addSpectrumLines, spectrumLevels } from '../scene/spectrum-links';
 import { transferTableSize } from '../scene/transfer';
 import type { Volume3D } from '../scene/volume';
 import type { Pie3D } from '../scene/pie';
+import { ClipPlane3D } from '../scene/clip-plane';
 import { Point3D, type Matrix3D } from '../scene/matrix';
 import { meshVertexStride } from './meshes';
 import { bubbleStride } from './bubbles';
@@ -74,6 +77,8 @@ export class Scene3DSeries extends ChartSeries {
   private readonly antennaMeshes = new Map<AntennaPattern3D, Mesh3D>();
   private readonly mapMeshes = new Map<MeasuredMap3D, Mesh3D>();
   private readonly cloudLoaders = new Map<PointCloud3D, CloudLoader>();
+  private group: ChartGroup | undefined;
+  private wantedGroup: ChartGroup | undefined;
   private readonly volumeStates = new Map<Volume3D, { next: number; stamp: string; shares: Float32Array }>();
   private readonly transferTable = new Float32Array(transferTableSize * 4);
   private readonly corners = new Float32Array(24);
@@ -116,12 +121,31 @@ export class Scene3DSeries extends ChartSeries {
   }
 
   /** @internal Connects the series with its chart, for the theme. */
-  bind(chart: ChartSurface): void {
+  bind(chart: ChartSurface, group?: ChartGroup): void {
     this.chart = chart;
+    this.wantedGroup = group;
+    this.joinGroup();
+  }
+
+  // The first axis shares its range with the X axes of the 2D charts of the group, and their cursor shows in the box.
+  // The scene stays in the group while its chart lives, also when its GPU resources go.
+  private joinGroup(): void {
+    const group = this.wantedGroup;
+    const chart = this.chart;
+    if (!group || !chart || this.group) {
+      return;
+    }
+    this.group = group;
+    group.add(chart, this.scene.xAxis);
+    group.onCursorMoved = (x) => {
+      this.scene.cursor = x;
+      chart.invalidate();
+    };
   }
 
   /** {@inheritDoc ChartSeries.prepare} */
   override prepare(device: RenderDevice, frame: SeriesFrame): void {
+    this.joinGroup();
     this.drawsCopy = !(device instanceof WebGpuDevice);
     if (device instanceof WebGpuDevice) {
       this.render(device, frame);
@@ -216,6 +240,17 @@ export class Scene3DSeries extends ChartSeries {
       return;
     }
     this.renderedKey = key;
+    // The height of the box follows the levels of a spectrum behind a waterfall, as its reference level changes.
+    for (const waterfall of this.scene.waterfalls) {
+      const display = waterfall.display;
+      const zAxis = this.scene.zAxis;
+      if (display) {
+        const levels = spectrumLevels(display);
+        if (zAxis.visibleRange.min !== levels.min || zAxis.visibleRange.max !== levels.max) {
+          zAxis.visibleRange = levels;
+        }
+      }
+    }
     this.takeRanges();
     this.collectLines(theme);
     for (const surface of this.scene.surfaces) {
@@ -644,6 +679,8 @@ export class Scene3DSeries extends ChartSeries {
       scene.antennas.length,
       scene.maps.length,
       scene.planes.map((plane) => plane.version).join(','),
+      scene.cursor,
+      scene.waterfalls.map((waterfall) => waterfall.display?.version ?? 0).join(','),
     ].join(' ');
     if (key === this.linesKey) {
       return;
@@ -664,6 +701,29 @@ export class Scene3DSeries extends ChartSeries {
     }
     this.lines.addAll(this.grid, themeColor(theme?.grid?.major, defaultGrid));
     this.lines.addAll(this.frameLines, themeColor(theme?.axis?.line, defaultFrame));
+    // The cursor of the group as a thin frame across the box at its place on the first axis.
+    const cursor = scene.cursor;
+    if (cursor !== undefined) {
+      const place = toBox(scene.xAxis, cursor);
+      if (Math.abs(place) <= 1) {
+        const mark: Rgba8 = { r: 255, g: 255, b: 255, a: 200 };
+        const corners = new ClipPlane3D(new Point3D(1, 0, 0), place).outline();
+        corners.forEach((a, i) => {
+          const b = corners[(i + 1) % corners.length] as Point3D;
+          this.lines.add(Math.fround(a.x), Math.fround(a.y), Math.fround(a.z), mark);
+          this.lines.add(Math.fround(b.x), Math.fround(b.y), Math.fround(b.z), mark);
+        });
+      }
+    }
+    const boxMap = new BoxMap(scene.xAxis, scene.yAxis, scene.zAxis);
+    const zRange = scene.zAxis.visibleRange;
+    for (const waterfall of scene.waterfalls) {
+      if (waterfall.display) {
+        addSpectrumLines(waterfall, waterfall.display, boxMap, zRange.min, zRange.max, (x, y, z, color) => {
+          this.lines.add(x, y, z, color);
+        });
+      }
+    }
     const outline: Rgba8 = { r: 240, g: 150, b: 60, a: 255 };
     for (const plane of scene.planes) {
       const corners = plane.outline();

@@ -1,6 +1,6 @@
 // Describes a 3D chart and puts it into a 2D chart builder: a hidden plot, the series with the picture of the scene,
 // the labels of the box and the modifier that turns the camera, as Chart3DBuilder of the .NET version.
-import { findBuiltInTheme, type Axis, type ChartBuilder, type ThemeDocument } from '@tachyon-charts/core';
+import { ChartGroup, findBuiltInTheme, type Axis, type ChartBuilder, type ThemeDocument } from '@tachyon-charts/core';
 import { AxisLabels3D } from './rendering/axis-labels';
 import { PieLabels3D } from './rendering/pie-labels';
 import { SceneState3D } from './rendering/scene-state';
@@ -26,6 +26,7 @@ export class Chart3DBuilder {
   /** The scene the chart shows. */
   readonly scene = new Scene3D();
   private titleText: string | undefined;
+  private groupName: string | undefined;
   private themeDocument: ThemeDocument | undefined = findBuiltInTheme('instrument');
 
   /** The title above the chart. */
@@ -156,6 +157,16 @@ export class Chart3DBuilder {
     return this;
   }
 
+  /**
+   * Joins a group of charts: the first axis of the 3D chart shares its range with the X axes of the 2D charts, and the
+   * cursor of the 2D charts shows as a frame across the box.
+   * @param name - The name of the group, as the 2D charts give it.
+   */
+  group(name: string): this {
+    this.groupName = name;
+    return this;
+  }
+
   /** Puts the chart into a builder of a 2D chart. */
   apply(builder: ChartBuilder): ChartBuilder {
     const scene = this.scene;
@@ -175,7 +186,7 @@ export class Chart3DBuilder {
           return series;
         })
         .addOverlay((chart) => {
-          series?.bind(chart);
+          series?.bind(chart, this.groupName === undefined ? undefined : ChartGroup.get(this.groupName));
           return new AxisLabels3D(scene);
         })
         .addOverlay(() => new PieLabels3D(scene))
