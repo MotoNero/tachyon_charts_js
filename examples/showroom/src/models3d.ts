@@ -12,6 +12,9 @@ import {
   PointFile,
   Points3D,
   Scatter3D,
+  TransferFunction3D,
+  Volume3D,
+  VolumeData,
   type PointCloudArrays,
 } from '@tachyon-charts/3d';
 import { Colormap, DoubleRange, SeededRandom } from '@tachyon-charts/core';
@@ -360,4 +363,89 @@ export function cloudFromLas(chart: Chart3DBuilder, file: Blob): Chart3DBuilder 
     .yAxis(-1, 1, 'y')
     .zAxis(-1, 1, 'z')
     .addCloud(new PointCloud3D((report) => PointFile.read(file, 'landscape.las', report)));
+}
+
+// A body with a shell, a rippled inside and two bright spots, from 0 to 1.
+function bodyAt(a: number, b: number, c: number): number {
+  const radius = Math.sqrt(a * a + b * b * 1.5 + c * c * 1.2);
+  const shell = Math.exp(-Math.pow((radius - 0.8) / 0.05, 2));
+  const inside = radius < 0.8 ? 0.25 + 0.08 * Math.sin(a * 9) * Math.sin(b * 8) * Math.sin(c * 7) : 0;
+  const spot = Math.exp(-((a - 0.3) * (a - 0.3) + (b + 0.2) * (b + 0.2) + (c - 0.1) * (c - 0.1)) / 0.02);
+  const second = 0.95 * Math.exp(-((a + 0.35) * (a + 0.35) + (b - 0.15) * (b - 0.15) + (c + 0.25) * (c + 0.25)) / 0.01);
+  return Math.min(Math.max(Math.max(Math.max(shell * 0.75, inside), Math.max(spot, second)), 0), 1);
+}
+
+/** A body on a raster of a side, as 16-bit values like a scanner stores them. */
+export function createBody(side: number): VolumeData {
+  const values = new Uint16Array(side * side * side);
+  for (let z = 0; z < side; z++) {
+    for (let y = 0; y < side; y++) {
+      for (let x = 0; x < side; x++) {
+        const a = (2 * x) / (side - 1) - 1;
+        const b = (2 * y) / (side - 1) - 1;
+        const c = (2 * z) / (side - 1) - 1;
+        values[z * side * side + y * side + x] = Math.trunc(bodyAt(a, b, c) * 60_000);
+      }
+    }
+  }
+  return new VolumeData(values, side, side, side);
+}
+
+/** Clear outside, bluish tissue, a light shell and red spots. */
+export function createTransfer(): TransferFunction3D {
+  const clear = { r: 30, g: 60, b: 140, a: 255 };
+  const tissue = { r: 70, g: 150, b: 190, a: 255 };
+  const shell = { r: 240, g: 190, b: 120, a: 255 };
+  const spot = { r: 255, g: 90, b: 60, a: 255 };
+  return new TransferFunction3D([
+    { share: 0, color: clear, opacity: 0 },
+    { share: 0.12, color: clear, opacity: 0 },
+    { share: 0.3, color: tissue, opacity: 0.003 },
+    { share: 0.6, color: tissue, opacity: 0.006 },
+    { share: 0.76, color: shell, opacity: 0.03 },
+    { share: 0.86, color: spot, opacity: 0.5 },
+    { share: 1, color: spot, opacity: 0.9 },
+  ]);
+}
+
+const unit = new DoubleRange(-1, 1);
+
+function inBox(chart: Chart3DBuilder, title: string): Chart3DBuilder {
+  return chart.title(title).xAxis(-1, 1, 'x').yAxis(-1, 1, 'y').zAxis(-1, 1, 'z');
+}
+
+/** Three slices through the body, clear below 4 % of the values. */
+export function volumeSlices(chart: Chart3DBuilder, side: number): Chart3DBuilder {
+  return inBox(chart, 'Slices through a body').addVolume(
+    new Volume3D(createBody(side), unit, unit, unit, { sliceThreshold: 0.04 }),
+  );
+}
+
+/** The highest value along each ray, in Inferno. */
+export function volumeMaximum(chart: Chart3DBuilder, side: number): Chart3DBuilder {
+  return inBox(chart, 'Highest value along each ray').addVolume(
+    new Volume3D(createBody(side), unit, unit, unit, {
+      mode: 'maximum',
+      showsSlices: false,
+      sliceThreshold: 0.05,
+      colormap: Colormap.builtIn('inferno'),
+    }),
+  );
+}
+
+/** The surface where the values cross 45 % of their range, cut open by a plane. */
+export function volumeSurface(chart: Chart3DBuilder, side: number): Chart3DBuilder {
+  const data = createBody(side);
+  const volume = new Volume3D(data, unit, unit, unit, { mode: 'surface', showsSlices: false });
+  volume.isoValue = data.valueRange.min + 0.45 * (data.valueRange.max - data.valueRange.min);
+  return inBox(chart, 'Surface of equal value')
+    .addVolume(volume)
+    .addPlane(new ClipPlane3D(new Point3D(1, 1, 0), -0.1));
+}
+
+/** Looking through the body with a transfer function. */
+export function volumeThrough(chart: Chart3DBuilder, side: number): Chart3DBuilder {
+  return inBox(chart, 'Through a body').addVolume(
+    new Volume3D(createBody(side), unit, unit, unit, { transfer: createTransfer(), showsSlices: false }),
+  );
 }

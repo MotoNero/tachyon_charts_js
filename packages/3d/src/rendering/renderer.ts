@@ -1,6 +1,8 @@
 // Draws the scene with WebGPU into a picture of its own, which the chart then shows as an image, as Renderer3D of the
 // .NET version: four samples per pixel, a depth buffer, the pipelines of shared/shaders/3d. The elements come part by
 // part; this first part draws the lines of the axis box.
+import { createVolumePipelines, VolumeBuffer, type VolumePipelines } from './volumes';
+import type { Volume3D } from '../scene/volume';
 import { CloudBuffer } from './clouds';
 import type { PointCloud3D } from '../scene/point-cloud';
 import type { GpuTexture, PixelSize, Rgba8 } from '@tachyon-charts/core';
@@ -87,6 +89,8 @@ export class Renderer3D {
   private readonly traces = new Map<Line3D, TraceBuffer>();
   private readonly spots = new Map<Scatter3D, TraceBuffer>();
   private readonly clouds = new Map<PointCloud3D, CloudBuffer>();
+  private readonly volumes = new Map<Volume3D, VolumeBuffer>();
+  private volumePipelines: VolumePipelines | undefined;
   private readonly barPipelines: BarPipelines;
   private readonly bars = new Map<Bars3D, BarBuffer>();
   private readonly bubblePipeline: GPURenderPipeline;
@@ -108,6 +112,7 @@ export class Renderer3D {
   private size: PixelSize = { width: 0, height: 0 };
   private msaaColor: GPUTexture | undefined;
   private depth: GPUTexture | undefined;
+  private depthOfRays: GPUTextureView | undefined;
   private resolved: GPUTexture | undefined;
   private msaaAccumulation: GPUTexture | undefined;
   private msaaReveal: GPUTexture | undefined;
@@ -328,6 +333,20 @@ export class Renderer3D {
     return buffer;
   }
 
+  /** The buffer of a volume with its colormap, made on first use; a new colormap is written again. */
+  volumeOf(volume: Volume3D, colors: Float32Array | undefined): VolumeBuffer {
+    let buffer = this.volumes.get(volume);
+    if (!buffer) {
+      this.volumePipelines ??= createVolumePipelines(this.gpu, colorFormat, depthFormat, sampleCount);
+      buffer = new VolumeBuffer(this.gpu, this.volumePipelines, volume, colors ?? new Float32Array(4));
+      this.volumes.set(volume, buffer);
+      volume.setFit(buffer.fit);
+    } else if (colors) {
+      buffer.setColors(colors);
+    }
+    return buffer;
+  }
+
   /** Writes one row of a waterfall into its slot of the ring. */
   writeRow(owner: object, slot: number, heights: Float32Array, firstRow: number): void {
     this.surfaces.get(owner)?.writeRow(slot, heights, firstRow);
@@ -373,6 +392,11 @@ export class Renderer3D {
     for (const cloud of this.clouds.values()) {
       cloud.writeUniforms(matrix, size.width, size.height, this.cuts);
     }
+    let hasMarch = false;
+    for (const volume of this.volumes.values()) {
+      volume.writeUniforms(matrix, this.cuts);
+      hasMarch ||= volume.marches;
+    }
     for (const bars of this.bars.values()) {
       bars.writeUniforms(matrix, eye, this.cuts);
     }
@@ -407,7 +431,7 @@ export class Renderer3D {
         view: (this.depth as GPUTexture).createView(),
         depthLoadOp: 'clear',
         // See-through surfaces test against the depth of the opaque ones.
-        depthStoreOp: hasTransparency ? 'store' : 'discard',
+        depthStoreOp: hasTransparency || hasMarch ? 'store' : 'discard',
         depthClearValue: 1,
       },
     });
@@ -437,6 +461,12 @@ export class Renderer3D {
     }
     for (const cloud of this.clouds.values()) {
       cloud.draw(pass);
+    }
+    if (this.volumePipelines && this.volumes.size > 0) {
+      pass.setPipeline(this.volumePipelines.slices);
+      for (const volume of this.volumes.values()) {
+        volume.drawSlices(pass);
+      }
     }
     pass.setPipeline(this.barPipelines.opaque);
     for (const bars of this.bars.values()) {
@@ -476,6 +506,18 @@ export class Renderer3D {
     if (hasTransparency) {
       this.encodeTransparent(encoder, eye[1]);
     }
+    if (hasMarch && this.volumePipelines) {
+      // The rays look through the volume up to the depth of the scene and lay over the picture.
+      const march = encoder.beginRenderPass({
+        colorAttachments: [{ view: (this.resolved as GPUTexture).createView(), loadOp: 'load', storeOp: 'store' }],
+      });
+      march.setPipeline(this.volumePipelines.march);
+      const depth = this.depthView();
+      for (const volume of this.volumes.values()) {
+        volume.drawMarch(march, depth);
+      }
+      march.end();
+    }
     // The picture reaches a texture of the chart's device, which the chart draws like any image.
     const shown = this.shown as GpuTexture & { texture: GPUTexture };
     encoder.copyTextureToTexture(
@@ -506,6 +548,10 @@ export class Renderer3D {
       cloud.dispose();
     }
     this.clouds.clear();
+    for (const volume of this.volumes.values()) {
+      volume.dispose();
+    }
+    this.volumes.clear();
     for (const bars of this.bars.values()) {
       bars.dispose();
     }
@@ -592,11 +638,18 @@ export class Renderer3D {
     }
   }
 
+  // One view of the depth per size, so that the bind groups of the rays keep it.
+  private depthView(): GPUTextureView {
+    this.depthOfRays ??= (this.depth as GPUTexture).createView();
+    return this.depthOfRays;
+  }
+
   private ensureSize(size: PixelSize): void {
     if (this.shown && this.size.width === size.width && this.size.height === size.height) {
       return;
     }
     this.releaseAttachments();
+    this.depthOfRays = undefined;
     this.size = size;
     const extent = { width: size.width, height: size.height };
     this.msaaColor = this.gpu.createTexture({

@@ -108,6 +108,12 @@ const german: Readonly<Record<string, string>> = {
   'Columns over a raster': 'Säulen über einem Raster',
   'A ring from triangles in the light': 'Ein Ring aus Dreiecken im Licht',
   'Height in m': 'Höhe in m',
+  'Slices through a body': 'Schnitte durch einen Körper',
+  'Highest value along each ray': 'Höchster Wert entlang jedes Strahls',
+  'Surface of equal value': 'Fläche gleichen Werts',
+  'Through a body': 'Durch einen Körper',
+  'Drag the orange outline: move the slice | Drag a point or the slider at the top right: change the look | Drag: turn | Wheel: zoom':
+    'Orangen Umriss ziehen: Schnitt verschieben | Punkt oder Regler oben rechts ziehen: Darstellung ändern | Ziehen: drehen | Rad: Zoom',
   'Scanned landscape': 'Gescannte Landschaft',
   'Surface against a limit of 0.9': 'Fläche gegen eine Grenze von 0,9',
   'Antenna gain': 'Antennengewinn',

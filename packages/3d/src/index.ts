@@ -12,6 +12,16 @@ export { AntennaPattern3D, type AntennaCut, type AntennaLobe, type AntennaPatter
 export { ClipPlane3D, type ClipPlane3DOptions, type CutCurve } from './scene/clip-plane';
 export { Shapes3D } from './scene/shapes';
 export { MeasuredMap3D, type MeasuredMap3DOptions } from './scene/measured-map';
+export { TransferFunction3D, type TransferPoint3D } from './scene/transfer';
+export {
+  describeGpuFit,
+  Volume3D,
+  VolumeData,
+  type Volume3DOptions,
+  type VolumeGpuFit,
+  type VolumeMode,
+  type VolumeValues,
+} from './scene/volume';
 export {
   PointCloud3D,
   type PointCloud3DOptions,

@@ -1,5 +1,5 @@
 // Turning, moving and zooming the camera of a scene with pointer, wheel and keys, as Orbit3DModifier of the .NET
-// version, with the planes moved by their outline; picking points and handles come with their parts.
+// version, with the planes moved by their outline and the editors of volumes; picking points comes with its part.
 import {
   ChartModifier,
   InputModifiers,
@@ -13,6 +13,9 @@ import {
 import type { ClipPlane3D } from '../scene/clip-plane';
 import type { Point3D } from '../scene/matrix';
 import type { Scene3D } from '../scene/scene';
+import type { TransferFunction3D } from '../scene/transfer';
+import type { Volume3D } from '../scene/volume';
+import { editorArea, editorPlace } from './scene-state';
 
 const degreesPerUnit = 0.4;
 const panPerUnit = 0.0015;
@@ -20,6 +23,7 @@ const zoomPerStep = 1.15;
 const degreesPerKey = 5;
 const gripReach = 8;
 const probe = 0.1;
+const handleReach = 9;
 
 function distanceToPiece(position: Point, a: Point, b: Point): number {
   const px = b.x - a.x;
@@ -38,6 +42,8 @@ export class Orbit3DModifier extends ChartModifier {
   private isPanning = false;
   private last: Point = { x: 0, y: 0 };
   private plane: ClipPlane3D | undefined;
+  private handle: { readonly transfer: TransferFunction3D; readonly index: number } | undefined;
+  private level: Volume3D | undefined;
 
   /** @param scene - The scene whose camera moves. */
   constructor(private readonly scene: Scene3D) {
@@ -55,7 +61,18 @@ export class Orbit3DModifier extends ChartModifier {
     if (input.kind === 'moved') {
       const delta = { x: input.position.x - this.last.x, y: input.position.y - this.last.y };
       this.last = input.position;
-      if (this.plane) {
+      const pane = this.interaction?.chart.currentLayout?.panes[0];
+      if (this.level && pane) {
+        const area = editorArea(pane);
+        this.level.isoShare = (input.position.x - area.x) / area.width;
+      } else if (this.handle && pane) {
+        const area = editorArea(pane);
+        this.handle.transfer.move(
+          this.handle.index,
+          (input.position.x - area.x) / area.width,
+          1 - (input.position.y - area.y) / area.height,
+        );
+      } else if (this.plane) {
         this.movePlane(this.plane, delta);
       } else if (this.isPanning) {
         this.scene.camera.pan(-delta.x * panPerUnit, delta.y * panPerUnit);
@@ -131,8 +148,53 @@ export class Orbit3DModifier extends ChartModifier {
     this.isDragging = true;
     this.isPanning = input.changedButton === 'middle' || (input.modifiers & InputModifiers.shift) !== 0;
     this.last = input.position;
-    this.plane = input.changedButton === 'primary' ? this.findPlane(input.position) : undefined;
+    const isPrimary = input.changedButton === 'primary';
+    this.handle = isPrimary ? this.findHandle(input.position) : undefined;
+    this.level = isPrimary && !this.handle ? this.findLevel(input.position) : undefined;
+    this.plane = isPrimary && !this.handle && !this.level ? this.findPlane(input.position) : undefined;
     return 'capture';
+  }
+
+  // A point of the editor of a transfer function within reach of the pointer.
+  private findHandle(position: Point): { transfer: TransferFunction3D; index: number } | undefined {
+    const pane = this.interaction?.chart.currentLayout?.panes[0];
+    if (!pane) {
+      return undefined;
+    }
+    const area = editorArea(pane);
+    for (const volume of this.scene.volumes) {
+      const transfer = volume.transfer;
+      if (!transfer?.showsEditor) {
+        continue;
+      }
+      const index = transfer.points.findIndex((point) => {
+        const place = editorPlace(area, point);
+        return Math.hypot(position.x - place.x, position.y - place.y) <= handleReach;
+      });
+      if (index >= 0) {
+        return { transfer, index };
+      }
+    }
+    return undefined;
+  }
+
+  // The slider of a surface within reach of the pointer.
+  private findLevel(position: Point): Volume3D | undefined {
+    const pane = this.interaction?.chart.currentLayout?.panes[0];
+    if (!pane) {
+      return undefined;
+    }
+    const area = editorArea(pane);
+    return this.scene.volumes.find((volume) => {
+      const x = area.x + volume.isoShare * area.width;
+      return (
+        volume.mode === 'surface' &&
+        volume.showsEditor &&
+        Math.abs(position.x - x) <= handleReach &&
+        position.y >= area.y - handleReach &&
+        position.y <= area.y + area.height + handleReach
+      );
+    });
   }
 
   // The plane whose outline lies nearest to the pointer, within a few units.

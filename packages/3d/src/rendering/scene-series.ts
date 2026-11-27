@@ -23,14 +23,21 @@ import type { AntennaPattern3D } from '../scene/antenna';
 import type { MeasuredMap3D } from '../scene/measured-map';
 import type { PointCloud3D } from '../scene/point-cloud';
 import { CloudLoader } from './cloud-loader';
+import { transferTableSize } from '../scene/transfer';
+import type { Volume3D } from '../scene/volume';
 import type { Pie3D } from '../scene/pie';
-import { Point3D } from '../scene/matrix';
+import { Point3D, type Matrix3D } from '../scene/matrix';
 import { meshVertexStride } from './meshes';
 import { bubbleStride } from './bubbles';
 import type { Scene3D } from '../scene/scene';
 import { fullMaterial, missingHeight, type Surface3D } from '../scene/surface';
 import type { Waterfall3D } from '../scene/waterfall';
 import { LineVertices, Renderer3D } from './renderer';
+
+// The bytes of a volume per frame on their way to the GPU, and the steps of the rays per voxel.
+const volumeBytesPerFrame = 1 << 23;
+const fineSteps = 2;
+const volumeModes = ['transfer', 'maximum', 'surface'];
 
 const defaultBackground: Rgba8 = { r: 14, g: 17, b: 23, a: 255 };
 const defaultGrid: Rgba8 = { r: 255, g: 255, b: 255, a: 40 };
@@ -67,6 +74,9 @@ export class Scene3DSeries extends ChartSeries {
   private readonly antennaMeshes = new Map<AntennaPattern3D, Mesh3D>();
   private readonly mapMeshes = new Map<MeasuredMap3D, Mesh3D>();
   private readonly cloudLoaders = new Map<PointCloud3D, CloudLoader>();
+  private readonly volumeStates = new Map<Volume3D, { next: number; stamp: string; shares: Float32Array }>();
+  private readonly transferTable = new Float32Array(transferTableSize * 4);
+  private readonly corners = new Float32Array(24);
   private heights = new Float32Array(0);
   private ranges = '';
   private palette: readonly Rgba8[] = [];
@@ -169,22 +179,28 @@ export class Scene3DSeries extends ChartSeries {
     commands.drawImage(picture, { x: 0, y: 0, width: size.width, height: size.height });
     commands.submit();
     this.copyPending = true;
-    this.waiting = target.readPixels().then((pixels) => {
-      target.dispose();
-      this.copyPending = false;
-      if (
-        !this.copy ||
-        this.copyDevice !== device ||
-        this.copy.size.width !== size.width ||
-        this.copy.size.height !== size.height
-      ) {
-        this.copy?.dispose();
-        this.copy = device.createTexture({ size, format: 'rgba8unorm' });
-        this.copyDevice = device;
-      }
-      this.copy.write(pixels);
-      this.copies++;
-    });
+    this.waiting = target
+      .readPixels()
+      .then((pixels) => {
+        target.dispose();
+        this.copyPending = false;
+        if (
+          !this.copy ||
+          this.copyDevice !== device ||
+          this.copy.size.width !== size.width ||
+          this.copy.size.height !== size.height
+        ) {
+          this.copy?.dispose();
+          this.copy = device.createTexture({ size, format: 'rgba8unorm' });
+          this.copyDevice = device;
+        }
+        this.copy.write(pixels);
+        this.copies++;
+      })
+      .catch(() => {
+        // The chart let go of its device while the picture was on its way back; a new device draws anew.
+        this.copyPending = false;
+      });
   }
 
   private render(device: WebGpuDevice, frame: SeriesFrame): void {
@@ -271,6 +287,9 @@ export class Scene3DSeries extends ChartSeries {
     const camera = this.scene.camera;
     const sceneMatrix = camera.createMatrix(aspect);
     sceneMatrix.toGpu(this.matrix);
+    for (const volume of this.scene.volumes) {
+      this.updateVolume(volume, sceneMatrix);
+    }
     for (const loader of this.cloudLoaders.values()) {
       loader.select(this.scene, sceneMatrix, size.width, size.height);
     }
@@ -326,6 +345,86 @@ export class Scene3DSeries extends ChartSeries {
       this.bubbleKeys.clear();
       this.meshKeys.clear();
       this.pieKeys.clear();
+    }
+  }
+
+  // Brings the slices of a volume to the GPU, a few megabytes per frame, and sets its place and how the rays look.
+  private updateVolume(volume: Volume3D, matrix: Matrix3D): void {
+    const renderer = this.renderer as Renderer3D;
+    const data = volume.data;
+    let state = this.volumeStates.get(volume);
+    const stamp = volume.colormap.entries.map((color) => colorKey(color)).join(' ');
+    const colors = (): Float32Array =>
+      Float32Array.from(volume.colormap.entries.flatMap((color) => [color.r / 255, color.g / 255, color.b / 255, 1]));
+    if (!state) {
+      state = { next: 0, stamp, shares: new Float32Array(data.isBytes ? 0 : data.width * data.height) };
+      this.volumeStates.set(volume, state);
+      renderer.volumeOf(volume, colors());
+    } else if (state.stamp !== stamp) {
+      state.stamp = stamp;
+      renderer.volumeOf(volume, colors());
+    }
+    const buffer = renderer.volumeOf(volume, undefined);
+    if (state.next < data.depth) {
+      const bytesPerSlice = data.width * data.height * (data.isBytes ? 1 : 4);
+      for (let written = 0; written < volumeBytesPerFrame && state.next < data.depth; state.next++) {
+        // A volume reduced on the GPU skips the slices it does not keep.
+        if (buffer.keeps(state.next)) {
+          if (data.isBytes) {
+            buffer.writeBytes(state.next, data.byteSlice(state.next));
+          } else {
+            data.writeShares(state.next, state.shares);
+            buffer.writeShares(state.next, state.shares);
+          }
+          written += bytesPerSlice;
+        }
+      }
+      volume.setLoaded(state.next);
+    }
+    const scene = this.scene;
+    const map = new BoxMap(scene.xAxis, scene.yAxis, scene.zAxis);
+    const a = map.toBox(new Point3D(volume.x.min, volume.y.min, volume.z.min));
+    const b = map.toBox(new Point3D(volume.x.max, volume.y.max, volume.z.max));
+    const low = [Math.min(a.x, b.x), Math.min(a.y, b.y), Math.min(a.z, b.z)];
+    const high = [Math.max(a.x, b.x), Math.max(a.y, b.y), Math.max(a.z, b.z)];
+    buffer.setPlace(
+      low.map((value) => Math.fround(value)),
+      high.map((value) => Math.fround(value)),
+      [volume.sliceX.offset, volume.sliceY.offset, volume.sliceZ.offset, volume.sliceThreshold].map((value) =>
+        Math.fround(value),
+      ),
+      volume.colorShares.map((value) => Math.fround(value)),
+    );
+    buffer.showsSlices = volume.showsSlices;
+    if (volume.marches) {
+      volume.transfer?.writeTable(this.transferTable);
+      // Two steps per voxel; a volume reduced on the GPU has bigger voxels, so the rays take fewer steps.
+      const voxel = (((high[0] as number) - (low[0] as number)) / data.width) * (volume.gpuFit?.reduction ?? 1);
+      const ratio = 1 / fineSteps;
+      // Where the corners of the big triangle over the picture lie in the box, at both ends of the depth.
+      [
+        [-1, -1, 0],
+        [3, -1, 0],
+        [-1, 3, 0],
+        [-1, -1, 1],
+        [3, -1, 1],
+        [-1, 3, 1],
+      ].forEach(([x, y, z], i) => {
+        const point = matrix.unproject(x as number, y as number, z as number);
+        this.corners.set([point.x, point.y, point.z, 1], i * 4);
+      });
+      const eye = scene.camera.eye;
+      const material = fullMaterial(volume.material);
+      buffer.setMarch(
+        [voxel * ratio, voxel, ratio, 1].map((value) => Math.fround(value)),
+        [volumeModes.indexOf(volume.mode), Math.fround(volume.isoShare)],
+        [eye.x, eye.y, eye.z, 1].map((value) => Math.fround(value)),
+        [material.gloss, material.sharpness, material.opacity, material.isLit ? 1 : 0].map((value) =>
+          Math.fround(value),
+        ),
+        this.corners,
+        this.transferTable,
+      );
     }
   }
 

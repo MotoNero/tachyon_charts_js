@@ -127,7 +127,19 @@ import {
   opfsSource,
   writableSink,
 } from '@tachyon-charts/large-data';
-import { cloudFromLas, createAntenna, createKnot, landscape, landscapeLas, measuredMap, pipeModel } from './models3d';
+import {
+  cloudFromLas,
+  createAntenna,
+  createKnot,
+  landscape,
+  landscapeLas,
+  measuredMap,
+  pipeModel,
+  volumeMaximum,
+  volumeSlices,
+  volumeSurface,
+  volumeThrough,
+} from './models3d';
 import { t } from './texts';
 
 /**
@@ -548,6 +560,8 @@ function linkedChartsPage(): Page {
 
 // The 3D pages of the .NET showroom: a chart with its scene, turned with the pointer.
 const hint3D = 'Drag: turn | Shift+drag: move | Wheel: zoom | Arrow keys: turn | Double click, Home: start';
+const hintVolume =
+  'Drag the orange outline: move the slice | Drag a point or the slider at the top right: change the look | Drag: turn | Wheel: zoom';
 const hintPlanes =
   'Drag the orange outline: move the plane | Drag: turn | Shift+drag: move | Wheel: zoom | Arrow keys: turn | Double click, Home: start';
 
@@ -747,6 +761,42 @@ function pages3D(): Page[] {
       hint: hint3D,
       configure: (c) => {
         scene3D(c, (s) => cloudFromLas(s, landscapeLas(2_000_000)).title(t('Scanned landscape')));
+      },
+    },
+    {
+      id: 'volume-slices-3d',
+      name: 'Volume slices',
+      group: '3D',
+      hint: hintPlanes,
+      configure: (c) => {
+        scene3D(c, (s) => volumeSlices(s, 256).title(t('Slices through a body')));
+      },
+    },
+    {
+      id: 'volume-maximum-3d',
+      name: 'Maximum projection',
+      group: '3D',
+      hint: hint3D,
+      configure: (c) => {
+        scene3D(c, (s) => volumeMaximum(s, 256).title(t('Highest value along each ray')));
+      },
+    },
+    {
+      id: 'volume-surface-3d',
+      name: 'Surface of equal value',
+      group: '3D',
+      hint: hintVolume,
+      configure: (c) => {
+        scene3D(c, (s) => volumeSurface(s, 256).title(t('Surface of equal value')));
+      },
+    },
+    {
+      id: 'volume-through-3d',
+      name: 'Through a volume',
+      group: '3D',
+      hint: hintVolume,
+      configure: (c) => {
+        scene3D(c, (s) => volumeThrough(s, 192).title(t('Through a body')));
       },
     },
     {

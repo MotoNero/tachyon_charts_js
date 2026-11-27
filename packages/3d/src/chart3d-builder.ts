@@ -7,6 +7,7 @@ import { SceneState3D } from './rendering/scene-state';
 import type { AntennaPattern3D } from './scene/antenna';
 import type { ClipPlane3D } from './scene/clip-plane';
 import type { PointCloud3D } from './scene/point-cloud';
+import type { Volume3D } from './scene/volume';
 import type { MeasuredMap3D } from './scene/measured-map';
 import type { Pie3D } from './scene/pie';
 import { Orbit3DModifier } from './rendering/orbit-modifier';
@@ -100,6 +101,12 @@ export class Chart3DBuilder {
    */
   addPlane(plane: ClipPlane3D): this {
     this.scene.addPlane(plane);
+    return this;
+  }
+
+  /** Adds a volume: values on a raster in space with three slices and rays through it as its mode asks. */
+  addVolume(volume: Volume3D): this {
+    this.scene.addVolume(volume);
     return this;
   }
 

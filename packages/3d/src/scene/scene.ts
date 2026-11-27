@@ -8,6 +8,7 @@ import type { Mesh3D } from './mesh';
 import type { AntennaPattern3D } from './antenna';
 import type { ClipPlane3D } from './clip-plane';
 import type { PointCloud3D } from './point-cloud';
+import type { Volume3D } from './volume';
 import type { MeasuredMap3D } from './measured-map';
 import type { Pie3D } from './pie';
 import type { Line3D, Scatter3D } from './points';
@@ -51,6 +52,7 @@ export class Scene3D {
   private readonly mapList: MeasuredMap3D[] = [];
   private readonly planeList: ClipPlane3D[] = [];
   private readonly cloudList: PointCloud3D[] = [];
+  private readonly volumeList: Volume3D[] = [];
   private axesShown = true;
   private changes = 0;
 
@@ -110,6 +112,22 @@ export class Scene3D {
   addMesh(mesh: Mesh3D): void {
     this.meshList.push(mesh);
     this.addElement(mesh);
+  }
+
+  /** The volumes. */
+  get volumes(): readonly Volume3D[] {
+    return this.volumeList;
+  }
+
+  /** Adds a volume; with its slices shown, their planes join the scene, so that their outlines move them. */
+  addVolume(volume: Volume3D): void {
+    this.volumeList.push(volume);
+    this.addElement(volume);
+    if (volume.showsSlices) {
+      this.addPlane(volume.sliceX);
+      this.addPlane(volume.sliceY);
+      this.addPlane(volume.sliceZ);
+    }
   }
 
   /** The very large clouds of points. */

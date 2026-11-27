@@ -43,11 +43,15 @@ export async function createWebGpuDevice(options: WebGpuDeviceOptions = {}): Pro
     return undefined;
   }
   const limits = adapter.limits;
+  // Volumes keep 32-bit values exact where the adapter can filter them.
+  const features: GPUFeatureName[] = adapter.features.has('float32-filterable') ? ['float32-filterable'] : [];
   const device = await adapter.requestDevice({
+    requiredFeatures: features,
     requiredLimits: {
       maxBufferSize: limits.maxBufferSize,
       maxStorageBufferBindingSize: limits.maxStorageBufferBindingSize,
       maxTextureDimension2D: limits.maxTextureDimension2D,
+      maxTextureDimension3D: limits.maxTextureDimension3D,
     },
   });
   const info = adapter.info;
