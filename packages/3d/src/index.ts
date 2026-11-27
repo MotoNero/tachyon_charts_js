@@ -6,6 +6,7 @@ export { Orbit3DModifier } from './rendering/orbit-modifier';
 export type { SceneAxes } from './scene/axis-box';
 export { Bars3D, type Bars3DOptions, type GridPlace } from './scene/bars';
 export { Bubbles3D, type Bubbles3DOptions, type BubbleSizeUnit } from './scene/bubbles';
+export { PointFile, PointFileError, type PointFileReaders, type ReadProgress } from './files/point-file';
 export { ModelFile, ModelFileData, ModelFileError, type ModelMeshOptions } from './files/model-file';
 export { AntennaPattern3D, type AntennaCut, type AntennaLobe, type AntennaPattern3DOptions } from './scene/antenna';
 export { ClipPlane3D, type ClipPlane3DOptions, type CutCurve } from './scene/clip-plane';

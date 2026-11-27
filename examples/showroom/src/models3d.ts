@@ -9,6 +9,7 @@ import {
   ModelFileData,
   Point3D,
   PointCloud3D,
+  PointFile,
   Points3D,
   Scatter3D,
   type PointCloudArrays,
@@ -317,4 +318,46 @@ export function landscape(chart: Chart3DBuilder, count: number): Chart3DBuilder 
       ? new PointCloud3D(createLandscape(count))
       : new PointCloud3D((report) => Promise.resolve().then(() => createLandscape(count, report)));
   return chart.title('Scanned landscape').xAxis(-1, 1, 'x').yAxis(-1, 1, 'y').zAxis(-1, 1, 'z').addCloud(cloud);
+}
+
+/** The landscape as a LAS file of format 2 with colors of 16 bits, as a scanner writes it: millimeters from an origin. */
+export function landscapeLas(count: number): Blob {
+  const points = createLandscape(count);
+  const record = 26;
+  const offset = 227;
+  const bytes = new Uint8Array(offset + count * record);
+  const view = new DataView(bytes.buffer);
+  bytes.set([76, 65, 83, 70], 0);
+  view.setUint8(24, 1);
+  view.setUint8(25, 2);
+  view.setUint16(94, offset, true);
+  view.setUint32(96, offset, true);
+  view.setUint8(104, 2);
+  view.setUint16(105, record, true);
+  view.setUint32(107, count, true);
+  for (let i = 0; i < 3; i++) {
+    view.setFloat64(131 + i * 8, 0.001, true);
+    view.setFloat64(155 + i * 8, 0, true);
+  }
+  const colors = points.colors as Uint8Array;
+  for (let i = 0; i < count; i++) {
+    const at = offset + i * record;
+    view.setInt32(at, Math.round((points.x[i] as number) * 1000), true);
+    view.setInt32(at + 4, Math.round((points.y[i] as number) * 1000), true);
+    view.setInt32(at + 8, Math.round((points.z[i] as number) * 1000), true);
+    view.setUint16(at + 20, (colors[i * 4] as number) * 257, true);
+    view.setUint16(at + 22, (colors[i * 4 + 1] as number) * 257, true);
+    view.setUint16(at + 24, (colors[i * 4 + 2] as number) * 257, true);
+  }
+  return new Blob([bytes]);
+}
+
+/** A cloud read from a LAS file, with the progress of reading above the box. */
+export function cloudFromLas(chart: Chart3DBuilder, file: Blob): Chart3DBuilder {
+  return chart
+    .title('Scanned landscape')
+    .xAxis(-1, 1, 'x')
+    .yAxis(-1, 1, 'y')
+    .zAxis(-1, 1, 'z')
+    .addCloud(new PointCloud3D((report) => PointFile.read(file, 'landscape.las', report)));
 }

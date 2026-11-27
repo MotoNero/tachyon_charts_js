@@ -127,7 +127,7 @@ import {
   opfsSource,
   writableSink,
 } from '@tachyon-charts/large-data';
-import { createAntenna, createKnot, landscape, measuredMap, pipeModel } from './models3d';
+import { cloudFromLas, createAntenna, createKnot, landscape, landscapeLas, measuredMap, pipeModel } from './models3d';
 import { t } from './texts';
 
 /**
@@ -738,6 +738,15 @@ function pages3D(): Page[] {
       hint: hint3D,
       configure: (c) => {
         scene3D(c, (s) => landscape(s, 10_000_000).title(t('Scanned landscape')));
+      },
+    },
+    {
+      id: 'cloud-from-las-3d',
+      name: 'Cloud from a LAS file',
+      group: '3D',
+      hint: hint3D,
+      configure: (c) => {
+        scene3D(c, (s) => cloudFromLas(s, landscapeLas(2_000_000)).title(t('Scanned landscape')));
       },
     },
     {

@@ -897,7 +897,14 @@ in space (`polygon`, `polygonThrough`), rectangles and level planes at a limit (
 (`PointCloud3D`, `addCloud`) take the points or a function that creates or reads them while the chart shows the
 progress. Up to a million points show whole in the first picture; a larger cloud shows an even sample at once while a
 worker sorts it into an octree, then every frame draws a budget of real points shared out by what each part covers on
-the screen (`pointBudget`, 30 million by default), so the density stays the same while turning and at rest. Drag to turn,
+the screen (`pointBudget`, 30 million by default), so the density stays the same while turning and at rest. Point files come from XYZ text (with
+colors from the first line on), PLY (text or binary in either byte order) and LAS 1.0 to 1.4 (`PointFile.read`,
+`readXyz`, `readPly`, `readLas`), read in slices so that a file may be larger than one buffer:
+
+```ts
+const cloud = new PointCloud3D((report) => PointFile.read(file, file.name, report));
+chart.chart = scene3D(new ChartBuilder(), (s) => s.title('Scan').addCloud(cloud));
+``` Drag to turn,
 Shift and drag to move, wheel and + and − to zoom, arrows to turn, Home or a double click for the first view. The
 scene draws with WebGPU directly: the chart element draws a 3D chart on the main thread with a WebGPU device of its own,
 also where the page draws its other charts in a render worker (`ChartBuilder.drawsOnMainThread()`); with WebGL 2,
