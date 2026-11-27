@@ -459,6 +459,35 @@ builder.addSeries((x, y, axis) => Object.assign(new HeatmapSeries(data, x, y, ax
 polygons(builder, [region], (series) => (series.fillAlpha = 0));
 ```
 
+## Maps
+
+![The countries of the world in Equal Earth, colored by their distance from the equator, with capitals as points](docs/images/world-map.png)
+
+`@tachyon-charts/geo` draws maps without the internet: the countries of the world from Natural Earth (public domain)
+come with the package in three levels of detail, and the map takes the finer ones as the view narrows, each read when
+it is first needed. `map(builder, projection, configure)` describes the axes over the world and the countries;
+`GeoMapSeries` sets the colors of land, sea and borders and of each country by its code (`setColors`), keeps one scale
+on both axes and finds the country under the pointer. The projections are `GeoProjection.equirectangular`,
+`webMercator` and `equalEarth` (equal areas); data layers go on the same axes, their places projected with
+`projectAll`. `ShapefileReader` reads shapefiles with their tables (points, lines, areas), and `GeoMap.fromShapefile`
+makes a map of their areas; `GeoMap.save` and `GeoMap.load` keep a map in a compact packed form.
+
+```ts
+import { GeoProjection, map } from '@tachyon-charts/geo';
+
+const projection = GeoProjection.equalEarth;
+const places = projection.projectAll(longitudes, latitudes);
+map(builder, projection, (countries) => countries.setColors({ DEU: green, FRA: blue })).addScatter(points);
+```
+
+![Tiles over the countries in Web Mercator, here a grid drawn locally, with the notice of their source](docs/images/tile-map.png)
+
+`tiles(builder, source)` puts tiles of a server over a map in Web Mercator, with the notice of their source in the
+corner. The library names no server: `new TileSource(address, notice, options)` takes the address with `{z}`, `{x}`
+and `{y}` of a server the application may use; `cacheName` keeps tiles in the cache of the browser for the next visit.
+Tiles arrive in the background, a coarser one stands in until the finer one is there, and without a network the
+countries below show. `TileSource.grid()` draws a grid of tiles without a server.
+
 ## Legends
 
 ![A test bench with a legend of temperatures in the plot and a legend of pressures below it](docs/images/legends.png)
@@ -1008,7 +1037,7 @@ language of the axes can be chosen at the top for all pages. Every new feature b
 | `@tachyon-charts/element` | The web component `<tachyon-chart>` |
 | `@tachyon-charts/large-data` | Column files, pyramids, OPFS, HTTP range requests, workers |
 | `@tachyon-charts/3d` | 3D charts |
-| `@tachyon-charts/geo` | Maps |
+| `@tachyon-charts/geo` | Maps: countries of the world, projections, shapefiles, tiles |
 | `@tachyon-charts/medical` | DICOM and NIfTI images |
 | `@tachyon-charts/configurator` | The configurator as a web app |
 

@@ -4,8 +4,234 @@
 
 ```ts
 
+import { Axis } from '@tachyon-charts/core';
+import type { ChartBuilder } from '@tachyon-charts/core';
+import { ChartOverlay } from '@tachyon-charts/core';
+import { ChartSeries } from '@tachyon-charts/core';
+import { CommandList } from '@tachyon-charts/core';
+import { DoubleRange as DoubleRange_2 } from '@tachyon-charts/core';
+import { FoundPoint } from '@tachyon-charts/core';
+import { OverlayCanvas } from '@tachyon-charts/core';
+import { Polygon } from '@tachyon-charts/core';
+import { RenderDevice } from '@tachyon-charts/core';
+import { Rgba8 } from '@tachyon-charts/core';
+import { SeriesFrame } from '@tachyon-charts/core';
+
+// @public
+export class AttributionOverlay extends ChartOverlay {
+    constructor(
+    text: string);
+    draw(canvas: OverlayCanvas): void;
+    readonly text: string;
+}
+
+// @public
+export interface GeoBounds {
+    readonly east: number;
+    readonly north: number;
+    readonly south: number;
+    readonly west: number;
+}
+
+// @public
+export class GeoMap {
+    constructor(
+    regions: readonly GeoRegion[]);
+    find(code: string): GeoRegion | undefined;
+    static fromShapefile(file: Shapefile, nameField?: string, codeField?: string): GeoMap;
+    static load(packed: Uint8Array | ArrayBuffer | Response): Promise<GeoMap>;
+    readonly regions: readonly GeoRegion[];
+    save(): Promise<Uint8Array>;
+}
+
+// @public
+export class GeoMapError extends Error {
+    constructor(message: string);
+}
+
+// @public
+export type GeoMapLevel = GeoMap | (() => Promise<GeoMap>);
+
+// @public
+export class GeoMapSeries extends ChartSeries {
+    constructor(levels: readonly GeoMapLevel[],
+    projection: GeoProjection, xAxis: Axis, yAxis: Axis);
+    get accentColor(): Rgba8;
+    get border(): Rgba8;
+    set border(value: Rgba8);
+    get borderThickness(): number;
+    set borderThickness(value: number);
+    dataRange(axis: 'x' | 'y'): DoubleRange_2 | undefined;
+    draw(commands: CommandList, frame: SeriesFrame): void;
+    get drawnPointCount(): number;
+    get error(): unknown;
+    findPoint(frame: SeriesFrame, pixelX: number, pixelY: number): FoundPoint | undefined;
+    keepsAspect: boolean;
+    get land(): Rgba8;
+    set land(value: Rgba8);
+    get level(): number;
+    prepare(device: RenderDevice, frame: SeriesFrame): void;
+    readonly projection: GeoProjection;
+    regionAt(longitude: number, latitude: number): GeoRegion | undefined;
+    releaseResources(): void;
+    get sea(): Rgba8;
+    set sea(value: Rgba8);
+    setColors(colors: ReadonlyMap<string, Rgba8> | Readonly<Record<string, Rgba8>>): void;
+    get version(): number;
+    whenLoaded(): Promise<void>;
+}
+
+// @public
+export interface GeoPlace {
+    readonly latitude: number;
+    readonly longitude: number;
+}
+
+// @public
+export interface GeoPoint {
+    readonly x: number;
+    readonly y: number;
+}
+
+// @public
+export abstract class GeoProjection {
+    static readonly equalEarth: GeoProjection;
+    static readonly equirectangular: GeoProjection;
+    abstract readonly name: string;
+    abstract project(longitude: number, latitude: number): GeoPoint;
+    projectAll(longitudes: ArrayLike<number>, latitudes: ArrayLike<number>): {
+        readonly x: Float64Array;
+        readonly y: Float64Array;
+    };
+    abstract unproject(x: number, y: number): GeoPlace | undefined;
+    static readonly webMercator: GeoProjection;
+    get worldBounds(): GeoBounds;
+}
+
+// @public
+export class GeoRegion {
+    constructor(
+    name: string,
+    code: string,
+    polygons: readonly Polygon[]);
+    readonly bounds: GeoBounds;
+    readonly code: string;
+    contains(longitude: number, latitude: number): boolean;
+    readonly name: string;
+    readonly polygons: readonly Polygon[];
+    // @internal
+    setTriangles(polygon: number, triangles: GeoTriangles): void;
+    triangles(polygon: number): GeoTriangles;
+}
+
+// @public
+export interface GeoShape {
+    readonly attributes: ReadonlyMap<string, string>;
+    readonly parts: readonly ShapePart[];
+}
+
+// @public
+export interface GeoTriangles {
+    readonly rings: Int32Array;
+    readonly triangles: Int32Array;
+    readonly x: Float64Array;
+    readonly y: Float64Array;
+}
+
+// @public
+export function map(builder: ChartBuilder, projection: GeoProjection, configure?: (series: GeoMapSeries) => void, levels?: readonly GeoMapLevel[]): ChartBuilder;
+
+// @public
+export type MapDetail = 'coarse' | 'medium' | 'fine';
+
+// @public
+export interface Shapefile {
+    readonly fields: readonly string[];
+    readonly kind: ShapeKind;
+    readonly shapes: readonly GeoShape[];
+}
+
+// @public
+export class ShapefileError extends Error {
+    constructor(message: string, offset: number);
+    readonly offset: number;
+}
+
+// @public
+export const ShapefileReader: {
+    read(shapes: Uint8Array, table?: Uint8Array, name?: string): Shapefile;
+    readFiles(shapes: Blob, table?: Blob, name?: string): Promise<Shapefile>;
+};
+
+// @public
+export type ShapeKind = 'point' | 'line' | 'polygon' | 'multiPoint';
+
+// @public
+export interface ShapePart {
+    readonly x: Float64Array;
+    readonly y: Float64Array;
+}
+
+// @public
+export interface TileImage {
+    readonly height: number;
+    readonly pixels: Uint8Array | Uint8ClampedArray;
+    readonly width: number;
+}
+
+// @public
+export class TileLayerSeries extends ChartSeries {
+    constructor(
+    source: TileSource, xAxis: Axis, yAxis: Axis);
+    dataRange(): DoubleRange_2 | undefined;
+    dispose(): void;
+    draw(commands: CommandList, frame: SeriesFrame): void;
+    prepare(device: RenderDevice, frame: SeriesFrame): void;
+    releaseResources(): void;
+    readonly source: TileSource;
+    get tileCount(): number;
+    get version(): number;
+    get zoom(): number;
+}
+
+// @public
+export function tiles(builder: ChartBuilder, source: TileSource): ChartBuilder;
+
+// @public
+export class TileSource {
+    constructor(
+    urlTemplate: string,
+    attribution: string, options?: TileSourceOptions);
+    addressOf(z: number, x: number, y: number): string;
+    readonly attribution: string;
+    readonly cacheName: string | undefined;
+    static grid(): TileSource;
+    // @internal
+    load(z: number, x: number, y: number, signal: AbortSignal): Promise<TileImage | undefined>;
+    readonly maxZoom: number;
+    readonly memoryTiles: number;
+    readonly urlTemplate: string;
+}
+
+// @public
+export interface TileSourceOptions {
+    readonly cacheName?: string;
+    readonly decode?: (bytes: ArrayBuffer) => Promise<TileImage | undefined>;
+    readonly fetch?: (address: string, signal: AbortSignal) => Promise<ArrayBuffer>;
+    readonly maxZoom?: number;
+    readonly memoryTiles?: number;
+}
+
 // @public
 export const version = "0.1.0-dev";
+
+// @public
+export const WorldMap: {
+    folder: URL | string | undefined;
+    countries(detail?: MapDetail): Promise<GeoMap>;
+    readonly countryLevels: readonly GeoMapLevel[];
+    attribution: string;
+};
 
 // (No @packageDocumentation comment for this package)
 

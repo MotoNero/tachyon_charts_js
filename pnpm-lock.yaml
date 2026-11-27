@@ -74,6 +74,9 @@ importers:
       '@tachyon-charts/element':
         specifier: workspace:*
         version: link:../../packages/element
+      '@tachyon-charts/geo':
+        specifier: workspace:*
+        version: link:../../packages/geo
       '@tachyon-charts/large-data':
         specifier: workspace:*
         version: link:../../packages/large-data

@@ -150,6 +150,7 @@ import {
   bodyNifti,
   volumeFromNifti,
 } from './models3d';
+import { GeoProjection, TileSource, WorldMap, map, tiles } from '@tachyon-charts/geo';
 import { t } from './texts';
 
 /**
@@ -917,6 +918,93 @@ function cloudPagesPage(): Page {
       );
     },
   };
+}
+
+const mapHint = 'Wheel: zoom | Drag: pan | Ctrl+drag: zoom into a rectangle | Double click: all';
+
+const capitals: readonly [string, number, number][] = [
+  ['Berlin', 13.4, 52.52],
+  ['Paris', 2.35, 48.86],
+  ['Madrid', -3.7, 40.42],
+  ['Rome', 12.5, 41.9],
+  ['Moscow', 37.62, 55.76],
+  ['Cairo', 31.24, 30.04],
+  ['Nairobi', 36.82, -1.29],
+  ['Pretoria', 28.19, -25.75],
+  ['New Delhi', 77.21, 28.61],
+  ['Beijing', 116.41, 39.9],
+  ['Tokyo', 139.69, 35.69],
+  ['Canberra', 149.13, -35.28],
+  ['Brasília', -47.88, -15.79],
+  ['Buenos Aires', -58.38, -34.6],
+  ['Mexico City', -99.13, 19.43],
+  ['Washington', -77.04, 38.91],
+  ['Ottawa', -75.7, 45.42],
+  ['Jakarta', 106.85, -6.21],
+  ['Wellington', 174.78, -41.29],
+  ['Reykjavík', -21.94, 64.15],
+];
+
+// Each country by the distance of its middle from the equator, as the .NET version colors them.
+async function colorsByLatitude(): Promise<Map<string, Rgba8>> {
+  const countries = await WorldMap.countries('coarse');
+  const viridis = Colormap.builtIn('viridis');
+  const colors = new Map<string, Rgba8>();
+  for (const region of countries.regions) {
+    if (region.code.length > 0 && !colors.has(region.code)) {
+      colors.set(region.code, viridis.sample(Math.abs((region.bounds.north + region.bounds.south) / 2) / 70));
+    }
+  }
+  return colors;
+}
+
+function mapPages(): Page[] {
+  return [
+    {
+      id: 'world-map',
+      name: 'World map',
+      group: 'Maps',
+      hint: mapHint,
+      configure: (c) => {
+        const projection = GeoProjection.equalEarth;
+        const places = projection.projectAll(
+          capitals.map((capital) => capital[1]),
+          capitals.map((capital) => capital[2]),
+        );
+        const points = new DataSource();
+        points.append(places.x, places.y);
+        map(c.title(t('Countries by distance from the equator')), projection, (series) => {
+          colorsByLatitude().then(
+            (colors) => {
+              series.setColors(colors);
+            },
+            () => undefined,
+          );
+        })
+          .addScatter(points, (s) => s.name(t('Capitals')).fill({ r: 230, g: 60, b: 60, a: 255 }).size(7))
+          .addModifier(() => new ZoomPanModifier())
+          .addModifier(() => new RubberBandZoomModifier())
+          .addModifier(() => new TooltipModifier());
+      },
+    },
+    {
+      id: 'tile-map',
+      name: 'Tile map',
+      group: 'Maps',
+      hint: mapHint + ' | Server: ?tiles=<address with {z}, {x}, {y}>&attribution=<notice>',
+      configure: (c) => {
+        // The library names no server: the address and its notice come from the page address, else a local grid.
+        const query = new URLSearchParams(location.search);
+        const address = query.get('tiles');
+        const notice = query.get('attribution');
+        const source =
+          address && notice ? new TileSource(address, notice, { cacheName: 'tachyon-tiles' }) : TileSource.grid();
+        tiles(map(c.title(t('Tiles from a server of your choice')), GeoProjection.webMercator), source)
+          .addModifier(() => new ZoomPanModifier())
+          .addModifier(() => new RubberBandZoomModifier());
+      },
+    },
+  ];
 }
 
 function pages3D(): Page[] {
@@ -2884,6 +2972,7 @@ export const pages: readonly Page[] = [
   valueLabelsPage(),
   rolloverPage(),
   ...pages3D(),
+  ...mapPages(),
   linkedChartsPage(),
   marketProfilePage(),
   candlesWithoutWeekendsPage(),

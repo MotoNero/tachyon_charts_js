@@ -1,7 +1,7 @@
 {
   "name": "@tachyon-charts/geo",
   "version": "0.1.0-dev",
-  "description": "Tachyon Charts: Maps.",
+  "description": "Tachyon Charts: maps, projections, shapefiles and tiles.",
   "license": "Apache-2.0",
   "type": "module",
   "sideEffects": false,
@@ -12,7 +12,8 @@
     }
   },
   "files": [
-    "dist"
+    "dist",
+    "maps"
   ],
   "dependencies": {
     "@tachyon-charts/core": "workspace:*"

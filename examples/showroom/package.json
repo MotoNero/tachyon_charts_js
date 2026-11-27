@@ -6,6 +6,7 @@
     "@tachyon-charts/3d": "workspace:*",
     "@tachyon-charts/core": "workspace:*",
     "@tachyon-charts/element": "workspace:*",
+    "@tachyon-charts/geo": "workspace:*",
     "@tachyon-charts/large-data": "workspace:*",
     "@tachyon-charts/render-canvas": "workspace:*"
   }
