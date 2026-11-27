@@ -103,6 +103,7 @@ import {
   Point3D,
   Points3D,
   Scatter3D,
+  Shapes3D,
   scene3D,
   Surface3D,
   type Vertex3D,
@@ -674,6 +675,51 @@ function pages3D(): Page[] {
       hint: hintPlanes,
       configure: (c) => {
         scene3D(c, pipeModel);
+      },
+    },
+    {
+      id: 'planes-and-limits-3d',
+      name: 'Planes and limits',
+      group: '3D',
+      hint: hint3D,
+      configure: (c) => {
+        const red: Rgba8 = { r: 255, g: 70, b: 70, a: 255 };
+        const range = new DoubleRange(0, 6);
+        const area = new Polygon(new PolygonRing([0.5, 3.0, 4.2, 2.6, 0.8], [0.6, 0.4, 2.2, 3.6, 2.8]), [
+          new PolygonRing([1.6, 2.6, 2.2], [1.4, 1.5, 2.4]),
+        ]);
+        scene3D(c, (s) =>
+          s
+            .title(t('Surface against a limit of 0.9'))
+            .xAxis(0, 6, 'x')
+            .yAxis(0, 6, 'y')
+            .zAxis(-1.5, 2, 'z')
+            .addSurface(
+              new Surface3D(field3D(128), range, range, {
+                contours: { levels: [0.9], color: red, width: 2.5, onFloor: false },
+              }),
+            )
+            .addMesh(Shapes3D.limit(range, range, 0.9, red))
+            .addMesh(
+              Shapes3D.rectangle(
+                new Point3D(4.5, 0, -1.5),
+                new Point3D(0, 6, 0),
+                new Point3D(0, 0, 3.5),
+                { r: 58, g: 134, b: 255, a: 255 },
+                { opacity: 0.25, gloss: 0 },
+              ),
+            )
+            .addMesh(
+              Shapes3D.polygon(
+                area,
+                new Point3D(0, 0, 1.45),
+                new Point3D(1, 0, 0),
+                new Point3D(0, 1, 0.12),
+                { r: 6, g: 214, b: 160, a: 255 },
+                { opacity: 0.6, gloss: 0.2 },
+              ),
+            ),
+        );
       },
     },
     {

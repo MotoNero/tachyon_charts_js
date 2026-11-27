@@ -108,6 +108,7 @@ const german: Readonly<Record<string, string>> = {
   'Columns over a raster': 'Säulen über einem Raster',
   'A ring from triangles in the light': 'Ein Ring aus Dreiecken im Licht',
   'Height in m': 'Höhe in m',
+  'Surface against a limit of 0.9': 'Fläche gegen eine Grenze von 0,9',
   'Antenna gain': 'Antennengewinn',
   'Knot of tube, colored by height': 'Knoten aus Rohr, nach Höhe gefärbt',
   'A see-through surface over see-through columns': 'Eine durchsichtige Fläche über durchsichtigen Säulen',
