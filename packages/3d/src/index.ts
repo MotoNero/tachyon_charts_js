@@ -12,6 +12,7 @@ export { ModelFile, ModelFileData, ModelFileError, type ModelMeshOptions } from 
 export { AntennaPattern3D, type AntennaCut, type AntennaLobe, type AntennaPattern3DOptions } from './scene/antenna';
 export { ClipPlane3D, type ClipPlane3DOptions, type CutCurve } from './scene/clip-plane';
 export { Shapes3D } from './scene/shapes';
+export { CutCurveFeed, type CutMarker, type CutScene } from './scene/cut-feed';
 export { MeasuredMap3D, type MeasuredMap3DOptions } from './scene/measured-map';
 export { TransferFunction3D, type TransferPoint3D } from './scene/transfer';
 export {

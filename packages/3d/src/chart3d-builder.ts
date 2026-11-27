@@ -9,6 +9,7 @@ import { ScenePicker } from './rendering/scene-picker';
 import { ValueLabels3D } from './rendering/value-labels';
 import type { AntennaPattern3D } from './scene/antenna';
 import type { ClipPlane3D } from './scene/clip-plane';
+import type { CutCurveFeed } from './scene/cut-feed';
 import type { PointCloud3D } from './scene/point-cloud';
 import type { Volume3D } from './scene/volume';
 import type { MeasuredMap3D } from './scene/measured-map';
@@ -105,6 +106,12 @@ export class Chart3DBuilder {
    */
   addPlane(plane: ClipPlane3D): this {
     this.scene.addPlane(plane);
+    return this;
+  }
+
+  /** Adds a curve that follows a cut through a surface, as data for a 2D chart. */
+  addCut(feed: CutCurveFeed): this {
+    this.scene.addCut(feed);
     return this;
   }
 

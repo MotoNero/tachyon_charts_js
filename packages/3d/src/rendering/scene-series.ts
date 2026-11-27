@@ -25,6 +25,7 @@ import type { MeasuredMap3D } from '../scene/measured-map';
 import type { PointCloud3D } from '../scene/point-cloud';
 import { CloudLoader } from './cloud-loader';
 import { ScenePicker } from './scene-picker';
+import { sceneToCsv } from './scene-csv';
 import { addSpectrumLines, spectrumLevels } from '../scene/spectrum-links';
 import { transferTableSize } from '../scene/transfer';
 import type { Volume3D } from '../scene/volume';
@@ -152,6 +153,10 @@ export class Scene3DSeries extends ChartSeries {
   /** {@inheritDoc ChartSeries.prepare} */
   override prepare(device: RenderDevice, frame: SeriesFrame): void {
     this.joinGroup();
+    // The curves of cuts follow their planes and surfaces; a 2D chart redraws when its source changes.
+    for (const feed of this.scene.feeds) {
+      feed.update(this.scene);
+    }
     this.drawsCopy = !(device instanceof WebGpuDevice);
     if (device instanceof WebGpuDevice) {
       this.render(device, frame);
@@ -166,6 +171,14 @@ export class Scene3DSeries extends ChartSeries {
     if (picture) {
       commands.drawImage(picture, frame.bounds);
     }
+  }
+
+  /**
+   * The data of the scene that lies inside the axes as CSV, one line per point with object, x, y, z and value; the CSV
+   * export of the chart takes it instead of points of its own.
+   */
+  toCsv(): string {
+    return sceneToCsv(this.scene);
   }
 
   /** {@inheritDoc ChartSeries.releaseResources} */

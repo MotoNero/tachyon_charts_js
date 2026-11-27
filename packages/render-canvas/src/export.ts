@@ -153,6 +153,13 @@ export interface CsvPoints {
  * Series without points of their own, such as bars and rasters, have no rows.
  */
 export function chartToCsv(chart: ChartSurface): string {
+  // A series with a table of its own, such as a 3D scene, writes the file itself.
+  for (const series of chart.series) {
+    const own = (series as { toCsv?: () => string }).toCsv;
+    if (typeof own === 'function') {
+      return own.call(series);
+    }
+  }
   const lines = ['series,x,y'];
   for (const points of visiblePoints(chart)) {
     const name = quote(points.name);

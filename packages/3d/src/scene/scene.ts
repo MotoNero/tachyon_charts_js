@@ -7,6 +7,7 @@ import type { Bubbles3D } from './bubbles';
 import type { Mesh3D } from './mesh';
 import type { AntennaPattern3D } from './antenna';
 import type { ClipPlane3D } from './clip-plane';
+import type { CutCurveFeed } from './cut-feed';
 import type { Pick3D } from './picking';
 import type { PointCloud3D } from './point-cloud';
 import type { Volume3D } from './volume';
@@ -54,6 +55,7 @@ export class Scene3D {
   private readonly planeList: ClipPlane3D[] = [];
   private readonly cloudList: PointCloud3D[] = [];
   private readonly volumeList: Volume3D[] = [];
+  private readonly feedList: CutCurveFeed[] = [];
   private axesShown = true;
   private cursorPlace: number | undefined;
   private markerList: Pick3D[] = [];
@@ -157,6 +159,18 @@ export class Scene3D {
   addMesh(mesh: Mesh3D): void {
     this.meshList.push(mesh);
     this.addElement(mesh);
+  }
+
+  /** The curves that follow cuts through surfaces, as data for 2D charts. */
+  get feeds(): readonly CutCurveFeed[] {
+    return this.feedList;
+  }
+
+  /** Adds a curve that follows a cut through a surface, as data for a 2D chart. */
+  addCut(feed: CutCurveFeed): void {
+    this.feedList.push(feed);
+    feed.scene = this;
+    this.changes++;
   }
 
   /** The volumes. */

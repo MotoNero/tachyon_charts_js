@@ -924,7 +924,9 @@ bubbles, lines, scatters, clouds and volumes — with its place and value, found
 click sets a numbered marker (`scene.markers`, `onMarkerAdded`), a click on a marker removes it, Delete removes the
 newest; a click on a slice of a pie pulls it out or back, and on the waterfall of a spectrum it sets a marker of the
 spectrum. Elements with `showsValues` write their values above their points, evenly thinned and never covering each
-other. Drag to turn,
+other. A `CutCurveFeed` keeps a data source on the cut of an upright plane through a surface, so a 2D chart shows the
+cut as a line that follows the plane as it is dragged, and markers of the 3D chart sit on it. The CSV export of a 3D
+chart writes its scene: one line per point with object, x, y, z and value, for what lies inside the axes. Drag to turn,
 Shift and drag to move, wheel and + and − to zoom, arrows to turn, Home or a double click for the first view. The
 scene draws with WebGPU directly: the chart element draws a 3D chart on the main thread with a WebGPU device of its own,
 also where the page draws its other charts in a render worker (`ChartBuilder.drawsOnMainThread()`); with WebGL 2,

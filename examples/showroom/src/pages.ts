@@ -99,6 +99,7 @@ import {
   evenContours,
   Line3D,
   ClipPlane3D,
+  CutCurveFeed,
   Mesh3D,
   Pie3D,
   Point3D,
@@ -789,10 +790,71 @@ function coupled3DPage(): Page {
   };
 }
 
+// A surface with an upright plane through it in 3D, and the cut along the plane as a line in a 2D chart below: dragging
+// the orange outline moves the plane, and the line follows.
+function cut3DPage(): Page {
+  const side = 256;
+  const values = new Float32Array(side * side);
+  for (let i = 0; i < values.length; i++) {
+    const px = (2 * (i % side)) / (side - 1) - 1;
+    const py = (2 * Math.trunc(i / side)) / (side - 1) - 1;
+    values[i] = 0.7 * Math.sin(px * 3) * Math.cos(py * 2.5);
+  }
+  const data = new HeatmapData(side, side);
+  data.setValues(values);
+  const surface = new Surface3D(data, new DoubleRange(-1, 1), new DoubleRange(-1, 1));
+  const plane = new ClipPlane3D(new Point3D(0, 1, 0), 0.25, { hides: false });
+  const feed = new CutCurveFeed(plane, surface);
+  return {
+    id: 'cut-3d',
+    name: 'Cut as a 2D chart',
+    group: '3D',
+    hint: 'Above: drag the orange outline to move the cut | Below: the cut as a line, wheel and drag zoom both',
+    configure: (c) => {
+      scene3D(c, (s) =>
+        s
+          .title(t('Cut through a surface'))
+          .xAxis(-1, 1, 'x')
+          .yAxis(-1, 1, 'y')
+          .zAxis(-1, 1, 'z')
+          .addSurface(surface)
+          .addPlane(plane)
+          .addCut(feed)
+          .group('cut-3d'),
+      );
+    },
+    start: () => {
+      const main = document.querySelector<HTMLElement>('#chart');
+      const below = document.createElement('tachyon-chart');
+      const theme = main?.getAttribute('theme');
+      if (theme) {
+        below.setAttribute('theme', theme);
+      }
+      below.chart = new ChartBuilder()
+        .title(t('The cut along the plane'))
+        .xAxis((a) => a.numeric('x').range(-1, 1))
+        .yAxis((a) => a.numeric('z').range(-1, 1))
+        .addLine(feed.data, (line) => line.thickness(1.5))
+        .group('cut-3d')
+        .addModifier(() => new ZoomPanModifier())
+        .addModifier(() => new CrosshairModifier());
+      main?.after(below);
+      main?.parentElement?.classList.add('with-pair');
+      return {
+        dispose: () => {
+          below.remove();
+          main?.parentElement?.classList.remove('with-pair');
+        },
+      };
+    },
+  };
+}
+
 function pages3D(): Page[] {
   return [
     spectrumWaterfallPage(),
     coupled3DPage(),
+    cut3DPage(),
     {
       id: 'cut-planes-3d',
       name: 'Cut planes',

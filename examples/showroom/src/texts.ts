@@ -108,6 +108,10 @@ const german: Readonly<Record<string, string>> = {
   'Columns over a raster': 'Säulen über einem Raster',
   'A ring from triangles in the light': 'Ein Ring aus Dreiecken im Licht',
   'Height in m': 'Höhe in m',
+  'Cut through a surface': 'Schnitt durch eine Fläche',
+  'The cut along the plane': 'Der Schnitt entlang der Ebene',
+  'Above: drag the orange outline to move the cut | Below: the cut as a line, wheel and drag zoom both':
+    'Oben: orangen Umriss ziehen verschiebt den Schnitt | Unten: der Schnitt als Linie, Rad und Ziehen zoomen beide',
   'Waterfall with mask and markers': 'Wasserfall mit Maske und Markern',
   'Traces ago': 'Spuren zurück',
   'Narrowed by a 2D chart': 'Von einem 2D-Chart eingegrenzt',
