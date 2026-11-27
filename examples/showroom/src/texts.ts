@@ -116,6 +116,8 @@ const german: Readonly<Record<string, string>> = {
   'Depth in 100 m': 'Tiefe in 100 m',
   'Drag: turn | Shift+drag: move | Wheel: zoom | Arrow keys: turn | Double click, Home: start':
     'Ziehen: drehen | Umschalt+Ziehen: verschieben | Rad: Zoom | Pfeiltasten: drehen | Doppelklick, Pos1: Anfang',
+  'Drag the orange outline: move the plane | Drag: turn | Shift+drag: move | Wheel: zoom | Arrow keys: turn | Double click, Home: start':
+    'Orangen Umriss ziehen: Ebene verschieben | Ziehen: drehen | Umschalt+Ziehen: verschieben | Rad: Zoom | Pfeiltasten: drehen | Doppelklick, Pos1: Anfang',
   'Last value at the axis': 'Letzter Wert an der Achse',
   'Temperatures, live': 'Temperaturen, live',
   Trigger: 'Trigger',

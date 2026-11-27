@@ -6,6 +6,7 @@ import type { Bars3D } from './bars';
 import type { Bubbles3D } from './bubbles';
 import type { Mesh3D } from './mesh';
 import type { AntennaPattern3D } from './antenna';
+import type { ClipPlane3D } from './clip-plane';
 import type { MeasuredMap3D } from './measured-map';
 import type { Pie3D } from './pie';
 import type { Line3D, Scatter3D } from './points';
@@ -47,6 +48,7 @@ export class Scene3D {
   private readonly pieList: Pie3D[] = [];
   private readonly antennaList: AntennaPattern3D[] = [];
   private readonly mapList: MeasuredMap3D[] = [];
+  private readonly planeList: ClipPlane3D[] = [];
   private axesShown = true;
   private changes = 0;
 
@@ -106,6 +108,23 @@ export class Scene3D {
   addMesh(mesh: Mesh3D): void {
     this.meshList.push(mesh);
     this.addElement(mesh);
+  }
+
+  /** The planes that cut the scene. */
+  get planes(): readonly ClipPlane3D[] {
+    return this.planeList;
+  }
+
+  /**
+   * Adds a plane that cuts the scene; at most four hide what lies beyond them.
+   * @throws RangeError for a fifth plane that hides.
+   */
+  addPlane(plane: ClipPlane3D): void {
+    if (plane.hides && this.planeList.filter((other) => other.hides).length >= 4) {
+      throw new RangeError('At most four planes can hide parts of a scene.');
+    }
+    this.planeList.push(plane);
+    this.addElement(plane);
   }
 
   /** The maps from measured points. */

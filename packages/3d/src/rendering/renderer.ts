@@ -93,6 +93,13 @@ export class Renderer3D {
   private readonly meshes = new Map<object, MeshBuffers>();
   // No plane cuts the scene: each column keeps every point (0, 0, 0, 1).
   private readonly cuts = new Float32Array([0, 0, 0, 1, 0, 0, 0, 1, 0, 0, 0, 1, 0, 0, 0, 1]);
+
+  /** Sets the planes that cut the scene, up to four of normal and minus offset; the others keep every point. */
+  cutWith(planes: readonly (readonly [number, number, number, number])[]): void {
+    for (let i = 0; i < 4; i++) {
+      this.cuts.set(planes[i] ?? [0, 0, 0, 1], i * 4);
+    }
+  }
   private lines: GPUBuffer | undefined;
   private lineCapacity = 0;
   private size: PixelSize = { width: 0, height: 0 };

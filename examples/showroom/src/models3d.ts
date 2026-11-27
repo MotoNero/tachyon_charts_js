@@ -1,5 +1,17 @@
-// Models for the 3D pages: a large knot of tube and the pattern of an antenna, made in code.
-import { AntennaPattern3D, Chart3DBuilder, MeasuredMap3D, ModelFileData, Point3D } from '@tachyon-charts/3d';
+// Models for the 3D pages: a large knot of tube, the pattern of an antenna, a map from measurements and a pipe bend
+// from an STL file, made in code.
+import {
+  AntennaPattern3D,
+  Chart3DBuilder,
+  ClipPlane3D,
+  MeasuredMap3D,
+  ModelFile,
+  ModelFileData,
+  Point3D,
+  Points3D,
+  Scatter3D,
+} from '@tachyon-charts/3d';
+import { Colormap, DoubleRange } from '@tachyon-charts/core';
 import { SeededRandom } from '@tachyon-charts/large-data';
 
 /** Temperature over speed and load from 160 measurements at uneven places, connected to a surface. */
@@ -110,4 +122,159 @@ export function createKnot(along = 4000, around = 125): ModelFileData {
     }
   }
   return new ModelFileData(positions, triangles);
+}
+
+// The pipe bend with flanges, made as a binary STL file and read back like one from disk.
+const leg = 40;
+const bend = 60;
+const outer = 15;
+const inner = 12;
+const flange = 25;
+const flangeThickness = 5;
+
+/** The length of the pipe along its middle, in mm. */
+export const pipeLength = 2 * leg + (bend * Math.PI) / 2;
+
+// The middle of the pipe: along x, a quarter circle upward, then along z.
+function middle(s: number): Point3D {
+  if (s <= leg) {
+    return new Point3D(s, 0, 0);
+  }
+  const angle = (s - leg) / bend;
+  if (angle <= Math.PI / 2) {
+    return new Point3D(leg + bend * Math.sin(angle), 0, bend - bend * Math.cos(angle));
+  }
+  return new Point3D(leg + bend, 0, bend + (s - leg - (bend * Math.PI) / 2));
+}
+
+function tangent(s: number): Point3D {
+  const angle = Math.min(Math.max((s - leg) / bend, 0), Math.PI / 2);
+  return new Point3D(Math.cos(angle), 0, Math.sin(angle));
+}
+
+function along(place: Point3D): number {
+  if (place.x <= leg) {
+    return place.x;
+  }
+  if (place.z <= bend) {
+    return leg + bend * Math.atan2(place.x - leg, bend - place.z);
+  }
+  return leg + (bend * Math.PI) / 2 + (place.z - bend);
+}
+
+function ring(s: number, radius: number, step: number, around: number): Point3D {
+  const angle = (2 * Math.PI * step) / around;
+  const up = new Point3D(0, 1, 0);
+  const side = Point3D.cross(tangent(s), up);
+  return middle(s).plus(
+    up
+      .times(Math.cos(angle))
+      .plus(side.times(Math.sin(angle)))
+      .times(radius),
+  );
+}
+
+// A band of triangles between two rings around the middle.
+function band(
+  corners: Point3D[],
+  s0: number,
+  r0: number,
+  s1: number,
+  r1: number,
+  around: number,
+  outward: boolean,
+  steps = 1,
+): void {
+  for (let k = 0; k < steps; k++) {
+    const a = s0 + ((s1 - s0) * k) / steps;
+    const b = s0 + ((s1 - s0) * (k + 1)) / steps;
+    for (let j = 0; j < around; j++) {
+      const p0 = ring(a, r0, j, around);
+      const p1 = ring(a, r0, j + 1, around);
+      const q0 = ring(b, r1, j, around);
+      const q1 = ring(b, r1, j + 1, around);
+      if (outward) {
+        corners.push(p0, q1, p1, p0, q0, q1);
+      } else {
+        corners.push(p0, p1, q1, p0, q1, q0);
+      }
+    }
+  }
+}
+
+/** Creates the pipe bend as the bytes of a binary STL file. */
+export function createPipeStl(around = 96): Uint8Array<ArrayBuffer> {
+  const length = pipeLength;
+  const bendSteps = 48;
+  // Places along the middle, with the outer radius there: a flange at each end, the bend in fine steps.
+  const stations: [number, number][] = [
+    [0, flange],
+    [flangeThickness, flange],
+    [flangeThickness, outer],
+    [leg, outer],
+  ];
+  for (let i = 1; i <= bendSteps; i++) {
+    stations.push([leg + (((bend * Math.PI) / 2) * i) / bendSteps, outer]);
+  }
+  stations.push([length - flangeThickness, outer], [length - flangeThickness, flange], [length, flange]);
+  const corners: Point3D[] = [];
+  for (let i = 0; i + 1 < stations.length; i++) {
+    const [s0, r0] = stations[i] as [number, number];
+    const [s1, r1] = stations[i + 1] as [number, number];
+    band(corners, s0, r0, s1, r1, around, true);
+  }
+  band(corners, 0, inner, length, inner, around, false, bendSteps + 2);
+  band(corners, 0, inner, 0, flange, around, true);
+  band(corners, length, flange, length, inner, around, true);
+  const count = corners.length / 3;
+  const bytes = new Uint8Array(84 + count * 50);
+  const view = new DataView(bytes.buffer);
+  new TextEncoder().encodeInto('pipe bend, made in code', bytes);
+  view.setUint32(80, count, true);
+  corners.forEach((corner, i) => {
+    const at = 84 + Math.trunc(i / 3) * 50 + 12 + (i % 3) * 12;
+    view.setFloat32(at, corner.x, true);
+    view.setFloat32(at + 4, corner.y, true);
+    view.setFloat32(at + 8, corner.z, true);
+  });
+  return bytes;
+}
+
+/**
+ * The temperature of the wall at a place in mm: hot water enters at the first flange and cools down, with a hot spot
+ * on the outside of the bend.
+ */
+export function pipeTemperature(place: Point3D): number {
+  const spot = middle(leg + (bend * Math.PI) / 4).plus(
+    new Point3D(Math.sin(Math.PI / 4), 0, -Math.cos(Math.PI / 4)).times(outer),
+  );
+  const distance = place.minus(spot).length;
+  return 92 - (34 * along(place)) / pipeLength + 26 * Math.exp((-distance * distance) / 500);
+}
+
+/** Places of sensors along the inner side of the pipe, in mm. */
+export function pipeSensors(count: number): Point3D[] {
+  return Array.from({ length: count }, (_, i) => {
+    const s = flangeThickness + 6 + ((pipeLength - 2 * flangeThickness - 12) * i) / (count - 1);
+    return middle(s).plus(Point3D.cross(tangent(s), new Point3D(0, 1, 0)).times(outer + 3));
+  });
+}
+
+/** A pipe bend read from an STL file, colored by the temperature of its wall, with sensors and cut open by a plane. */
+export function pipeModel(chart: Chart3DBuilder): Chart3DBuilder {
+  const model = ModelFile.readStl(createPipeStl());
+  const mesh = model.toValueMesh(
+    model.positions.map(pipeTemperature),
+    Colormap.builtIn('turbo'),
+    new DoubleRange(55, 115),
+    { gloss: 0.3 },
+    '°C',
+  );
+  model.addToScale(chart.title('Pipe bend, wall temperature in °C'), mesh);
+  const sensors = pipeSensors(9);
+  const points = new Points3D(sensors.length);
+  for (const place of sensors) {
+    points.append(place.x, place.y - 1, place.z, { r: 255, g: 255, b: 255, a: 255 }, 10);
+  }
+  return chart.addScatter(new Scatter3D(points)).addPlane(new ClipPlane3D(new Point3D(0, 1, 0), -0.05));
 }

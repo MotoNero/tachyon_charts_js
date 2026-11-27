@@ -4,6 +4,7 @@ import { findBuiltInTheme, type Axis, type ChartBuilder, type ThemeDocument } fr
 import { AxisLabels3D } from './rendering/axis-labels';
 import { PieLabels3D } from './rendering/pie-labels';
 import type { AntennaPattern3D } from './scene/antenna';
+import type { ClipPlane3D } from './scene/clip-plane';
 import type { MeasuredMap3D } from './scene/measured-map';
 import type { Pie3D } from './scene/pie';
 import { Orbit3DModifier } from './rendering/orbit-modifier';
@@ -88,6 +89,15 @@ export class Chart3DBuilder {
     this.scene.showsAxes = false;
     this.scene.camera.zoom(0.62);
     this.scene.addPie(pie);
+    return this;
+  }
+
+  /**
+   * Adds a plane that cuts away what lies beyond it; dragging its orange outline moves it.
+   * @throws RangeError for a fifth plane that hides.
+   */
+  addPlane(plane: ClipPlane3D): this {
+    this.scene.addPlane(plane);
     return this;
   }
 

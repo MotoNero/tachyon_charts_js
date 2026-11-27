@@ -867,6 +867,7 @@ builder
 ![A lit pie of ten slices with one pulled out, labels on the slices and beside the pie](docs/images/pie-3d.png)
 ![The gain of an antenna as a shape around the center, its main lobe marked with gain and widths](docs/images/antenna-3d.png)
 ![Temperature over speed and load from 160 measurements at uneven places, connected to a surface](docs/images/map-3d.png)
+![A pipe bend from an STL file colored by wall temperature, cut open by a plane, with sensors](docs/images/model-3d.png)
 
 `@tachyon-charts/3d` draws a scene in an axis box: the walls behind the box seen from the eye with their grid, the
 numbers and titles of the three axes along the edges, and height fields (`Surface3D`) colored by height and lit, with
@@ -887,7 +888,9 @@ sharp in the light. `toValueMesh` colors a model by a value per point and shows 
 the center whose distance is the gain above a floor 40 dB below the peak; the main lobe is marked with its gain and its
 widths at half power, and `azimuthCut` and `elevationCut` give cuts for a polar chart. A map from measurements at uneven places
 (`MeasuredMap3D`, `addMap`) connects the points to a surface by a Delaunay triangulation in the box, marks the measured
-points and can leave out triangles with long edges (`longestEdge`) so that wide gaps stay empty. Drag to turn,
+points and can leave out triangles with long edges (`longestEdge`) so that wide gaps stay empty. Up to four planes
+(`ClipPlane3D`, `addPlane`) cut away what lies beyond them, for every kind of data; dragging the orange outline of a
+plane moves it, and `cutSurface` and `cutBars` give the cut of an upright plane for a 2D chart. Drag to turn,
 Shift and drag to move, wheel and + and − to zoom, arrows to turn, Home or a double click for the first view. The
 scene draws with WebGPU directly: the chart element draws a 3D chart on the main thread with a WebGPU device of its own,
 also where the page draws its other charts in a render worker (`ChartBuilder.drawsOnMainThread()`); with WebGL 2,

@@ -97,6 +97,7 @@ import {
   Bubbles3D,
   evenContours,
   Line3D,
+  ClipPlane3D,
   Mesh3D,
   Pie3D,
   Point3D,
@@ -125,7 +126,7 @@ import {
   opfsSource,
   writableSink,
 } from '@tachyon-charts/large-data';
-import { createAntenna, createKnot, measuredMap } from './models3d';
+import { createAntenna, createKnot, measuredMap, pipeModel } from './models3d';
 import { t } from './texts';
 
 /**
@@ -546,6 +547,8 @@ function linkedChartsPage(): Page {
 
 // The 3D pages of the .NET showroom: a chart with its scene, turned with the pointer.
 const hint3D = 'Drag: turn | Shift+drag: move | Wheel: zoom | Arrow keys: turn | Double click, Home: start';
+const hintPlanes =
+  'Drag the orange outline: move the plane | Drag: turn | Shift+drag: move | Wheel: zoom | Arrow keys: turn | Double click, Home: start';
 
 // A wave and a hill over 6 × 6, as ContourData.CreateField of the .NET version.
 function field3D(side: number): HeatmapData {
@@ -646,6 +649,33 @@ function torusMesh(): Mesh3D {
 
 function pages3D(): Page[] {
   return [
+    {
+      id: 'cut-planes-3d',
+      name: 'Cut planes',
+      group: '3D',
+      hint: hintPlanes,
+      configure: (c) => {
+        scene3D(c, (s) =>
+          s
+            .title(t('Surface'))
+            .xAxis(0, 6, 'x')
+            .yAxis(0, 6, 'y')
+            .zAxis(-1.5, 2, 'z')
+            .addSurface(new Surface3D(field3D(256), new DoubleRange(0, 6), new DoubleRange(0, 6)))
+            .addPlane(new ClipPlane3D(new Point3D(-1, 0, 0), -0.35))
+            .addPlane(new ClipPlane3D(new Point3D(-0.5, 1, 0), -0.5)),
+        );
+      },
+    },
+    {
+      id: 'model-3d',
+      name: 'Model with measuring points',
+      group: '3D',
+      hint: hintPlanes,
+      configure: (c) => {
+        scene3D(c, pipeModel);
+      },
+    },
     {
       id: 'map-3d',
       name: 'Map from measurements',

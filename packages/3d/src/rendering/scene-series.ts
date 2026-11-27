@@ -242,6 +242,16 @@ export class Scene3DSeries extends ChartSeries {
       const color = this.colorOf(scatter, scatter.hasOwnColor, scatter.color);
       renderer.spotsOf(scatter).upload(map, color, this.ranges + ' ' + colorKey(color), toSizeCode(scatter.size));
     }
+    renderer.cutWith(
+      this.scene.planes
+        .filter((plane) => plane.hides)
+        .map((plane) => [
+          Math.fround(plane.normal.x),
+          Math.fround(plane.normal.y),
+          Math.fround(plane.normal.z),
+          Math.fround(-plane.offset),
+        ]),
+    );
     const aspect = size.width / size.height;
     const camera = this.scene.camera;
     camera.createMatrix(aspect).toGpu(this.matrix);
@@ -515,6 +525,7 @@ export class Scene3DSeries extends ChartSeries {
       scene.showsAxes,
       scene.antennas.length,
       scene.maps.length,
+      scene.planes.map((plane) => plane.version).join(','),
     ].join(' ');
     if (key === this.linesKey) {
       return;
@@ -535,6 +546,15 @@ export class Scene3DSeries extends ChartSeries {
     }
     this.lines.addAll(this.grid, themeColor(theme?.grid?.major, defaultGrid));
     this.lines.addAll(this.frameLines, themeColor(theme?.axis?.line, defaultFrame));
+    const outline: Rgba8 = { r: 240, g: 150, b: 60, a: 255 };
+    for (const plane of scene.planes) {
+      const corners = plane.outline();
+      corners.forEach((a, i) => {
+        const b = corners[(i + 1) % corners.length] as Point3D;
+        this.lines.add(Math.fround(a.x), Math.fround(a.y), Math.fround(a.z), outline);
+        this.lines.add(Math.fround(b.x), Math.fround(b.y), Math.fround(b.z), outline);
+      });
+    }
     for (const map of scene.maps) {
       if (map.showsPoints) {
         this.addPointMarks(map);
