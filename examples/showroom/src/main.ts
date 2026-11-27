@@ -74,6 +74,8 @@ function translate(): void {
     // The renderer with the graphics card it runs on, such as WebGPU (nvidia lovelace); a software renderer such as
     // swiftshader means the processor draws.
     thread.textContent = chart.rendererName ? `${place} · ${chart.rendererName}` : place;
+    // A long name of the graphics card is cut in the header; the whole of it shows on the pointer.
+    thread.title = thread.textContent;
   }
   for (const option of themeChoice?.options ?? []) {
     if (option.dataset.text) {

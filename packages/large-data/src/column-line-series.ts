@@ -47,6 +47,11 @@ export class ColumnLineSeries extends ChartSeries {
     super(xAxis, yAxis);
   }
 
+  /** {@inheritDoc @tachyon-charts/core#ChartSeries.refiningProgress} */
+  override get refiningProgress(): number | undefined {
+    return this.column.progress;
+  }
+
   /** The color of the line. */
   get color(): Rgba8 {
     return this.lineColor;

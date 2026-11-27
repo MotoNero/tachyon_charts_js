@@ -30,6 +30,11 @@ export class PointDensitySeries extends RasterSeries {
     this.isLogarithmic = true;
   }
 
+  /** {@inheritDoc @tachyon-charts/core#ChartSeries.refiningProgress} */
+  override get refiningProgress(): number | undefined {
+    return this.tiles.progress;
+  }
+
   /** The highest count of a pixel in the view shown. */
   get maximum(): number {
     return this.highest;

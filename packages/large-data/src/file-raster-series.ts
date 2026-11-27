@@ -29,6 +29,11 @@ export class FileRasterSeries extends RasterSeries {
     super(xAxis, yAxis);
   }
 
+  /** {@inheritDoc @tachyon-charts/core#ChartSeries.refiningProgress} */
+  override get refiningProgress(): number | undefined {
+    return this.raster.progress;
+  }
+
   /**
    * Whether the colormap spans the lowest to the highest value of the raster once its stages know them; on by
    * default, off once a range is set.

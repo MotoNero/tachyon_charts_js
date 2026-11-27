@@ -156,6 +156,7 @@ export class ColumnLineSeries extends ChartSeries {
     get drawnPointCount(): number;
     prepare(device: RenderDevice, frame: SeriesFrame): void;
     prepareData(frame: SeriesFrame): void;
+    get refiningProgress(): number | undefined;
     releaseResources(): void;
     get thickness(): number;
     set thickness(value: number);
@@ -412,6 +413,7 @@ export class FileRasterSeries extends RasterSeries {
     dataRange(axis: 'x' | 'y'): DoubleRange_2 | undefined;
     prepareData(frame: SeriesFrame): void;
     readonly raster: LargeRaster;
+    get refiningProgress(): number | undefined;
     get region(): RasterRegion | undefined;
     get valueRange(): DoubleRange_2;
     set valueRange(value: DoubleRange_2);
@@ -528,6 +530,7 @@ export class PointDensitySeries extends RasterSeries {
     get maximum(): number;
     pointBudget: number;
     prepareData(frame: SeriesFrame): void;
+    get refiningProgress(): number | undefined;
     readonly tiles: PointTiles;
     get version(): number;
 }

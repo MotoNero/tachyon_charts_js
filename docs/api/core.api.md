@@ -710,6 +710,7 @@ export abstract class ChartSeries {
         x: number;
         y: number;
     } | undefined;
+    get refiningProgress(): number | undefined;
     releaseResources(): void;
     get showsLastValue(): boolean;
     set showsLastValue(value: boolean);
@@ -1879,6 +1880,14 @@ export class LineSeries extends ChartSeries {
 export function linkDataSource(source: AppendTarget | ShareableSource, endpoint: DataEndpoint, options?: DataLinkOptions): 'shared' | 'transferred';
 
 // @public
+export class LoadingOverlay extends ChartOverlay {
+    draw(canvas: OverlayCanvas): void;
+    hide(): void;
+    get isShown(): boolean;
+    show(text: string, share?: number): void;
+}
+
+// @public
 export class LodPyramid {
     constructor(
     factor?: number);
@@ -2636,6 +2645,15 @@ export function readSourcePoint(source: PointSource, origin: number, index: numb
     x: number;
     y: number;
 } | undefined;
+
+// @public
+export class RefiningOverlay extends ChartOverlay {
+    constructor(chart: ChartSurface);
+    draw(canvas: OverlayCanvas): void;
+    format: (share: number) => string;
+    get progress(): number;
+    get version(): number;
+}
 
 // @public
 export class RemoteRenderDevice implements RenderDevice {

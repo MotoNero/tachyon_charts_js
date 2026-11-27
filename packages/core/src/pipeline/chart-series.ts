@@ -76,6 +76,14 @@ export abstract class ChartSeries {
     }
   }
 
+  /**
+   * The share of the data drawn exactly, from 0 to 1, for series that start coarse and become exact, such as series of
+   * large files; `undefined` for series that draw exactly at once.
+   */
+  get refiningProgress(): number | undefined {
+    return undefined;
+  }
+
   /** Whether a plate at the axis shows the newest value of the series. */
   get showsLastValue(): boolean {
     return this.lastValueShown;

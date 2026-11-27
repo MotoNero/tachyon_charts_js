@@ -24,6 +24,7 @@ export {
   type LineDash,
 } from './annotations';
 export { AnnotationEditModifier } from './annotation-edit';
+export { LoadingOverlay, RefiningOverlay } from './progress';
 export {
   Drawing,
   DrawingLayer,

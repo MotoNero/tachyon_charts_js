@@ -29,6 +29,7 @@ const german: Readonly<Record<string, string>> = {
   Pyramid: 'Pyramide',
   'kept from before': 'von früher aufbewahrt',
   Refining: 'Wird verfeinert',
+  'Loading data': 'Daten werden geladen',
   'Time in s': 'Zeit in s',
   'Every chart streams 100 000 points per second | Wheel: zoom | Drag: pan | Double click: all':
     'Jedes Diagramm streamt 100 000 Punkte je Sekunde | Rad: Zoom | Ziehen: Pan | Doppelklick: alles',

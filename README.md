@@ -891,6 +891,24 @@ chart.chart = scene3D(new ChartBuilder(), (s) =>
 );
 ```
 
+## Loading progress
+
+![A chart that waits for its file: a plate with the text and a bar in the middle of the plot](docs/images/loading.png)
+
+While a chart waits for its data, a `LoadingOverlay` says what it waits for in the middle of the plot, with a bar
+where the share is known (`show(text, share)`, `hide()`). Series that start coarse and become exact, such as those of
+large column files, rasters and point densities, report `refiningProgress`; a `RefiningOverlay` shows the least share
+in the corner of the plot until all are exact.
+
+```ts
+const loading = new LoadingOverlay();
+chart.chart = new ChartBuilder().addOverlay(() => loading);
+const column = await LargeColumn.open({ file, onProgress: (share) => loading.show('Opening', share) });
+chart.chart = new ChartBuilder()
+  .addSeries((x, y) => new ColumnLineSeries(column, x, y))
+  .addOverlay((surface) => new RefiningOverlay(surface));
+```
+
 ## Themes
 
 ![The theme preview in the light theme: a line and markers with titled axes](docs/images/theme-light.png)

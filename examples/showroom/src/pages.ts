@@ -82,6 +82,8 @@ import {
   RubberBandZoomModifier,
   AxisDragModifier,
   LegendModifier,
+  RefiningOverlay,
+  LoadingOverlay,
   SelectionModifier,
   MeasureCursorModifier,
   OverviewModifier,
@@ -127,12 +129,23 @@ import { t } from './texts';
  */
 /** What a running page keeps: a worker or a timer to stop when the next page shows, and a line for the hint. */
 // Writes the hint of a page and a status after it.
-function sayer(hint: string): (text: string) => void {
-  return (text) => {
+// The share refined of the series that start coarse, in the language of the page.
+function refining(chart: ChartSurface): RefiningOverlay {
+  const overlay = new RefiningOverlay(chart);
+  overlay.format = (share) => `${t('Refining')} ${String(Math.floor(share * 100))} %`;
+  return overlay;
+}
+
+function sayer(hint: string, loading?: LoadingOverlay): (text: string, share?: number) => void {
+  return (text, share) => {
+    const shown = share === undefined ? text : `${text} ${String(Math.floor(share * 100))} %`;
     const element = document.querySelector('#hint');
     if (element) {
-      element.textContent = `${t(hint)} | ${text}`;
+      element.textContent = `${t(hint)} | ${shown}`;
     }
+    // While the chart waits for its data it shows the same in the middle of the plot, with a bar where the share is
+    // known; the chart with the data replaces it.
+    loading?.show(text, share);
   };
 }
 
@@ -1436,6 +1449,7 @@ async function writeBitFile(progress: (share: number) => void): Promise<void> {
 
 function digitalChannels(): Page {
   const hint = 'Wheel: zoom | Drag: pan | Double click: all';
+  const loading = new LoadingOverlay();
   const colors = [rgba(110, 210, 130), rgba(80, 170, 240), rgba(240, 130, 90), rgba(230, 200, 80)];
   return {
     id: 'digital-channels',
@@ -1443,7 +1457,9 @@ function digitalChannels(): Page {
     group: 'Lines',
     hint,
     configure: (c) => {
-      c.theme(instrument)
+      loading.show(t('Loading data'));
+      c.addOverlay(() => loading)
+        .theme(instrument)
         .xAxis((a) => a.numeric('x'))
         .yAxis((a) => a.numeric('y'));
     },
@@ -1452,10 +1468,10 @@ function digitalChannels(): Page {
       const stopped = (): boolean => run.stopped;
       let file: BitColumn | undefined;
       const chart = document.querySelector<HTMLElement & { chart: unknown }>('#chart');
-      const say = sayer(hint);
+      const say = sayer(hint, loading);
       void (async () => {
         await writeBitFile((share) => {
-          say(`${t('The first visit writes a bit file of 125 MB')} ${String(Math.floor(share * 100))} %`);
+          say(t('The first visit writes a bit file of 125 MB'), share);
         });
         if (stopped()) {
           return;
@@ -1530,13 +1546,16 @@ function digitalChannels(): Page {
 
 function lineFromACsvFile(): Page {
   const hint = 'Wheel: zoom | Drag: pan | Ctrl+drag: zoom into a rectangle | Double click: all';
+  const loading = new LoadingOverlay();
   return {
     id: 'line-from-a-csv-file',
     name: 'Line from a CSV file',
     group: 'Lines',
     hint,
     configure: (c) => {
-      c.theme(instrument)
+      loading.show(t('Loading data'));
+      c.addOverlay(() => loading)
+        .theme(instrument)
         .xAxis((a) => a.numeric('x'))
         .yAxis((a) => a.numeric('y'));
     },
@@ -1545,8 +1564,7 @@ function lineFromACsvFile(): Page {
       const stopped = (): boolean => run.stopped;
       let column: LargeColumn | undefined;
       const chart = document.querySelector<HTMLElement & { chart: unknown }>('#chart');
-      const say = sayer(hint);
-      const percent = (share: number): string => `${String(Math.floor(share * 100))} %`;
+      const say = sayer(hint, loading);
       // A file of one's own: the first column is X, the second the line.
       const picker = document.createElement('label');
       picker.className = 'picker';
@@ -1566,7 +1584,7 @@ function lineFromACsvFile(): Page {
           xColumn: 0,
           columns: [1],
           onProgress: (share) => {
-            say(`${t('Converting')} ${percent(share)}`);
+            say(t('Converting'), share);
           },
         });
         if (stopped() || conversion !== run.conversion) {
@@ -1583,6 +1601,7 @@ function lineFromACsvFile(): Page {
         say(converted);
         if (chart) {
           chart.chart = new ChartBuilder()
+            .addOverlay((built) => refining(built))
             .theme(instrument)
             .xAxis((a) => a.numeric('x').title(t('Time in s')).autoRange())
             .yAxis((a) =>
@@ -1605,7 +1624,7 @@ function lineFromACsvFile(): Page {
       });
       void (async () => {
         await writeSampleCsv((share) => {
-          say(`${t('The first visit writes a sample CSV of 200 MB')} ${percent(share)}`);
+          say(t('The first visit writes a sample CSV of 200 MB'), share);
         });
         if (!stopped() && run.conversion === 0) {
           await show(await (await opfsFile(sampleCsv.path)).getFile(), 0);
@@ -1624,13 +1643,16 @@ function lineFromACsvFile(): Page {
 
 function lineFromALargeFile(): Page {
   const hint = 'Wheel: zoom | Drag: pan | Ctrl+drag: zoom into a rectangle | Double click: all';
+  const loading = new LoadingOverlay();
   return {
     id: 'line-from-a-large-file',
     name: 'Line from a large file',
     group: 'Lines',
     hint,
     configure: (c) => {
-      c.theme(instrument)
+      loading.show(t('Loading data'));
+      c.addOverlay(() => loading)
+        .theme(instrument)
         .xAxis((a) => a.numeric('x'))
         .yAxis((a) => a.numeric('y'));
     },
@@ -1641,7 +1663,7 @@ function lineFromALargeFile(): Page {
       let column: LargeColumn | undefined;
       let worker: Worker | undefined;
       const chart = document.querySelector<HTMLElement & { chart: unknown }>('#chart');
-      const say = sayer(hint);
+      const say = sayer(hint, loading);
       const percent = (share: number): string => `${String(Math.floor(share * 100))} %`;
       void (async () => {
         if (!(await hasLargeFile())) {
@@ -1652,7 +1674,7 @@ function lineFromALargeFile(): Page {
               if (event.data.done) {
                 resolve();
               } else {
-                say(`${t('The first visit writes a test file of 1 GB')} ${percent(event.data.progress ?? 0)}`);
+                say(t('The first visit writes a test file of 1 GB'), event.data.progress ?? 0);
               }
             });
             writing.postMessage(largeFile);
@@ -1679,6 +1701,7 @@ function lineFromALargeFile(): Page {
         status();
         if (chart) {
           chart.chart = new ChartBuilder()
+            .addOverlay((built) => refining(built))
             .theme(instrument)
             .xAxis((a) => a.numeric('x').title(t('Time in s')).autoRange())
             .yAxis((a) => a.numeric('y').autoRange())
@@ -2725,13 +2748,16 @@ async function writeRasterFile(progress: (share: number) => void): Promise<void>
 
 function rasterFromALargeFile(): Page {
   const hint = 'Wheel: zoom | Drag: pan | Double click: all';
+  const loading = new LoadingOverlay();
   return {
     id: 'raster-from-a-large-file',
     name: 'Raster from a large file',
     group: 'Rasters',
     hint,
     configure: (c) => {
-      c.theme(instrument)
+      loading.show(t('Loading data'));
+      c.addOverlay(() => loading)
+        .theme(instrument)
         .xAxis((a) => a.numeric('x'))
         .yAxis((a) => a.numeric('y'));
     },
@@ -2740,10 +2766,10 @@ function rasterFromALargeFile(): Page {
       const stopped = (): boolean => run.stopped;
       let raster: LargeRaster | undefined;
       const chart = document.querySelector<HTMLElement & { chart: unknown }>('#chart');
-      const say = sayer(hint);
+      const say = sayer(hint, loading);
       void (async () => {
         await writeRasterFile((share) => {
-          say(`${t('The first visit writes a raster file of 200 MB')} ${String(Math.floor(share * 100))} %`);
+          say(t('The first visit writes a raster file of 200 MB'), share);
         });
         if (stopped()) {
           return;
@@ -2765,6 +2791,7 @@ function rasterFromALargeFile(): Page {
         status();
         if (chart) {
           chart.chart = new ChartBuilder()
+            .addOverlay((built) => refining(built))
             .theme(instrument)
             .xAxis((a) => a.numeric('x').title(t('East in km')).autoRange())
             .yAxis((a) => a.numeric('y').title(t('North in km')).autoRange())
@@ -2865,13 +2892,16 @@ async function writePointsFile(progress: (share: number) => void): Promise<void>
 
 function scatterDensityFromAFile(): Page {
   const hint = 'Wheel: zoom | Drag: pan | Double click: all';
+  const loading = new LoadingOverlay();
   return {
     id: 'scatter-density-from-a-file',
     name: 'Scatter density from a file',
     group: 'Points and areas',
     hint,
     configure: (c) => {
-      c.theme(instrument)
+      loading.show(t('Loading data'));
+      c.addOverlay(() => loading)
+        .theme(instrument)
         .xAxis((a) => a.numeric('x'))
         .yAxis((a) => a.numeric('y'));
     },
@@ -2880,10 +2910,10 @@ function scatterDensityFromAFile(): Page {
       const stopped = (): boolean => run.stopped;
       let tiles: PointTiles | undefined;
       const chart = document.querySelector<HTMLElement & { chart: unknown }>('#chart');
-      const say = sayer(hint);
+      const say = sayer(hint, loading);
       void (async () => {
         await writePointsFile((share) => {
-          say(`${t('The first visit writes 20 million points (160 MB)')} ${String(Math.floor(share * 100))} %`);
+          say(t('The first visit writes 20 million points (160 MB)'), share);
         });
         if (stopped()) {
           return;
@@ -2905,6 +2935,7 @@ function scatterDensityFromAFile(): Page {
         status();
         if (chart) {
           chart.chart = new ChartBuilder()
+            .addOverlay((built) => refining(built))
             .theme(instrument)
             .xAxis((a) => a.numeric('x').autoRange())
             .yAxis((a) => a.numeric('y').autoRange())
