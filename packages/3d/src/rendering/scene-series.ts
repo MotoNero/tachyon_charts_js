@@ -20,6 +20,7 @@ import { barStride, type Bars3D } from '../scene/bars';
 import type { Bubbles3D } from '../scene/bubbles';
 import { calculateNormals, validIndices, type Mesh3D, type Vertex3D } from '../scene/mesh';
 import type { AntennaPattern3D } from '../scene/antenna';
+import type { MeasuredMap3D } from '../scene/measured-map';
 import type { Pie3D } from '../scene/pie';
 import { Point3D } from '../scene/matrix';
 import { meshVertexStride } from './meshes';
@@ -62,6 +63,7 @@ export class Scene3DSeries extends ChartSeries {
   private readonly meshKeys = new Map<Mesh3D, string>();
   private readonly pieKeys = new Map<Pie3D, string>();
   private readonly antennaMeshes = new Map<AntennaPattern3D, Mesh3D>();
+  private readonly mapMeshes = new Map<MeasuredMap3D, Mesh3D>();
   private heights = new Float32Array(0);
   private ranges = '';
   private palette: readonly Rgba8[] = [];
@@ -211,6 +213,15 @@ export class Scene3DSeries extends ChartSeries {
     }
     for (const pie of this.scene.pies) {
       this.uploadPie(pie);
+    }
+    // Maps become meshes once.
+    for (const map of this.scene.maps) {
+      let mesh = this.mapMeshes.get(map);
+      if (!mesh) {
+        mesh = map.createMesh(this.scene.xAxis, this.scene.yAxis);
+        this.mapMeshes.set(map, mesh);
+      }
+      this.uploadMesh(mesh);
     }
     // Antennas become meshes once.
     for (const antenna of this.scene.antennas) {
@@ -475,6 +486,21 @@ export class Scene3DSeries extends ChartSeries {
     );
   }
 
+  // A small cross at each measured point of a map.
+  private addPointMarks(map: MeasuredMap3D): void {
+    const scene = this.scene;
+    const mark: Rgba8 = { r: 255, g: 255, b: 255, a: 230 };
+    const count = Math.min(map.x.length, map.y.length, map.z.length);
+    for (let i = 0; i < count; i++) {
+      const x = Math.fround(toBox(scene.xAxis, map.x[i] as number));
+      const y = Math.fround(toBox(scene.yAxis, map.y[i] as number));
+      const z = Math.fround(toBox(scene.zAxis, map.z[i] as number));
+      if (Number.isFinite(x + y + z)) {
+        addCross(this.lines, x, y, z, mark);
+      }
+    }
+  }
+
   private collectLines(theme: ThemeDocument | undefined): void {
     const scene = this.scene;
     const walls = selectWalls(scene.camera.eye);
@@ -488,6 +514,7 @@ export class Scene3DSeries extends ChartSeries {
       scene.zAxis.version,
       scene.showsAxes,
       scene.antennas.length,
+      scene.maps.length,
     ].join(' ');
     if (key === this.linesKey) {
       return;
@@ -508,6 +535,11 @@ export class Scene3DSeries extends ChartSeries {
     }
     this.lines.addAll(this.grid, themeColor(theme?.grid?.major, defaultGrid));
     this.lines.addAll(this.frameLines, themeColor(theme?.axis?.line, defaultFrame));
+    for (const map of scene.maps) {
+      if (map.showsPoints) {
+        this.addPointMarks(map);
+      }
+    }
     const mark: Rgba8 = { r: 255, g: 255, b: 255, a: 255 };
     for (const antenna of scene.antennas) {
       const ends: Point3D[] = [];
@@ -517,6 +549,16 @@ export class Scene3DSeries extends ChartSeries {
       }
     }
   }
+}
+
+function addCross(lines: LineVertices, x: number, y: number, z: number, color: Rgba8): void {
+  const size = Math.fround(0.012);
+  lines.add(Math.fround(x - size), y, z, color);
+  lines.add(Math.fround(x + size), y, z, color);
+  lines.add(x, Math.fround(y - size), z, color);
+  lines.add(x, Math.fround(y + size), z, color);
+  lines.add(x, y, Math.fround(z - size), color);
+  lines.add(x, y, Math.fround(z + size), color);
 }
 
 function colorKey(color: Rgba8): string {

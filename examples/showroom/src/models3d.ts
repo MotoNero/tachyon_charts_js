@@ -1,5 +1,28 @@
 // Models for the 3D pages: a large knot of tube and the pattern of an antenna, made in code.
-import { AntennaPattern3D, ModelFileData, Point3D } from '@tachyon-charts/3d';
+import { AntennaPattern3D, Chart3DBuilder, MeasuredMap3D, ModelFileData, Point3D } from '@tachyon-charts/3d';
+import { SeededRandom } from '@tachyon-charts/large-data';
+
+/** Temperature over speed and load from 160 measurements at uneven places, connected to a surface. */
+export function measuredMap(chart: Chart3DBuilder): Chart3DBuilder {
+  const count = 160;
+  const random = new SeededRandom(4);
+  const speed: number[] = [];
+  const load: number[] = [];
+  const temperature: number[] = [];
+  for (let i = 0; i < count; i++) {
+    speed.push(800 + 5200 * random.nextDouble());
+    load.push(10 + 90 * random.nextDouble() * random.nextDouble());
+    const a = (speed[i] as number) / 6000;
+    const b = (load[i] as number) / 100;
+    temperature.push(70 + 40 * a * b + 15 * Math.sin(a * 5) * b);
+  }
+  return chart
+    .title('Temperature over speed and load')
+    .xAxis(0, 6000, 'Speed in rpm')
+    .yAxis(0, 100, 'Load in %')
+    .zAxis(60, 120, 'Temperature in °C')
+    .addMap(new MeasuredMap3D(speed, load, temperature));
+}
 
 /** The pattern of an antenna, measured every degree: a main lobe toward 30° azimuth and 20° up over side lobes. */
 export function createAntenna(): AntennaPattern3D {

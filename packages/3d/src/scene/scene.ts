@@ -6,6 +6,7 @@ import type { Bars3D } from './bars';
 import type { Bubbles3D } from './bubbles';
 import type { Mesh3D } from './mesh';
 import type { AntennaPattern3D } from './antenna';
+import type { MeasuredMap3D } from './measured-map';
 import type { Pie3D } from './pie';
 import type { Line3D, Scatter3D } from './points';
 import type { Surface3D } from './surface';
@@ -45,6 +46,7 @@ export class Scene3D {
   private readonly meshList: Mesh3D[] = [];
   private readonly pieList: Pie3D[] = [];
   private readonly antennaList: AntennaPattern3D[] = [];
+  private readonly mapList: MeasuredMap3D[] = [];
   private axesShown = true;
   private changes = 0;
 
@@ -104,6 +106,17 @@ export class Scene3D {
   addMesh(mesh: Mesh3D): void {
     this.meshList.push(mesh);
     this.addElement(mesh);
+  }
+
+  /** The maps from measured points. */
+  get maps(): readonly MeasuredMap3D[] {
+    return this.mapList;
+  }
+
+  /** Adds a map from measured points. */
+  addMap(map: MeasuredMap3D): void {
+    this.mapList.push(map);
+    this.addElement(map);
   }
 
   /** The antenna patterns. */
