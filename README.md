@@ -488,6 +488,28 @@ and `{y}` of a server the application may use; `cacheName` keeps tiles in the ca
 Tiles arrive in the background, a coarser one stands in until the finer one is there, and without a network the
 countries below show. `TileSource.grid()` draws a grid of tiles without a server.
 
+## Medical images
+
+![An axial slice of a synthetic head in the brain window with the directions of the patient and the value under the pointer](docs/images/medical-image.png)
+
+`@tachyon-charts/medical` shows images of scanners in millimetres, without any data about the patient.
+`MedicalImageDisplay` takes the values of an image with the spacing of its pixels and its directions in the patient
+(`PatientOrientation`), shows them in a window of grey values (`CtWindowPresets.brain`, `bone`, `lung` or
+`setWindow`) and marks the directions of the patient at the edges. Dragging with the left button sets window and
+level, keys 1 to 3 choose the presets, the colour bar narrows the window under the wheel and moves it when dragged;
+the pointer shows the value and the place in millimetres. `MedicalVolume` holds a volume with its voxel spacing,
+`MedicalSlices.cut` takes its axial, coronal or sagittal slice through a place, and `MedicalPhantoms` builds a
+synthetic head and chest in Hounsfield units for trying things out.
+
+```ts
+import { CtWindowPresets, MedicalImageDisplay, MedicalPhantoms, MedicalSlices } from '@tachyon-charts/medical';
+
+const slice = MedicalSlices.cut(MedicalPhantoms.head(), 'axial', new Point3D(0, 0, 97));
+const image = new MedicalImageDisplay(slice.values, slice.width, slice.height, slice.spacing, slice.orientation, 'HU');
+image.applyPreset(CtWindowPresets.brain);
+image.configure(builder);
+```
+
 ## Legends
 
 ![A test bench with a legend of temperatures in the plot and a legend of pressures below it](docs/images/legends.png)
@@ -1038,7 +1060,7 @@ language of the axes can be chosen at the top for all pages. Every new feature b
 | `@tachyon-charts/large-data` | Column files, pyramids, OPFS, HTTP range requests, workers |
 | `@tachyon-charts/3d` | 3D charts |
 | `@tachyon-charts/geo` | Maps: countries of the world, projections, shapefiles, tiles |
-| `@tachyon-charts/medical` | DICOM and NIfTI images |
+| `@tachyon-charts/medical` | Medical images: window and level, slices of volumes, measuring in millimetres |
 | `@tachyon-charts/configurator` | The configurator as a web app |
 
 ## Documentation

@@ -8,6 +8,7 @@
     "@tachyon-charts/element": "workspace:*",
     "@tachyon-charts/geo": "workspace:*",
     "@tachyon-charts/large-data": "workspace:*",
+    "@tachyon-charts/medical": "workspace:*",
     "@tachyon-charts/render-canvas": "workspace:*"
   }
 }

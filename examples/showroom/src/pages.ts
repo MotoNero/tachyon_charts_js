@@ -151,6 +151,7 @@ import {
   volumeFromNifti,
 } from './models3d';
 import { GeoProjection, TileSource, WorldMap, map, tiles } from '@tachyon-charts/geo';
+import { CtWindowPresets, MedicalImageDisplay, MedicalPhantoms, MedicalSlices } from '@tachyon-charts/medical';
 import { t } from './texts';
 
 /**
@@ -1002,6 +1003,31 @@ function mapPages(): Page[] {
         tiles(map(c.title(t('Tiles from a server of your choice')), GeoProjection.webMercator), source)
           .addModifier(() => new ZoomPanModifier())
           .addModifier(() => new RubberBandZoomModifier());
+      },
+    },
+  ];
+}
+
+function medicalPages(): Page[] {
+  return [
+    {
+      id: 'medical-image',
+      name: 'Medical image',
+      group: 'Medical',
+      hint: 'Left drag: window and level | Keys 1, 2, 3: brain, bone, lung | Middle drag: pan | Wheel: zoom | Pointer: value and position',
+      configure: (c) => {
+        // One axial plane of the synthetic head, without patient data, as a scanner would store it.
+        const slice = MedicalSlices.cut(MedicalPhantoms.head(), 'axial', new Point3D(0, 0, 97));
+        const image = new MedicalImageDisplay(
+          slice.values,
+          slice.width,
+          slice.height,
+          slice.spacing,
+          slice.orientation,
+          'HU',
+        );
+        image.applyPreset(CtWindowPresets.brain);
+        image.configure(c);
       },
     },
   ];
@@ -2973,6 +2999,7 @@ export const pages: readonly Page[] = [
   rolloverPage(),
   ...pages3D(),
   ...mapPages(),
+  ...medicalPages(),
   linkedChartsPage(),
   marketProfilePage(),
   candlesWithoutWeekendsPage(),

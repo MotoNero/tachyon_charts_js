@@ -4,6 +4,141 @@
 
 ```ts
 
+import { ChartBuilder } from '@tachyon-charts/core';
+import { Colormap } from '@tachyon-charts/core';
+import { HeatmapData } from '@tachyon-charts/core';
+import { Point3D } from '@tachyon-charts/3d';
+import { VolumeData } from '@tachyon-charts/3d';
+
+// @public
+export const CtWindowPresets: {
+    readonly brain: MedicalWindow;
+    readonly bone: MedicalWindow;
+    readonly lung: MedicalWindow;
+};
+
+// @public
+export interface ImageSpacing {
+    readonly column: number;
+    readonly row: number;
+}
+
+// @public
+export class MedicalImageDisplay {
+    constructor(values: ArrayLike<number>,
+    width: number,
+    height: number,
+    spacing: ImageSpacing,
+    orientation: PatientOrientation,
+    unit?: string, window?: {
+        readonly center?: number | undefined;
+        readonly width?: number | undefined;
+    });
+    applyPreset(window: MedicalWindow): void;
+    colormap: Colormap;
+    configure(chart: ChartBuilder): ChartBuilder;
+    readonly data: HeatmapData;
+    readonly height: number;
+    // @internal
+    readonly initialWindow: MedicalWindow;
+    isInterpolated: boolean;
+    onWindowChanged(listener: (window: MedicalWindow) => void): () => void;
+    readonly orientation: PatientOrientation;
+    readonly orientationMarks: MedicalOrientationMarks;
+    setWindow(center: number, width: number): void;
+    readonly spacing: ImageSpacing;
+    readonly unit: string;
+    valueAt(x: number, y: number): MedicalImageProbe | undefined;
+    readonly width: number;
+    get window(): MedicalWindow;
+}
+
+// @public
+export interface MedicalImageProbe {
+    readonly column: number;
+    readonly row: number;
+    readonly unit: string;
+    readonly value: number;
+    readonly x: number;
+    readonly y: number;
+}
+
+// @public
+export type MedicalMprPlane = 'axial' | 'coronal' | 'sagittal';
+
+// @public
+export interface MedicalOrientationMarks {
+    readonly bottom: string;
+    readonly left: string;
+    readonly right: string;
+    readonly top: string;
+}
+
+// @public
+export const MedicalPhantoms: {
+    head(): MedicalVolume;
+    thorax(): MedicalVolume;
+};
+
+// @public
+export interface MedicalSlice {
+    readonly height: number;
+    readonly index: number;
+    readonly orientation: PatientOrientation;
+    readonly plane: MedicalMprPlane;
+    readonly spacing: ImageSpacing;
+    readonly values: Float32Array;
+    readonly width: number;
+}
+
+// @public
+export const MedicalSlices: {
+    cut(volume: MedicalVolume, plane: MedicalMprPlane, position: Point3D): MedicalSlice;
+    display(volume: MedicalVolume, plane: MedicalMprPlane, position: Point3D): MedicalImageDisplay;
+};
+
+// @public
+export class MedicalVolume {
+    constructor(
+    data: VolumeData, inPlane: ImageSpacing, sliceSpacing: number,
+    origin: Point3D,
+    orientation: PatientOrientation,
+    windowCenter?: number | undefined,
+    windowWidth?: number | undefined,
+    modality?: string | undefined);
+    readonly data: VolumeData;
+    readonly modality?: string | undefined;
+    readonly orientation: PatientOrientation;
+    readonly origin: Point3D;
+    readonly voxelSpacing: Point3D;
+    readonly windowCenter?: number | undefined;
+    readonly windowWidth?: number | undefined;
+}
+
+// @public
+export class MedicalWindow {
+    constructor(
+    name: string,
+    center: number,
+    width: number);
+    readonly center: number;
+    equals(other: MedicalWindow): boolean;
+    get maximum(): number;
+    get minimum(): number;
+    readonly name: string;
+    readonly width: number;
+}
+
+// @public
+export class PatientOrientation {
+    constructor(
+    across: Point3D,
+    down: Point3D);
+    readonly across: Point3D;
+    readonly down: Point3D;
+    get normal(): Point3D;
+}
+
 // @public
 export const version = "0.1.0-dev";
 

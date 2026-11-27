@@ -80,6 +80,9 @@ importers:
       '@tachyon-charts/large-data':
         specifier: workspace:*
         version: link:../../packages/large-data
+      '@tachyon-charts/medical':
+        specifier: workspace:*
+        version: link:../../packages/medical
       '@tachyon-charts/render-canvas':
         specifier: workspace:*
         version: link:../../packages/render-canvas
