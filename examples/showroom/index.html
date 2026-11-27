@@ -68,6 +68,69 @@
       header .export button:disabled {
         opacity: 0.5;
       }
+      header .record .dot {
+        display: inline-block;
+        width: 9px;
+        height: 9px;
+        margin-right: 5px;
+        border-radius: 50%;
+        background: #e0453a;
+      }
+      header .record.recording {
+        border-color: #e0453a;
+        color: #ff8a80;
+      }
+      header .record.recording .dot {
+        border-radius: 1px;
+        animation: blink 1s steps(2) infinite;
+      }
+      @keyframes blink {
+        50% {
+          opacity: 0.3;
+        }
+      }
+      header .video {
+        display: inline-block;
+        position: relative;
+        margin-left: 4px;
+      }
+      header .video summary {
+        cursor: pointer;
+        list-style: none;
+        border: 1px solid var(--line);
+        border-radius: 4px;
+        padding: 3px 7px;
+        color: var(--text);
+      }
+      header .video .panel {
+        position: absolute;
+        right: 0;
+        top: 30px;
+        z-index: 10;
+        display: grid;
+        gap: 8px;
+        min-width: 230px;
+        padding: 10px;
+        background: var(--panel, var(--bg));
+        border: 1px solid var(--line);
+        border-radius: 6px;
+      }
+      header .video .panel label {
+        display: flex;
+        justify-content: space-between;
+        align-items: center;
+        gap: 8px;
+      }
+      header .video input {
+        width: 64px;
+        background: var(--bg);
+        color: var(--text);
+        border: 1px solid var(--line);
+        border-radius: 4px;
+      }
+      header .video progress {
+        width: 100%;
+      }
       select {
         margin-left: 6px;
         background: var(--bg);
@@ -185,7 +248,36 @@
         <button id="export-png" type="button">PNG</button>
         <button id="export-svg" type="button">SVG</button>
         <button id="export-csv" type="button">CSV</button>
-        <button id="export-video" type="button" data-text="Video">Video</button>
+        <button id="record" type="button" class="record" title="Start and stop a recording">
+          <span class="dot"></span><span id="record-text" data-text="Record">Record</span>
+        </button>
+        <details class="video">
+          <summary data-text="Video">Video</summary>
+          <div class="panel">
+            <label
+              ><span data-text="Size">Size</span>
+              <select id="video-size">
+                <option value="1280">1280 × 720</option>
+                <option value="1920" selected>1920 × 1080</option>
+                <option value="3840">3840 × 2160</option>
+              </select></label
+            >
+            <label
+              ><span data-text="Quality">Quality</span>
+              <select id="video-quality">
+                <option value="6000000" data-text="Standard">Standard</option>
+                <option value="12000000" data-text="High" selected>High</option>
+                <option value="30000000" data-text="Very high">Very high</option>
+              </select></label
+            >
+            <label
+              ><span data-text="Length in s">Length in s</span>
+              <input id="video-length" type="number" min="1" max="120" value="5"
+            /></label>
+            <button id="export-video" type="button" data-text="Record this length">Record this length</button>
+            <progress id="video-progress" max="1" value="0" hidden></progress>
+          </div>
+        </details>
       </span>
       <label>
         <span data-text="Theme">Theme</span>

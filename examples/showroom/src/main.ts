@@ -9,6 +9,7 @@ import {
   type ThemeDocument,
 } from '@tachyon-charts/core';
 import { defineTachyonChart, preferredTheme, TachyonChartElement } from '@tachyon-charts/element';
+import type { ChartRecording } from '@tachyon-charts/render-canvas';
 import logo from '../../../shared/logo/tachyon-charts-lockup-dark-transparent.svg?url';
 import icon from '../../../shared/logo/tachyon-charts-avatar-dark-32.png?url';
 import { pages, type Page, type PageRun } from './pages';
@@ -221,8 +222,73 @@ if (chart) {
   onExport('#export-csv', async () => {
     download(await chart.exportCsv(), 'csv', 'text/csv');
   });
-  // Three seconds of the chart as it is; a page that streams keeps streaming into the video.
+  // The video keeps the shape of the chart: the chosen width, the height that fits, everything drawn sharper by the
+  // factor between the video and the chart on the page.
+  const videoOptions = (): { width: number; height: number; scale: number; bitRate: number } => {
+    const width = Number(document.querySelector<HTMLSelectElement>('#video-size')?.value ?? 1920);
+    const shape = size();
+    const scale = width / Math.max(shape.width, 1);
+    return {
+      width,
+      height: Math.round((shape.height * scale) / 2) * 2,
+      scale,
+      bitRate: Number(document.querySelector<HTMLSelectElement>('#video-quality')?.value ?? 12_000_000),
+    };
+  };
+  const progress = document.querySelector<HTMLProgressElement>('#video-progress');
+  // A video of the chosen length; a page that streams keeps streaming into it.
   onExport('#export-video', async () => {
-    download(await chart.recordVideo({ ...size(), duration: 3 }), 'webm', 'video/webm');
+    const seconds = Number(document.querySelector<HTMLInputElement>('#video-length')?.value ?? 5);
+    if (progress) {
+      progress.hidden = false;
+      progress.value = 0;
+    }
+    try {
+      const video = await chart.recordVideo({
+        ...videoOptions(),
+        duration: Math.min(Math.max(seconds, 1), 120),
+        onProgress: (share) => {
+          if (progress) {
+            progress.value = share;
+          }
+        },
+      });
+      download(video, 'webm', 'video/webm');
+    } finally {
+      if (progress) {
+        progress.hidden = true;
+      }
+    }
+  });
+  // A recording as in the .NET showroom: the red button starts, the chart is used, the button stops and saves.
+  const record = document.querySelector<HTMLButtonElement>('#record');
+  const recordText = document.querySelector<HTMLElement>('#record-text');
+  let recording: ChartRecording | undefined;
+  let clock: number | undefined;
+  record?.addEventListener('click', () => {
+    void (async () => {
+      if (!recording) {
+        recording = await chart.startRecording(videoOptions());
+        record.classList.add('recording');
+        const running = recording;
+        clock = window.setInterval(() => {
+          const total = Math.floor(running.seconds);
+          if (recordText) {
+            recordText.textContent = `${t('Stop')} ${String(Math.floor(total / 60))}:${String(total % 60).padStart(2, '0')}`;
+          }
+        }, 250);
+        return;
+      }
+      const stopped = recording;
+      recording = undefined;
+      window.clearInterval(clock);
+      record.classList.remove('recording');
+      if (recordText) {
+        recordText.textContent = t('Record');
+      }
+      download(await stopped.stop(), 'webm', 'video/webm');
+    })().catch((error: unknown) => {
+      console.error(error);
+    });
   });
 }

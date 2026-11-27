@@ -21,6 +21,9 @@ import { TextureDesc } from '@tachyon-charts/core';
 import { ThemeDocument } from '@tachyon-charts/core';
 
 // @public
+export function canEncodeVideo(): boolean;
+
+// @public
 export class Canvas2dDevice implements RenderDevice {
     beginFrame(target: RenderTarget): CommandList;
     readonly capabilities: DeviceCapabilities;
@@ -55,6 +58,13 @@ export interface ChartExportOptions {
 }
 
 // @public
+export interface ChartRecording {
+    cancel(): void;
+    readonly seconds: number;
+    stop(): Promise<Blob>;
+}
+
+// @public
 export function chartToCsv(chart: ChartSurface): string;
 
 // @public
@@ -69,6 +79,8 @@ export interface ChartVideoOptions {
     readonly duration?: number;
     readonly frameRate?: number;
     readonly height?: number;
+    readonly onProgress?: (share: number) => void;
+    readonly scale?: number;
     readonly step?: (frame: number, seconds: number) => void;
     readonly theme?: ThemeDocument;
     readonly width?: number;
@@ -89,7 +101,13 @@ export interface CsvPoints {
 }
 
 // @public
+export function encodeChartVideo(chart: ChartSurface, device: RenderDevice, options?: ChartVideoOptions): Promise<Blob | undefined>;
+
+// @public
 export function recordChartVideo(chart: ChartSurface, device: RenderDevice, options?: ChartVideoOptions): Promise<Blob>;
+
+// @public
+export function startChartRecording(chart: ChartSurface, device: RenderDevice, options?: ChartVideoOptions): Promise<ChartRecording>;
 
 // @public
 export const version = "0.1.0-dev";

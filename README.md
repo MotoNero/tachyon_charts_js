@@ -758,14 +758,19 @@ A chart becomes a file as in the .NET version, and the display stays as it is:
   picture of 300 dpi prints at its size.
 - **SVG** with lines, shapes and markers as vectors and text and rasters as pictures of at least 288 dpi.
 - **CSV** of the points in the visible ranges: series, X and Y; times as the cursor shows them.
-- **Video** as WebM: each frame belongs to a fixed time, frame number by frame rate, and `step` moves a range or
-  appends data before it.
+- **Video** as WebM, sharp at its own size (1920 × 1080 and 12 Mbit/s by default, `scale` draws the chart as on a
+  scaled screen): the browser encodes each frame at its exact time (VP9, else AV1), so the video plays evenly however
+  long a frame takes. A video of fixed length takes `duration`, `step` moves a range or appends data before each
+  frame, `onProgress` reports the share done; `startRecording` records the chart as people use it until `stop()`.
 
 ```ts
 const png = await chart.exportPng({ width: 1200, height: 800, dpi: 300 });
 const svg = await chart.exportSvg({ width: 1200, height: 800 });
 const csv = await chart.exportCsv();
 const video = await chart.recordVideo({ duration: 5, step: (frame, seconds) => moveTo(seconds) });
+const recording = await chart.startRecording({ width: 1920, height: 1080 });
+// ... people use the chart ...
+const recorded = await recording.stop();
 ```
 
 `chartToPng`, `chartToSvg`, `chartToCsv` and `recordChartVideo` of `@tachyon-charts/render-canvas` do the same for a

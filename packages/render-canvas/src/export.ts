@@ -9,6 +9,7 @@ import {
   type ThemeDocument,
 } from '@tachyon-charts/core';
 import { SvgDevice, SvgTarget } from './svg';
+import { encodeChartVideo, type ChartVideoOptions } from './video';
 
 /** What an exported picture looks like. */
 export interface ChartExportOptions {
@@ -20,27 +21,6 @@ export interface ChartExportOptions {
   readonly dpi?: number;
   /** A theme for this picture only; the one of the chart when left out. */
   readonly theme?: ThemeDocument;
-}
-
-/** The size, length and encoding of a video of a chart. */
-export interface ChartVideoOptions {
-  /** The width in pixels; 1280 by default. */
-  readonly width?: number;
-  /** The height in pixels; 720 by default. */
-  readonly height?: number;
-  /** Frames per second; 30 by default. */
-  readonly frameRate?: number;
-  /** The length in seconds; 5 by default. */
-  readonly duration?: number;
-  /** Bits per second of the encoded video; 8 million by default. */
-  readonly bitRate?: number;
-  /** A theme for the video only; the one of the chart when left out. */
-  readonly theme?: ThemeDocument;
-  /**
-   * Called before each frame with its number and its time in seconds, the frame number divided by the frame rate:
-   * move a range, append data. The video plays evenly however long a frame takes.
-   */
-  readonly step?: (frame: number, seconds: number) => void;
 }
 
 const inchesPerMeter = 39.3700787;
@@ -228,9 +208,14 @@ export async function recordChartVideo(
   device: RenderDevice,
   options: ChartVideoOptions = {},
 ): Promise<Blob> {
+  // With WebCodecs each frame is encoded at its exact time; without, the browser records a canvas as it goes.
+  const encoded = await encodeChartVideo(chart, device, options);
+  if (encoded) {
+    return encoded;
+  }
   // Even sizes, as video encoders need them.
-  const width = Math.floor((options.width ?? 1280) / 2) * 2;
-  const height = Math.floor((options.height ?? 720) / 2) * 2;
+  const width = Math.floor((options.width ?? 1920) / 2) * 2;
+  const height = Math.floor((options.height ?? 1080) / 2) * 2;
   const frameRate = options.frameRate ?? 30;
   const frames = Math.ceil((options.duration ?? 5) * frameRate);
   if (!(width >= 2 && height >= 2 && frameRate > 0 && frames > 0)) {
@@ -250,7 +235,7 @@ export async function recordChartVideo(
   );
   const recorder = new MediaRecorder(stream, {
     ...(mimeType ? { mimeType } : {}),
-    videoBitsPerSecond: options.bitRate ?? 8_000_000,
+    videoBitsPerSecond: options.bitRate ?? 12_000_000,
   });
   const chunks: Blob[] = [];
   recorder.ondataavailable = (event) => {
@@ -261,7 +246,7 @@ export async function recordChartVideo(
       resolve();
     };
   });
-  const target = device.createOffscreenTarget({ width, height }, 1);
+  const target = device.createOffscreenTarget({ width, height }, options.scale ?? 1);
   const image = new ImageData(width, height);
   const ownTheme = chart.theme;
   if (options.theme) {

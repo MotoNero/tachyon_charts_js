@@ -26,7 +26,7 @@ import {
   type ThemeDocument,
   type TooltipData,
 } from '@tachyon-charts/core';
-import type { ChartExportOptions, ChartVideoOptions } from '@tachyon-charts/render-canvas';
+import type { ChartExportOptions, ChartRecording, ChartVideoOptions } from '@tachyon-charts/render-canvas';
 import { createWebGpuDevice, createWebGpuWorkerDevice } from '@tachyon-charts/render-webgpu';
 import { joinFrameLoop, leaveFrameLoop, wakeFrameLoop, type LoopMember } from './frame-loop';
 import { bindChartInput } from './input-binding';
@@ -359,6 +359,17 @@ export class TachyonChartElement extends HTMLElement {
     const [surface, device] = this.exportable();
     const { recordChartVideo } = await import('@tachyon-charts/render-canvas');
     return recordChartVideo(surface, device, options);
+  }
+
+  /**
+   * Starts a recording of the chart as people use it, at the size of the video; `stop()` returns the video. Needs a
+   * browser that encodes videos (WebCodecs).
+   * @throws Error before the chart has started, or without an encoder.
+   */
+  async startRecording(options?: ChartVideoOptions): Promise<ChartRecording> {
+    const [surface, device] = this.exportable();
+    const { startChartRecording } = await import('@tachyon-charts/render-canvas');
+    return startChartRecording(surface, device, options);
   }
 
   private exportable(): [ChartSurface, RenderDevice] {

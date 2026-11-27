@@ -8,6 +8,7 @@ import { ChartBuilder } from '@tachyon-charts/core';
 import { ChartDefinition } from '@tachyon-charts/core';
 import type { ChartExportOptions } from '@tachyon-charts/render-canvas';
 import { ChartKey } from '@tachyon-charts/core';
+import type { ChartRecording } from '@tachyon-charts/render-canvas';
 import { ChartSurface } from '@tachyon-charts/core';
 import type { ChartVideoOptions } from '@tachyon-charts/render-canvas';
 import { ModifierPipeline } from '@tachyon-charts/core';
@@ -100,6 +101,7 @@ export class TachyonChartElement extends HTMLElement {
     get renderThread(): 'worker' | 'main' | undefined;
     // @internal
     restartAfterLoss(): void;
+    startRecording(options?: ChartVideoOptions): Promise<ChartRecording>;
     get surface(): ChartSurface | undefined;
 }
 

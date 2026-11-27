@@ -10,6 +10,12 @@ export {
   recordChartVideo,
   visiblePoints,
   type ChartExportOptions,
-  type ChartVideoOptions,
   type CsvPoints,
 } from './export';
+export {
+  canEncodeVideo,
+  encodeChartVideo,
+  startChartRecording,
+  type ChartRecording,
+  type ChartVideoOptions,
+} from './video';
