@@ -3,14 +3,17 @@
 import {
   chartText,
   ChartOverlay,
+  DipRect,
+  formatGeneral,
+  invariantCulture,
   roundHalfEven,
   type Axis,
-  type DipRect,
   type OverlayCanvas,
 } from '@tachyon-charts/core';
 import { boxTicks, keepApart, selectWalls, toBox, xEdge, yEdge, zEdge, type LabelEdge } from '../scene/axis-box';
 import type { Matrix3D } from '../scene/matrix';
 import type { Point3D } from '../scene/matrix';
+import type { ColorScale3D } from '../scene/mesh';
 import type { Scene3D } from '../scene/scene';
 
 const labelReach = 0.14;
@@ -18,6 +21,10 @@ const titleReach = 0.5;
 const labelGap = 6;
 const zOffset = 10;
 const highestUpAxisView = 62;
+const scaleWidth = 14;
+const scaleHeight = 220;
+const scaleMargin = 56;
+const scaleSteps = 64;
 
 class Projector {
   constructor(
@@ -59,6 +66,49 @@ function along(edge: LabelEdge, place: number, reach: number): Point3D {
   return edge.start.plus(edge.end.minus(edge.start).times((place + 1) / 2)).plus(edge.outward.times(reach));
 }
 
+function drawScale(canvas: OverlayCanvas, scale: ColorScale3D, pane: DipRect): void {
+  const x = pane.x + pane.width - scaleMargin;
+  const top = pane.y + (pane.height - scaleHeight) / 2;
+  const step = scaleHeight / scaleSteps;
+  for (let i = 0; i < scaleSteps; i++) {
+    canvas.fillRectangle(
+      new DipRect(x, top + i * step, scaleWidth, step + 0.5),
+      scale.colormap.sample(1 - (i + 0.5) / scaleSteps),
+    );
+  }
+  const size = canvas.labelSize;
+  const height = canvas.lineHeight(size);
+  const middle = x + scaleWidth / 2;
+  const color = canvas.colors.text;
+  const high = formatGeneral(scale.range.max, 4, invariantCulture);
+  const low = formatGeneral(scale.range.min, 4, invariantCulture);
+  canvas.drawText(
+    high,
+    roundHalfEven(middle - canvas.measureWidth(high, size) / 2),
+    roundHalfEven(top - height / 2),
+    size,
+    color,
+  );
+  canvas.drawText(
+    low,
+    roundHalfEven(middle - canvas.measureWidth(low, size) / 2),
+    roundHalfEven(top + scaleHeight + height),
+    size,
+    color,
+  );
+  const title = scale.title;
+  if (title) {
+    const width = canvas.measureWidth(title, size);
+    canvas.drawText(
+      title,
+      roundHalfEven(Math.min(middle - width / 2, pane.x + pane.width - width)),
+      roundHalfEven(top - height * 1.7),
+      size,
+      color,
+    );
+  }
+}
+
 /** @internal Writes the labels of the box of a scene. */
 export class AxisLabels3D extends ChartOverlay {
   private readonly x = new AxisText();
@@ -92,6 +142,13 @@ export class AxisLabels3D extends ChartOverlay {
     if (Math.abs(scene.camera.elevation) <= highestUpAxisView) {
       this.z.update(scene.zAxis);
       this.drawUpAxis(canvas, zEdge(walls, matrix), view);
+    }
+    // The first surface whose colors come from a color scale shows it.
+    for (const mesh of scene.meshes) {
+      if (mesh.colorScale) {
+        drawScale(canvas, mesh.colorScale, pane);
+        return;
+      }
     }
   }
 

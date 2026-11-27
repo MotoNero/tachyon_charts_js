@@ -124,6 +124,7 @@ import {
   opfsSource,
   writableSink,
 } from '@tachyon-charts/large-data';
+import { createKnot } from './models3d';
 import { t } from './texts';
 
 /**
@@ -644,6 +645,23 @@ function torusMesh(): Mesh3D {
 
 function pages3D(): Page[] {
   return [
+    {
+      id: 'model-1m-triangles',
+      name: 'Model of 1 million triangles',
+      group: '3D',
+      hint: hint3D,
+      configure: (c) => {
+        const model = createKnot();
+        const mesh = model.toValueMesh(
+          model.positions.map((point) => point.z),
+          Colormap.builtIn('viridis'),
+          new DoubleRange(-1.4, 1.4),
+          { gloss: 0.4, sharpness: 48 },
+          t('Height in m'),
+        );
+        scene3D(c, (s) => model.addToScale(s.title(t('Knot of tube, colored by height')), mesh, 'm'));
+      },
+    },
     {
       id: 'mesh-3d',
       name: 'Lit mesh',
