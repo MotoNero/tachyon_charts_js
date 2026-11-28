@@ -151,7 +151,16 @@ import {
   volumeFromNifti,
 } from './models3d';
 import { GeoProjection, TileSource, WorldMap, map, tiles } from '@tachyon-charts/geo';
-import { CtWindowPresets, MedicalImageDisplay, MedicalPhantoms, MedicalSlices } from '@tachyon-charts/medical';
+import {
+  CtWindowPresets,
+  DicomReader,
+  DicomSeriesReader,
+  MedicalImageDisplay,
+  MedicalPhantoms,
+  MedicalSlices,
+  NiftiImageReader,
+  type MedicalVolume,
+} from '@tachyon-charts/medical';
 import { t } from './texts';
 
 /**
@@ -1008,13 +1017,89 @@ function mapPages(): Page[] {
   ];
 }
 
+const medicalHint =
+  'Left drag: window and level | Keys 1, 2, 3: brain, bone, lung | Middle drag: pan | Wheel: zoom | Pointer: value and position';
+
+// The middle axial slice of a volume of one's own.
+function middleSlice(volume: MedicalVolume): MedicalImageDisplay {
+  const middle = ((volume.data.depth - 1) * volume.voxelSpacing.z) / 2;
+  return MedicalSlices.display(volume, 'axial', new Point3D(0, 0, middle));
+}
+
+// An image of DICOM or NIfTI files of one's own: one DICOM file, the files of a series, or one NIfTI volume.
+async function openMedicalFiles(files: readonly File[]): Promise<MedicalImageDisplay> {
+  const first = files[0];
+  if (!first) {
+    throw new Error('No file chosen.');
+  }
+  if (/\.nii(\.gz)?$/iu.test(first.name)) {
+    return middleSlice(await NiftiImageReader.readFile(first));
+  }
+  if (files.length === 1) {
+    return MedicalImageDisplay.fromImage(await DicomReader.readFile(first));
+  }
+  return middleSlice(await DicomSeriesReader.readFiles(files));
+}
+
+function medicalFilesPage(): Page {
+  return {
+    id: 'medical-files',
+    name: 'Medical files',
+    group: 'Medical',
+    hint: medicalHint,
+    configure: (c) => {
+      // Until a file is chosen, a slice of the synthetic head.
+      const slice = MedicalSlices.display(MedicalPhantoms.head(), 'axial', new Point3D(0, 0, 97));
+      slice.configure(c);
+    },
+    start: () => {
+      const chart = document.querySelector<HTMLElement & { chart: unknown }>('#chart');
+      const say = sayer(medicalHint);
+      // Files of one's own stay in the browser: they are read here and sent nowhere.
+      const picker = document.createElement('label');
+      picker.className = 'picker';
+      picker.textContent = `${t('DICOM or NIfTI files of your own')} `;
+      const input = document.createElement('input');
+      input.type = 'file';
+      input.multiple = true;
+      input.accept = '.dcm,.nii,.gz,application/dicom';
+      picker.append(input);
+      chart?.after(picker);
+      let opening = 0;
+      input.addEventListener('change', () => {
+        const files = [...(input.files ?? [])];
+        const run = ++opening;
+        openMedicalFiles(files).then(
+          (display) => {
+            if (run !== opening || !chart) {
+              return;
+            }
+            chart.chart = display.configure(new ChartBuilder());
+            say(`${String(display.width)} × ${String(display.height)}, ${display.unit}`);
+          },
+          (error: unknown) => {
+            say(error instanceof Error ? error.message : String(error));
+          },
+        );
+      });
+      return {
+        dispose: () => {
+          opening++;
+          picker.remove();
+        },
+      };
+    },
+  };
+}
+
 function medicalPages(): Page[] {
   return [
+    medicalFilesPage(),
     {
       id: 'medical-image',
       name: 'Medical image',
       group: 'Medical',
-      hint: 'Left drag: window and level | Keys 1, 2, 3: brain, bone, lung | Middle drag: pan | Wheel: zoom | Pointer: value and position',
+      hint: medicalHint,
       configure: (c) => {
         // One axial plane of the synthetic head, without patient data, as a scanner would store it.
         const slice = MedicalSlices.cut(MedicalPhantoms.head(), 'axial', new Point3D(0, 0, 97));

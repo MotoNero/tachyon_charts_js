@@ -21,6 +21,7 @@ import {
   type WheelInputEvent,
 } from '@tachyon-charts/core';
 import type { Point3D } from '@tachyon-charts/3d';
+import type { MedicalImage } from './dicom';
 import {
   CtWindowPresets,
   MedicalWindow,
@@ -117,6 +118,25 @@ export class MedicalImageDisplay {
     this.current = initialWindow(window?.center, window?.width, valueRange(this.data));
     this.initialWindow = this.current;
     this.orientationMarks = marksOf(orientation);
+  }
+
+  /**
+   * Shows an image of a DICOM file in the window the file suggests, its unit HU for CT.
+   * @throws RangeError when the image lacks its pixel spacing or its orientation.
+   */
+  static fromImage(image: MedicalImage): MedicalImageDisplay {
+    if (!image.spacing || !image.orientation) {
+      throw new RangeError('The image needs pixel spacing and patient orientation.');
+    }
+    return new MedicalImageDisplay(
+      image.values(),
+      image.width,
+      image.height,
+      image.spacing,
+      image.orientation,
+      image.modality?.toUpperCase() === 'CT' ? 'HU' : 'value',
+      { center: image.windowCenter, width: image.windowWidth },
+    );
   }
 
   /** The window of grey values shown. */

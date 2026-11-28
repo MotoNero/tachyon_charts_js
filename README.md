@@ -510,6 +510,20 @@ image.applyPreset(CtWindowPresets.brain);
 image.configure(builder);
 ```
 
+`DicomReader` reads uncompressed DICOM images (implicit and explicit VR, little and big endian, 8 and 16 bits, signed
+or not, with their scale); it keeps only the values and the geometry of the image, and skips every other tag, so no
+data about the patient is kept or shown, not even in an error. `DicomSeriesReader` stacks the images of a series along
+the normal of the slices into a `MedicalVolume`, and `NiftiImageReader` reads `.nii` and `.nii.gz` volumes with their
+scale and their geometry from the sform or qform, turned into the directions of DICOM. `MedicalImageDisplay.fromImage`
+shows a DICOM image in the window its file suggests. Files are read in the browser and sent nowhere.
+
+```ts
+import { DicomSeriesReader, MedicalSlices, NiftiImageReader } from '@tachyon-charts/medical';
+
+const volume = files.length === 1 ? await NiftiImageReader.readFile(files[0]) : await DicomSeriesReader.readFiles(files);
+MedicalSlices.display(volume, 'axial', new Point3D(0, 0, 40)).configure(builder);
+```
+
 ## Legends
 
 ![A test bench with a legend of temperatures in the plot and a legend of pressures below it](docs/images/legends.png)

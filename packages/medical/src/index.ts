@@ -5,3 +5,12 @@ export { CtWindowPresets, MedicalVolume, MedicalWindow, PatientOrientation, type
 export { MedicalImageDisplay, type MedicalImageProbe, type MedicalOrientationMarks } from './image-display';
 export { MedicalSlices, type MedicalMprPlane, type MedicalSlice } from './slices';
 export { MedicalPhantoms } from './phantoms';
+export {
+  DicomReadError,
+  DicomReader,
+  DicomSeriesReader,
+  MedicalImage,
+  type DicomPhotometricInterpretation,
+  type DicomTransferSyntax,
+} from './dicom';
+export { NiftiImageReader, NiftiReadError } from './nifti';

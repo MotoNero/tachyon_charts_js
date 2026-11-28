@@ -18,9 +18,56 @@ export const CtWindowPresets: {
 };
 
 // @public
+export type DicomPhotometricInterpretation = 'monochrome2' | 'monochrome1';
+
+// @public
+export const DicomReader: {
+    read(bytes: Uint8Array | ArrayBuffer): MedicalImage;
+    readFile(file: Blob): Promise<MedicalImage>;
+};
+
+// @public
+export class DicomReadError extends Error {
+    constructor(message: string);
+}
+
+// @public
+export const DicomSeriesReader: {
+    readFiles(files: readonly Blob[]): Promise<MedicalVolume>;
+    build(images: readonly MedicalImage[]): MedicalVolume;
+};
+
+// @public
+export type DicomTransferSyntax = 'implicitVrLittleEndian' | 'explicitVrLittleEndian' | 'explicitVrBigEndian';
+
+// @public
 export interface ImageSpacing {
     readonly column: number;
     readonly row: number;
+}
+
+// @public
+export class MedicalImage {
+    at(column: number, row: number): number;
+    readonly bitsAllocated: number;
+    readonly height: number;
+    readonly isSigned: boolean;
+    readonly modality: string | undefined;
+    readonly orientation: PatientOrientation | undefined;
+    readonly photometricInterpretation: DicomPhotometricInterpretation;
+    readonly position: Point3D | undefined;
+    readonly rescaleIntercept: number;
+    readonly rescaleSlope: number;
+    // @internal
+    readonly seriesInstanceUid: string | undefined;
+    readonly sliceThickness: number | undefined;
+    readonly spacing: ImageSpacing | undefined;
+    readonly spacingBetweenSlices: number | undefined;
+    readonly transferSyntax: DicomTransferSyntax;
+    values(): Float32Array;
+    readonly width: number;
+    readonly windowCenter: number | undefined;
+    readonly windowWidth: number | undefined;
 }
 
 // @public
@@ -38,6 +85,7 @@ export class MedicalImageDisplay {
     colormap: Colormap;
     configure(chart: ChartBuilder): ChartBuilder;
     readonly data: HeatmapData;
+    static fromImage(image: MedicalImage): MedicalImageDisplay;
     readonly height: number;
     // @internal
     readonly initialWindow: MedicalWindow;
@@ -127,6 +175,17 @@ export class MedicalWindow {
     get minimum(): number;
     readonly name: string;
     readonly width: number;
+}
+
+// @public
+export const NiftiImageReader: {
+    read(bytes: Uint8Array | ArrayBuffer): Promise<MedicalVolume>;
+    readFile(file: Blob): Promise<MedicalVolume>;
+};
+
+// @public
+export class NiftiReadError extends Error {
+    constructor(message: string);
 }
 
 // @public

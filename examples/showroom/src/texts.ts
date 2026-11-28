@@ -39,6 +39,8 @@ const german: Readonly<Record<string, string>> = {
   Maps: 'Karten',
   Medical: 'Medizin',
   'Medical image': 'Medizinisches Bild',
+  'Medical files': 'Medizinische Dateien',
+  'DICOM or NIfTI files of your own': 'Eigene DICOM- oder NIfTI-Dateien',
   'Left drag: window and level | Keys 1, 2, 3: brain, bone, lung | Middle drag: pan | Wheel: zoom | Pointer: value and position':
     'Linke Maustaste ziehen: Fenster und Level | Tasten 1, 2, 3: Gehirn, Knochen, Lunge | Mittlere Maustaste ziehen: Pan | Rad: Zoom | Zeiger: Wert und Ort',
   'Wheel: zoom | Drag: pan | Ctrl+drag: zoom into a rectangle | Double click: all | Server: ?tiles=<address with {z}, {x}, {y}>&attribution=<notice>':
