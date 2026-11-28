@@ -5,7 +5,7 @@ import type { ChartTypeInfo, ParameterInfo } from './catalog';
 import { camel } from './build';
 import { num, str, type CodeWriter } from './code';
 import { colorCode } from './series-code';
-import { flagOf, numberOf, textOf, type SpecValues } from './spec';
+import { flagOf, numberOf, textOf, type SeriesSpec, type SpecValues } from './spec';
 
 const lines = (...items: string[]): string => items.join('\n');
 const names = (text: string): string[] =>
@@ -257,6 +257,36 @@ const spectrumSettings: readonly ParameterInfo[] = [
   },
 ];
 
+/**
+ * @internal The settings of a spectrum display and its live spectra, as PrepareSpectrumCode and LiveSpectrumCode of
+ * the .NET version; `rate` is the usual number of spectra per second.
+ */
+export function spectrumSetup(writer: CodeWriter, series: SeriesSpec, data: string, rate: number): string[] {
+  const values = series.parameters;
+  const level = num(numberOf(values, 'maskLevel', -25));
+  const marker = numberOf(values, 'marker', 2e6);
+  const result = [
+    `${data}.setView(${data}.start, ${data}.stop, ${num(numberOf(values, 'reference', 0))}, ${num(numberOf(values, 'perDivision', 10))});`,
+    `${data}.showsMaxHold = ${String(flagOf(values, 'maxHold'))};`,
+    `${data}.showsDensity = ${String(flagOf(values, 'density', true))};`,
+    flagOf(values, 'mask', true)
+      ? `${data}.mask = new ${writer.use('FrequencyMask')}([0, 3e6, 3.2e6, 1e7], [-5, -5, ${level}, ${level}]);`
+      : `${data}.mask = undefined;`,
+    `${data}.markerFrequency = ${marker >= 0 ? num(marker) : 'undefined'};`,
+  ];
+  if (flagOf(values, 'axes')) {
+    result.push(`${data}.showsAxes = true;`);
+  }
+  if (flagOf(values, 'live')) {
+    const start = spectraHelper(writer);
+    const count = Math.max(16, series.data.count);
+    result.push(
+      `${writer.running()}.push(${start}(${data}, ${String(count)}, ${num(numberOf(values, 'rate', rate))}));`,
+    );
+  }
+  return result;
+}
+
 const spectrumType: ChartTypeInfo = {
   id: 'spectrum',
   name: 'Spectrum analyzer',
@@ -276,28 +306,7 @@ const spectrumType: ChartTypeInfo = {
     { name: 'rate', label: 'Spectra per second', kind: 'number', default: 30, minimum: 1, maximum: 200 },
   ],
   code(writer, series, data) {
-    const values = series.parameters;
-    const level = num(numberOf(values, 'maskLevel', -25));
-    const marker = numberOf(values, 'marker', 2e6);
-    const result = [
-      `${data}.setView(${data}.start, ${data}.stop, ${num(numberOf(values, 'reference', 0))}, ${num(numberOf(values, 'perDivision', 10))});`,
-      `${data}.showsMaxHold = ${String(flagOf(values, 'maxHold'))};`,
-      `${data}.showsDensity = ${String(flagOf(values, 'density', true))};`,
-      flagOf(values, 'mask', true)
-        ? `${data}.mask = new ${writer.use('FrequencyMask')}([0, 3e6, 3.2e6, 1e7], [-5, -5, ${level}, ${level}]);`
-        : `${data}.mask = undefined;`,
-      `${data}.markerFrequency = ${marker >= 0 ? num(marker) : 'undefined'};`,
-    ];
-    if (flagOf(values, 'axes')) {
-      result.push(`${data}.showsAxes = true;`);
-    }
-    if (flagOf(values, 'live')) {
-      const start = spectraHelper(writer);
-      const count = Math.max(16, series.data.count);
-      result.push(
-        `${writer.running()}.push(${start}(${data}, ${String(count)}, ${num(numberOf(values, 'rate', 30))}));`,
-      );
-    }
+    const result = spectrumSetup(writer, series, data, 30);
     result.push(`${writer.use('spectrum')}(c, ${data});`);
     return result.join('\n');
   },
@@ -551,6 +560,8 @@ const digitalType: ChartTypeInfo = {
     );
   },
 };
+
+export { spectrumSettings };
 
 /** The instruments and the digital channels. */
 export const instrumentTypes: readonly ChartTypeInfo[] = [

@@ -196,25 +196,25 @@ function describeViews(
       : [
           `c.theme(${writer.as(`${writer.use('findBuiltInTheme')}(${str(themeId(spec.theme))})`, writer.useType('ThemeDocument'))});`,
         ];
+  // Each chart in a function of its own inside, so that all of them reach the data and what the preparation made.
   const functions = views.map((view) =>
     [
       `// The chart ${view.name}.`,
-      `function describe${view.name}(${writer.parameter('c', builder)}, ${writer.parameter(data, sample.returns)})${writer.type(builder)} {`,
+      `const describe${view.name} = (${writer.parameter('c', builder)})${writer.type(builder)} => {`,
       ...[...theme, ...view.code.split('\n')].map((line) => `  ${line}`),
       '  return c;',
-      '}',
+      '};',
     ].join('\n'),
   );
   const columns = Math.max(1, type.columns?.(series, views.length) ?? Math.min(2, views.length));
   const running = writer.isLive ? `${writer.parameter('running', '(() => void)[]')} = []` : '';
   const result = language === 'typescript' ? `: { charts: ${builder}[]; columns: number }` : '';
   return [
-    ...functions.flatMap((code) => [code, '']),
     `export function describeCharts(${running})${result} {`,
-    ...lines.flatMap((line) => line.split('\n')).map((line) => `  ${line}`),
+    ...[...lines, ...functions].flatMap((line) => line.split('\n')).map((line) => `  ${line}`),
     '  return {',
     `    columns: ${String(columns)},`,
-    `    charts: [${views.map((view) => `describe${view.name}(new ${builder}(), ${data})`).join(', ')}],`,
+    `    charts: [${views.map((view) => `describe${view.name}(new ${builder}())`).join(', ')}],`,
     '  };',
     '}',
   ].join('\n');

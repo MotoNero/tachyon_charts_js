@@ -1,9 +1,11 @@
 // The 3D charts of the configurator, as ThreeDModule of the .NET version: one scene per chart with its camera, the
 // ranges and titles of the box and cut planes; the series of the 3D types go into it.
-import type { ChartModule, ChartTypeInfo, ParameterInfo, SceneSetup, SeriesAxes } from './catalog';
+import type { ChartModule, ChartTypeInfo, ParameterInfo, SampleInfo, SceneSetup, SeriesAxes } from './catalog';
 import { camel } from './build';
 import { num, rgba, str, type CodeWriter } from './code';
+import { spectrumSettings, spectrumSetup } from './instrument-types';
 import { samples3D } from './samples-3d';
+import { modelSamples3D } from './samples-models-3d';
 import { colorCode } from './series-code';
 import { flagOf, numberOf, textOf, type SeriesSpec, type SpecValues } from './spec';
 
@@ -56,6 +58,9 @@ const boxes: Readonly<Record<string, readonly [number, number, number, number, n
   spiralPath: [-1, 1, -1, 1, -1, 1],
   greenSpiral: [-1, 1, -1, 1, -1, 1],
   landscape: [-1, 1, -1, 1, -1, 1],
+  particlePathLive: [-25, 25, -30, 30, 0, 55],
+  sweepLive: [-1, 1, -1, 1, -1, 1],
+  pipeSensors: [-1.25, 126.25, -63.75, 63.75, -26.25, 101.25],
 };
 
 function span(values: SpecValues): [number, number] {
@@ -251,6 +256,60 @@ const columns = sceneType({
   },
 });
 
+// Live points: a particle that keeps moving, or a sweep that keeps scanning a surface; each returns what stops it.
+function liveCode(writer: CodeWriter, series: SeriesSpec, data: string): string[] {
+  const sample = series.data.kind === 'sample' ? series.data.sample : '';
+  const points = writer.useType('Points3D', threeD);
+  if (sample === 'particlePathLive') {
+    const start = writer.helper(
+      'startPath',
+      [
+        '// Moves the particle on by 200 steps every 30 ms; the ring keeps the newest points.',
+        `function startPath(${writer.parameter('points', points)})${writer.type('() => void')} {`,
+        `  const viridis = ${writer.use('Colormap')}.builtIn('Viridis');`,
+        '  let [x, y, z] = [1, 1, 20];',
+        '  const timer = setInterval(() => {',
+        '    for (let i = 0; i < 200; i++) {',
+        '      [x, y, z] = [x + 0.02 * (y - x), y + 0.002 * (x * (28 - z) - y), z + 0.002 * (x * y - (8 / 3) * z)];',
+        '      points.append(x, y, z, viridis.sample((points.total % points.capacity) / points.capacity));',
+        '    }',
+        '  }, 30);',
+        '  return () => {',
+        '    clearInterval(timer);',
+        '  };',
+        '}',
+      ].join('\n'),
+    );
+    return [`${writer.running()}.push(${start}(${data}));`];
+  }
+  if (sample === 'sweepLive') {
+    const start = writer.helper(
+      'startSweep',
+      [
+        '// Scans a surface in strips of 30 000 points every 30 ms, across and back again; the ring keeps the newest.',
+        `function startSweep(${writer.parameter('points', points)})${writer.type('() => void')} {`,
+        `  const viridis = ${writer.use('Colormap')}.builtIn('Viridis');`,
+        `  const random = new ${writer.use('SeededRandom')}(2);`,
+        '  const timer = setInterval(() => {',
+        '    const sweep = (points.total / points.capacity) % 1;',
+        '    for (let i = 0; i < 30_000; i++) {',
+        '      const a = sweep * 2 - 1 + random.nextDouble() * 0.02;',
+        '      const b = random.nextDouble() * 2 - 1;',
+        '      const z = 0.5 * Math.sin(a * 4) * Math.cos(b * 3);',
+        '      points.append(a, b, z, viridis.sample(z + 0.5));',
+        '    }',
+        '  }, 30);',
+        '  return () => {',
+        '    clearInterval(timer);',
+        '  };',
+        '}',
+      ].join('\n'),
+    );
+    return [`${writer.running()}.push(${start}(${data}));`];
+  }
+  return [];
+}
+
 const line = sceneType({
   id: 'line3d',
   name: 'Line 3D',
@@ -262,7 +321,10 @@ const line = sceneType({
     const values = series.parameters;
     const width = numberOf(values, 'width', 1.5);
     const parts = [colorOption(values), width === 1.5 ? undefined : `width: ${num(width)}`];
-    return `s.addLine(new ${writer.use('Line3D', threeD)}(${data}${options(parts)}));`;
+    return [
+      ...liveCode(writer, series, data),
+      `s.addLine(new ${writer.use('Line3D', threeD)}(${data}${options(parts)}));`,
+    ].join('\n');
   },
 });
 
@@ -277,7 +339,10 @@ const scatter = sceneType({
     const values = series.parameters;
     const size = numberOf(values, 'size', 3);
     const parts = [colorOption(values), size === 3 ? undefined : `size: ${num(size)}`];
-    return `s.addScatter(new ${writer.use('Scatter3D', threeD)}(${data}${options(parts)}));`;
+    return [
+      ...liveCode(writer, series, data),
+      `s.addScatter(new ${writer.use('Scatter3D', threeD)}(${data}${options(parts)}));`,
+    ].join('\n');
   },
 });
 
@@ -536,6 +601,324 @@ const box = sceneType({
   add: () => '',
 });
 
+function cubeHelper(writer: CodeWriter): string {
+  const data = writer.useType('ModelFileData', threeD);
+  return writer.helper(
+    'cube',
+    [
+      '// A cube around a model, so that all axes share one scale and the model keeps its shape.',
+      `function cube(${writer.parameter('model', data)}) {`,
+      '  const low = model.lowest;',
+      '  const high = model.highest;',
+      '  const half = Math.max(high.x - low.x, high.y - low.y, high.z - low.z) / 2;',
+      `  const middle = new ${writer.use('Point3D', threeD)}((low.x + high.x) / 2, (low.y + high.y) / 2, (low.z + high.z) / 2);`,
+      '  return { from: middle.minus(new Point3D(half, half, half)), to: middle.plus(new Point3D(half, half, half)) };',
+      '}',
+    ].join('\n'),
+  );
+}
+
+function valueRangeHelper(writer: CodeWriter): string {
+  const range = writer.use('DoubleRange');
+  return writer.helper(
+    'valueRange',
+    [
+      '// From the lowest to the highest value; one value alone gets a little room around it.',
+      `function valueRange(${writer.parameter('values', 'readonly number[]')})${writer.type(range)} {`,
+      '  let low = Number.POSITIVE_INFINITY;',
+      '  let high = Number.NEGATIVE_INFINITY;',
+      '  for (const value of values) {',
+      '    if (Number.isFinite(value)) {',
+      '      low = Math.min(low, value);',
+      '      high = Math.max(high, value);',
+      '    }',
+      '  }',
+      '  if (low > high) {',
+      '    [low, high] = [0, 1];',
+      '  }',
+      `  return high > low ? new ${range}(low, high) : new ${range}(low - 0.5, high + 0.5);`,
+      '}',
+    ].join('\n'),
+  );
+}
+
+const modelColors = 'Model colors';
+
+const model3D: ChartTypeInfo = {
+  id: 'model3d',
+  name: 'Model 3D',
+  category: 'threeD',
+  shape: 'model',
+  defaultSample: 'hillMesh',
+  ownsAxes: true,
+  inScene: true,
+  parameters: [
+    color,
+    lit,
+    opacity,
+    {
+      name: 'gloss',
+      label: 'Gloss',
+      kind: 'number',
+      default: 0.18,
+      minimum: 0,
+      maximum: 1,
+      description: 'The strength of the highlights.',
+    },
+    { name: 'sharpness', label: 'Sharpness of the highlights', kind: 'number', default: 64, minimum: 1, maximum: 256 },
+    {
+      name: 'colorBy',
+      label: 'Color by',
+      kind: 'choice',
+      default: modelColors,
+      choices: [modelColors, 'Height', 'Values'],
+      description:
+        'The colors of the model, or its height or the values its data bring through the colormap; then the color scale shows beside the box. Data without values color by height.',
+    },
+    colormap('Viridis'),
+    {
+      name: 'colorsFollow',
+      label: 'Colors follow the values',
+      kind: 'flag',
+      default: true,
+      description: 'The colormap spans from the lowest to the highest value of the model; off for the range below.',
+    },
+    {
+      name: 'scaleFrom',
+      label: 'Colors from',
+      kind: 'number',
+      default: 0,
+      description: 'The value at the start of the colormap.',
+    },
+    {
+      name: 'scaleTo',
+      label: 'Colors to',
+      kind: 'number',
+      default: 1,
+      description: 'The value at the end of the colormap.',
+    },
+    {
+      name: 'scaleTitle',
+      label: 'Title of the scale',
+      kind: 'text',
+      default: '',
+      description: 'The name or unit of the values, such as °C.',
+    },
+  ],
+  code(writer, series, data, axes) {
+    const values = series.parameters;
+    const carries = series.data.kind === 'sample' && series.data.sample === 'pipeBend';
+    const model = carries ? `${data}.model` : data;
+    const result: string[] = [];
+    if (axes.inSharedBox !== true) {
+      result.push(
+        `const box = ${cubeHelper(writer)}(${model});`,
+        "s.xAxis(box.from.x, box.to.x, 'x').yAxis(box.from.y, box.to.y, 'y').zAxis(box.from.z, box.to.z, 'z');",
+      );
+    }
+    const material: string[] = [];
+    if (!flagOf(values, 'lit', true)) {
+      material.push('isLit: false');
+    }
+    if (numberOf(values, 'opacity', 1) !== 1) {
+      material.push(`opacity: ${num(numberOf(values, 'opacity', 1))}`);
+    }
+    if (numberOf(values, 'gloss', 0.18) !== 0.18) {
+      material.push(`gloss: ${num(numberOf(values, 'gloss', 0.18))}`);
+    }
+    if (numberOf(values, 'sharpness', 64) !== 64) {
+      material.push(`sharpness: ${num(numberOf(values, 'sharpness', 64))}`);
+    }
+    const look = `{ ${material.join(', ')} }`;
+    const colorBy = textOf(values, 'colorBy', modelColors);
+    if (colorBy === modelColors) {
+      const parts = [colorOption(values), material.length > 0 ? `material: ${look}` : undefined].filter(
+        (part) => part !== undefined,
+      );
+      result.push(`s.addMesh(${model}.toMesh(${parts.length > 0 ? `{ ${parts.join(', ')} }` : ''}));`);
+      return result.join('\n');
+    }
+    const perPoint = colorBy === 'Values' && carries ? `${data}.values` : `${model}.positions.map((place) => place.z)`;
+    const range = flagOf(values, 'colorsFollow', true)
+      ? `${valueRangeHelper(writer)}(${perPoint})`
+      : `new ${writer.use('DoubleRange')}(${num(numberOf(values, 'scaleFrom', 0))}, ${num(numberOf(values, 'scaleTo', 1))})`;
+    const scaleTitle = textOf(values, 'scaleTitle');
+    const title = scaleTitle.length > 0 ? str(scaleTitle) : colorBy === 'Height' ? "'Height'" : 'undefined';
+    result.push(
+      `s.addMesh(${model}.toValueMesh(${perPoint}, ${writer.use('Colormap')}.builtIn(${str(textOf(values, 'colormap', 'Viridis'))}), ${range}, ${look}, ${title}));`,
+    );
+    return result.join('\n');
+  },
+};
+
+const cutBelow = 'Cut below the surface';
+const cutAbove = 'Cut above the surface';
+
+const surfaceCut: ChartTypeInfo = {
+  id: 'surfaceCut3d',
+  name: 'Surface with its cut',
+  category: 'threeD',
+  shape: 'grid',
+  defaultSample: 'hillAcross',
+  ownsAxes: true,
+  parameters: [
+    {
+      name: 'layout',
+      label: 'Arrangement',
+      kind: 'choice',
+      default: cutBelow,
+      choices: [cutBelow, cutAbove, 'Side by side'],
+    },
+    {
+      name: 'at',
+      label: 'Plane at',
+      kind: 'number',
+      default: 0.25,
+      minimum: -1,
+      maximum: 1,
+      description: 'Where the plane crosses Y, from -1 to 1 across the box. Dragging its outline moves it.',
+    },
+    colormap('Viridis'),
+  ],
+  code(writer, series, data) {
+    const values = series.parameters;
+    const unit = `new ${writer.use('DoubleRange')}(-1, 1)`;
+    const chosen = colormapOption(writer, values, 'Viridis');
+    return [
+      '// The surface over -1 to 1, the plane across Y that shows where it cuts without hiding anything, and the curve',
+      '// of the cut, which the 2D chart shows.',
+      `const surface = new ${writer.use('Surface3D', threeD)}(${data}, ${unit}, ${unit}${chosen ? `, { ${chosen} }` : ''});`,
+      `const plane = new ${writer.use('ClipPlane3D', threeD)}(new ${writer.use('Point3D', threeD)}(0, 1, 0), ${num(numberOf(values, 'at', 0.25))}, { hides: false });`,
+      `const cut = new ${writer.use('CutCurveFeed', threeD)}(plane, surface);`,
+    ].join('\n');
+  },
+  views(writer) {
+    const surfaceView = {
+      name: 'Surface',
+      code: `${writer.use('scene3D', threeD)}(c, (s) => s.title('Cut through a surface').xAxis(-1, 1, 'x').yAxis(-1, 1, 'y').zAxis(-1, 1, 'z').addSurface(surface).addPlane(plane).addCut(cut).group('cut-3d'));`,
+    };
+    const cutView = {
+      name: 'Cut',
+      code: [
+        "c.title('Height at the plane');",
+        "c.xAxis((a) => a.numeric('x').range(-1, 1).title('x'));",
+        "c.yAxis((a) => a.numeric('z').range(-1, 1).title('z'));",
+        'c.addLine(cut.data, (line) => line.thickness(2));',
+        "c.group('cut-3d');",
+        `c.addModifier(() => new ${writer.use('ZoomPanModifier')}());`,
+        `c.addModifier(() => new ${writer.use('CrosshairModifier')}());`,
+      ].join('\n'),
+    };
+    return [surfaceView, cutView];
+  },
+  columns: (series) => (textOf(series.parameters, 'layout', cutBelow) === 'Side by side' ? 2 : 1),
+};
+
+const waterfallAbove = 'Waterfall above the spectrum';
+
+const spectrumWaterfall: ChartTypeInfo = {
+  id: 'spectrumWaterfall',
+  name: 'Spectrum with 3D waterfall',
+  category: 'instrument',
+  shape: 'spectrum',
+  defaultSample: 'noisyCarriers',
+  ownsAxes: true,
+  parameters: [
+    {
+      name: 'layout',
+      label: 'Arrangement',
+      kind: 'choice',
+      default: 'Side by side',
+      choices: ['Side by side', 'One above the other', waterfallAbove],
+    },
+    ...spectrumSettings,
+    colormap('Inferno'),
+    { name: 'style', label: 'Style', kind: 'choice', default: 'Surface', choices: ['Surface', 'Lines'] },
+    {
+      name: 'live',
+      label: 'Live spectra',
+      kind: 'flag',
+      default: false,
+      description: 'New spectra keep coming, as from a measurement, and run back in the waterfall.',
+    },
+    { name: 'rate', label: 'Spectra per second', kind: 'number', default: 20, minimum: 1, maximum: 200 },
+  ],
+  code(writer, series, data) {
+    return spectrumSetup(writer, series, data, 20).join('\n');
+  },
+  views(writer, series, data) {
+    const values = series.parameters;
+    const spectrumView = { name: 'Spectrum', code: `${writer.use('spectrum')}(c, ${data});` };
+    const range = writer.use('DoubleRange');
+    const style = textOf(values, 'style', 'Surface');
+    const waterfallView = {
+      name: 'Waterfall',
+      code: [
+        '// Frequencies across, the spectra so far into the depth, the levels of the spectrum up.',
+        `const frequency = new ${writer.use('NumericAxis')}('x3d', 'bottom');`,
+        `frequency.visibleRange = new ${range}(${data}.start, ${data}.stop);`,
+        "frequency.title = 'Frequency';",
+        "frequency.labelFormat = { useSiPrefixes: true, unit: 'Hz' };",
+        `const lowest = ${data}.referenceLevel - 10 * ${data}.perDivision;`,
+        `${writer.use('scene3D', threeD)}(c, (s) =>`,
+        "  s.title('Waterfall')",
+        '    .xAxis(frequency)',
+        "    .yAxis(0, 400, 'Spectra ago')",
+        `    .zAxis(lowest, ${data}.referenceLevel, 'dBm')`,
+        `    .addWaterfall(${writer.use('Waterfall3D', threeD)}.from(${data}, new ${range}(0, 400), { colormap: ${writer.use('Colormap')}.builtIn(${str(textOf(values, 'colormap', 'Inferno'))}), colorRange: new ${range}(lowest, ${data}.referenceLevel)${style === 'Surface' ? '' : `, style: ${str(camel(style))}`} })),`,
+        ');',
+      ].join('\n'),
+    };
+    return textOf(values, 'layout', 'Side by side') === waterfallAbove
+      ? [waterfallView, spectrumView]
+      : [spectrumView, waterfallView];
+  },
+  columns: (series) => (textOf(series.parameters, 'layout', 'Side by side') === 'Side by side' ? 2 : 1),
+};
+
+const liveSamples: readonly SampleInfo[] = [
+  {
+    id: 'particlePathLive',
+    name: 'Path of a particle, live',
+    shape: 'points3D',
+    defaultCount: 100_000,
+    minimumCount: 1,
+    body: '// A ring for the newest points; the particle moves on while the chart runs.\nreturn new Points3D(count);',
+    returns: 'Points3D',
+    uses: [`${threeD}#Points3D`],
+  },
+  {
+    id: 'sweepLive',
+    name: 'A surface scanned live',
+    shape: 'points3D',
+    defaultCount: 5_000_000,
+    minimumCount: 1,
+    body: '// A ring for the newest points; the scan goes on while the chart runs.\nreturn new Points3D(count);',
+    returns: 'Points3D',
+    uses: [`${threeD}#Points3D`],
+  },
+  {
+    id: 'hillAcross',
+    name: 'A hilly surface over -1 to 1',
+    shape: 'grid',
+    defaultCount: 256,
+    minimumCount: 2,
+    body: [
+      'const values = new Float32Array(count * count);',
+      'for (let i = 0; i < values.length; i++) {',
+      '  const x = (2 * (i % count)) / (count - 1) - 1;',
+      '  const y = (2 * Math.trunc(i / count)) / (count - 1) - 1;',
+      '  values[i] = 0.7 * Math.sin(x * 3) * Math.cos(y * 2.5);',
+      '}',
+      'const data = new HeatmapData(count, count);',
+      'data.setValues(values);',
+      'return data;',
+    ].join('\n'),
+    returns: 'HeatmapData',
+    uses: ['HeatmapData'],
+  },
+];
+
 // The ranges and titles of the box, the cut plane and further planes of the scene.
 function rangeOf(values: SpecValues, axis: string): [number, number] | undefined {
   const ends = textOf(values, `${axis}Range`).split('..');
@@ -693,8 +1076,11 @@ export const threeDModule: ChartModule = {
     pie3D('pie3d', 'Pie 3D', 0),
     pie3D('donut3d', 'Donut 3D', 0.5),
     box,
+    model3D,
+    surfaceCut,
+    spectrumWaterfall,
   ],
-  samples: samples3D,
+  samples: [...samples3D, ...modelSamples3D, ...liveSamples],
   scene,
   load: async () => ({ [threeD]: { ...(await import('@tachyon-charts/3d')) } }),
 };
