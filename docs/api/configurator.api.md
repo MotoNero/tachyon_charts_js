@@ -4,8 +4,262 @@
 
 ```ts
 
+import { ChartBuilder } from '@tachyon-charts/core';
+import type { ChartModifier } from '@tachyon-charts/core';
+import { DoubleRange as DoubleRange_2 } from '@tachyon-charts/core';
+import type { Rgba8 } from '@tachyon-charts/core';
+import { ThemeDocument } from '@tachyon-charts/core';
+
+// @public
+export interface AnnotationSpec {
+    parameters: SpecValues;
+    type: string;
+}
+
+// @public
+export function applyChartSpec(spec: ChartSpec, catalog: ChartCatalog, chart: ChartBuilder): ChartBuilder;
+
+// @public
+export function axesOf(spec: ChartSpec, series: SeriesSpec): SeriesAxes;
+
+// @public
+export type AxisKind = 'numeric' | 'logarithmic' | 'dateTime' | 'category';
+
+// @public
+export interface AxisSpec {
+    breaks: string;
+    categories: string;
+    crossesZero: boolean;
+    floor?: number | undefined;
+    id: string;
+    isHidden: boolean;
+    isInverted: boolean;
+    isOpposite: boolean;
+    kind: AxisKind;
+    labelRotation: number;
+    logBase: number;
+    maximum?: number | undefined;
+    minimum?: number | undefined;
+    nonPositive: string;
+    pane: number;
+    paneWeight: number;
+    skipsWeekends: boolean;
+    title: string;
+}
+
+// @public
+export function breaksOf(text: string): DoubleRange_2[] | undefined;
+
+// @public
+export class ChartCatalog {
+    constructor(modules: readonly ChartModule[]);
+    add(module: ChartModule): void;
+    check(spec: ChartSpec): string[];
+    findModifier(id: string): ModifierInfo | undefined;
+    findSample(id: string): SampleInfo | undefined;
+    findType(id: string): ChartTypeInfo | undefined;
+    makeSample(id: string, count: number): unknown;
+    get modifiers(): readonly ModifierInfo[];
+    get samples(): readonly SampleInfo[];
+    get types(): readonly ChartTypeInfo[];
+}
+
+// @public
+export type ChartCategory = 'twoD' | 'instrument' | 'threeD' | 'medical';
+
+// @public
+export interface ChartModule {
+    readonly modifiers?: readonly ModifierInfo[];
+    readonly samples: readonly SampleInfo[];
+    readonly types: readonly ChartTypeInfo[];
+}
+
+// @public
+export interface ChartSpec {
+    annotations: AnnotationSpec[];
+    axisFont?: FontSpec | undefined;
+    charts: ChartSpec[];
+    columns: number;
+    exportMenu: boolean;
+    group?: string | undefined;
+    legend?: LegendSpec | undefined;
+    modifiers: ModifierSpec[];
+    overview: boolean;
+    ownTheme?: ThemeSpec | undefined;
+    scene: SpecValues;
+    secondLegend?: LegendSpec | undefined;
+    series: SeriesSpec[];
+    theme?: string | undefined;
+    title: string;
+    titleFont?: FontSpec | undefined;
+    version: number;
+    xAxes: AxisSpec[];
+    xDown: boolean;
+    yAxes: AxisSpec[];
+}
+
+// @public
+export class ChartSpecError extends Error {
+    constructor(message: string);
+}
+
+// @public
+export class ChartSpecProblem extends Error {
+    constructor(
+    problems: readonly string[]);
+    readonly problems: readonly string[];
+}
+
+// @public
+export const chartSpecVersion = 1;
+
+// @public
+export interface ChartTypeInfo {
+    apply(chart: ChartBuilder, series: SeriesSpec, data: unknown, axes: SeriesAxes): void;
+    readonly category: ChartCategory;
+    readonly defaultSample: string;
+    readonly id: string;
+    readonly name: string;
+    readonly ownsAxes?: boolean;
+    readonly parameters: readonly ParameterInfo[];
+    readonly shape: DataShape;
+}
+
+// @public
+export const coreModule: ChartModule;
+
+// @public
+export type DataKind = 'sample' | 'csv' | 'live' | 'medicalFile' | 'hdf5' | 'file';
+
+// @public
+export function dataOf(catalog: ChartCatalog, series: SeriesSpec): unknown;
+
+// @public
+export type DataShape = string;
+
+// @public
+export interface DataSpec {
+    count: number;
+    kind: DataKind;
+    options: SpecValues;
+    path?: string | undefined;
+    sample: string;
+}
+
+// @public
+export function flagOf(values: SpecValues, name: string, fallback?: boolean): boolean;
+
+// @public
+export interface FontSpec {
+    bold: boolean;
+    family: string;
+    italic: boolean;
+}
+
+// @public
+export interface LegendSpec {
+    placement: string;
+    series: string;
+    title: string;
+}
+
+// @public
+export interface ModifierInfo {
+    create(values: SpecValues): ChartModifier;
+    readonly id: string;
+    readonly name: string;
+    readonly parameters: readonly ParameterInfo[];
+}
+
+// @public
+export interface ModifierSpec {
+    parameters: SpecValues;
+    type: string;
+}
+
+// @public
+export function newAxis(id: string, kind?: AxisKind): AxisSpec;
+
+// @public
+export function newChartSpec(): ChartSpec;
+
+// @public
+export function numberOf(values: SpecValues, name: string, fallback: number): number;
+
+// @public
+export interface ParameterInfo {
+    readonly choices?: readonly string[];
+    readonly default: number | boolean | string;
+    readonly description?: string;
+    readonly kind: ParameterKind;
+    readonly label: string;
+    readonly maximum?: number;
+    readonly minimum?: number;
+    readonly name: string;
+}
+
+// @public
+export type ParameterKind = 'number' | 'integer' | 'flag' | 'choice' | 'choices' | 'color' | 'file' | 'text';
+
+// @public
+export function parseColor(text: string): Rgba8 | undefined;
+
+// @public
+export function readChartSpec(json: string): ChartSpec;
+
+// @public
+export interface SampleInfo {
+    readonly body: string;
+    readonly defaultCount: number;
+    readonly hasCount?: boolean;
+    readonly id: string;
+    readonly minimumCount?: number;
+    readonly name: string;
+    readonly returns: string;
+    readonly shape: DataShape;
+    readonly uses: readonly string[];
+}
+
+// @public
+export const sampleScope: Record<string, unknown>;
+
+// @public
+export interface SeriesAxes {
+    readonly x: string;
+    readonly y: string;
+}
+
+// @public
+export interface SeriesSpec {
+    data: DataSpec;
+    name: string;
+    parameters: SpecValues;
+    type: string;
+    xAxis?: string | undefined;
+    yAxis?: string | undefined;
+}
+
+// @public
+export type SpecValues = Record<string, number | boolean | string>;
+
+// @public
+export function textOf(values: SpecValues, name: string, fallback?: string): string;
+
+// @public
+export function themeOf(name: string): ThemeDocument | undefined;
+
+// @public
+export interface ThemeSpec {
+    base: string;
+    name: string;
+    values: Record<string, string>;
+}
+
 // @public
 export const version = "0.1.0-dev";
+
+// @public
+export function writeChartSpec(spec: ChartSpec): string;
 
 // (No @packageDocumentation comment for this package)
 
