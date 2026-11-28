@@ -12,7 +12,7 @@ import { defineTachyonChart, preferredTheme, TachyonChartElement } from '@tachyo
 import type { ChartRecording } from '@tachyon-charts/render-canvas';
 import logo from '../../../shared/logo/tachyon-charts-lockup-dark-transparent.svg?url';
 import icon from '../../../shared/logo/tachyon-charts-avatar-dark-32.png?url';
-import { pages, type Page, type PageRun } from './pages';
+import { pages, type Page, type PageEntry, type PageRun } from './pages';
 import { t } from './texts';
 
 const instrumentTheme = findBuiltInTheme('instrument') as ThemeDocument;
@@ -94,8 +94,34 @@ function effectiveTheme(): ThemeDocument {
 }
 
 let running: PageRun | undefined;
+// Grows with every page asked for, so that a page whose code arrives late does not replace a later one.
+let asked = 0;
 
-function show(page: Page): void {
+// A page whose code comes on demand shows once its module has arrived.
+function show(entry: PageEntry): void {
+  const ticket = ++asked;
+  if (!('load' in entry)) {
+    showPage(entry);
+    return;
+  }
+  if (title) {
+    title.textContent = t(entry.name);
+  }
+  entry.load().then(
+    (page) => {
+      if (ticket === asked) {
+        showPage(page);
+      }
+    },
+    (error: unknown) => {
+      if (hint) {
+        hint.textContent = error instanceof Error ? error.message : String(error);
+      }
+    },
+  );
+}
+
+function showPage(page: Page): void {
   if (!chart) {
     return;
   }
@@ -122,7 +148,7 @@ function show(page: Page): void {
 
 function route(): void {
   const id = location.hash.slice(1);
-  show(pages.find((page) => page.id === id) ?? (pages[0] as Page));
+  show(pages.find((page) => page.id === id) ?? (pages[0] as PageEntry));
 }
 window.addEventListener('hashchange', route);
 
