@@ -1,6 +1,7 @@
 // What the configurator offers, as ChartCatalog, ChartTypeInfo, ParameterInfo, ModifierInfo and SampleInfo of the .NET
 // version: the types of series with their parameters, the interactions and the sample data, gathered from modules.
-import type { Axis, ChartBuilder, ChartModifier, Rgba8 } from '@tachyon-charts/core';
+import type { Rgba8 } from '@tachyon-charts/core';
+import type { CodeWriter } from './code';
 import type { ChartSpec, SeriesSpec, SpecValues } from './spec';
 
 /** The kind of a parameter, which decides how it is edited. */
@@ -54,8 +55,11 @@ export interface ChartTypeInfo {
   readonly defaultSample: string;
   /** The parameters. */
   readonly parameters: readonly ParameterInfo[];
-  /** Adds the series to a chart, from its description and its data. */
-  apply(chart: ChartBuilder, series: SeriesSpec, data: unknown, axes: SeriesAxes): void;
+  /**
+   * Writes the code that adds the series to the chart builder `c`, its data in the variable `data`.
+   * @returns Statements, each ending with a semicolon.
+   */
+  code(writer: CodeWriter, series: SeriesSpec, data: string, axes: SeriesAxes, index: number): string;
   /** Whether the type sets the axes itself, such as a pie. */
   readonly ownsAxes?: boolean;
 }
@@ -69,7 +73,8 @@ export interface ModifierInfo {
   /** The parameters. */
   readonly parameters: readonly ParameterInfo[];
   /** The create. */
-  create(values: SpecValues): ChartModifier;
+  /** Writes the expression that makes the interaction. */
+  code(writer: CodeWriter, values: SpecValues): string;
 }
 
 /**
@@ -85,11 +90,11 @@ export interface SampleInfo {
   readonly shape: DataShape;
   /** The count a new series takes. */
   readonly defaultCount: number;
-  /** The body of `function (count)`; it may use the names of {@link sampleScope}. */
+  /** The body of `function (count)`, valid TypeScript and JavaScript at once. */
   readonly body: string;
   /** The type the function returns, for TypeScript. */
   readonly returns: string;
-  /** The names of {@link sampleScope} the body uses, to import in the code. */
+  /** The names of `@tachyon-charts/core` the body uses, and `round` for the rounding of the .NET version. */
   readonly uses: readonly string[];
   /** The lowest count that makes sense. */
   readonly minimumCount?: number;
@@ -107,15 +112,11 @@ export interface ChartModule {
   readonly modifiers?: readonly ModifierInfo[];
 }
 
-/** What sample bodies may use besides plain JavaScript; the core module fills it. */
-export const sampleScope: Record<string, unknown> = {};
-
 /** All that the modules offer. */
 export class ChartCatalog {
   private readonly typeList: ChartTypeInfo[] = [];
   private readonly sampleList: SampleInfo[] = [];
   private readonly modifierList: ModifierInfo[] = [];
-  private readonly made = new Map<string, (count: number) => unknown>();
 
   /** @param modules - The modules, the core first. */
   constructor(modules: readonly ChartModule[]) {
@@ -171,28 +172,6 @@ export class ChartCatalog {
     return this.modifierList.find((modifier) => modifier.id === id);
   }
 
-  /**
-   * The data of a sample for a count, made by running its body.
-   * @throws RangeError for an unknown sample.
-   */
-  makeSample(id: string, count: number): unknown {
-    let make = this.made.get(id);
-    if (!make) {
-      const sample = this.findSample(id);
-      if (!sample) {
-        throw new RangeError(`There are no sample data ${id}.`);
-      }
-      const names = Object.keys(sampleScope);
-      // The body is code of the configurator itself, written once for the preview and the code it writes.
-      // eslint-disable-next-line @typescript-eslint/no-implied-eval
-      const create = new Function(...names, 'count', sample.body) as (...args: unknown[]) => unknown;
-      const values = names.map((name) => sampleScope[name]);
-      make = (n: number) => create(...values, n);
-      this.made.set(id, make);
-    }
-    return make(count);
-  }
-
   /** What keeps a description from being shown: unknown types, samples or interactions. */
   check(spec: ChartSpec): string[] {
     const problems: string[] = [];
@@ -227,6 +206,3 @@ export function parseColor(text: string): Rgba8 | undefined {
 export function axesOf(spec: ChartSpec, series: SeriesSpec): SeriesAxes {
   return { x: series.xAxis ?? spec.xAxes[0]?.id ?? 'x', y: series.yAxis ?? spec.yAxes[0]?.id ?? 'y' };
 }
-
-/** @internal An axis of the chart by its name, for a type that makes its series itself. */
-export type AxisOf = (id: string) => Axis;

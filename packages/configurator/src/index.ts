@@ -28,7 +28,6 @@ export {
   ChartCatalog,
   axesOf,
   parseColor,
-  sampleScope,
   type ChartCategory,
   type ChartModule,
   type ChartTypeInfo,
@@ -40,4 +39,5 @@ export {
   type SeriesAxes,
 } from './catalog';
 export { coreModule } from './core-module';
-export { ChartSpecProblem, applyChartSpec, breaksOf, dataOf, themeOf } from './build';
+export { ChartSpecProblem, applyChartSpec, breaksOf, camel, chartCode, codePackages, themeId } from './build';
+export { CodeWriter, identifier, num, rgba, str, type CodeLanguage } from './code';

@@ -1,0 +1,76 @@
+{
+  "version": 1,
+  "title": "10 million values per second, recorded on the disk",
+  "xDown": false,
+  "xAxes": [
+    {
+      "id": "x",
+      "kind": "numeric",
+      "title": "Time in s",
+      "isInverted": false,
+      "isOpposite": false,
+      "skipsWeekends": false,
+      "categories": "",
+      "crossesZero": false,
+      "breaks": "",
+      "pane": 0,
+      "paneWeight": 1,
+      "isHidden": false,
+      "logBase": 10,
+      "nonPositive": "Hide",
+      "labelRotation": 0,
+      "isAutoRange": true
+    }
+  ],
+  "yAxes": [
+    {
+      "id": "y",
+      "kind": "numeric",
+      "title": "Value",
+      "isInverted": false,
+      "isOpposite": false,
+      "skipsWeekends": false,
+      "categories": "",
+      "crossesZero": false,
+      "breaks": "",
+      "pane": 0,
+      "paneWeight": 1,
+      "isHidden": false,
+      "logBase": 10,
+      "nonPositive": "Hide",
+      "labelRotation": 0,
+      "isAutoRange": true
+    }
+  ],
+  "series": [
+    {
+      "type": "fileLine",
+      "name": "Measurement",
+      "parameters": {
+        "color": "#50AAF0",
+        "refining": false,
+        "thickness": 1
+      },
+      "data": {
+        "kind": "sample",
+        "sample": "recording",
+        "count": 1140850688,
+        "options": {}
+      }
+    }
+  ],
+  "modifiers": [
+    {
+      "type": "zoompan",
+      "parameters": {}
+    },
+    {
+      "type": "rubberband",
+      "parameters": {}
+    }
+  ],
+  "exportMenu": false,
+  "overview": false,
+  "annotations": [],
+  "scene": {}
+}

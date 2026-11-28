@@ -1,0 +1,84 @@
+{
+  "version": 1,
+  "title": "Sales per quarter",
+  "theme": "TachyonDark",
+  "xDown": false,
+  "xAxes": [
+    {
+      "id": "quarter",
+      "kind": "numeric",
+      "title": "Quarter",
+      "minimum": -0.6,
+      "maximum": 7.6,
+      "isInverted": false,
+      "isOpposite": false,
+      "skipsWeekends": false,
+      "categories": "",
+      "crossesZero": false,
+      "breaks": "",
+      "pane": 0,
+      "paneWeight": 1,
+      "isHidden": false,
+      "logBase": 10,
+      "nonPositive": "Hide",
+      "labelRotation": 0,
+      "isAutoRange": false
+    }
+  ],
+  "yAxes": [
+    {
+      "id": "sales",
+      "kind": "numeric",
+      "title": "Sales in k\u20AC",
+      "minimum": 0,
+      "maximum": 110,
+      "isInverted": false,
+      "isOpposite": false,
+      "skipsWeekends": false,
+      "categories": "",
+      "crossesZero": false,
+      "breaks": "",
+      "pane": 0,
+      "paneWeight": 1,
+      "isHidden": false,
+      "logBase": 10,
+      "nonPositive": "Hide",
+      "labelRotation": 0,
+      "isAutoRange": false
+    }
+  ],
+  "series": [
+    {
+      "type": "bars",
+      "name": "North and South",
+      "parameters": {
+        "values": true
+      },
+      "data": {
+        "kind": "sample",
+        "sample": "quarters",
+        "count": 8,
+        "options": {}
+      }
+    },
+    {
+      "type": "line",
+      "name": "Target",
+      "parameters": {
+        "thickness": 2,
+        "values": true
+      },
+      "data": {
+        "kind": "sample",
+        "sample": "quarterTarget",
+        "count": 8,
+        "options": {}
+      }
+    }
+  ],
+  "modifiers": [],
+  "exportMenu": false,
+  "overview": false,
+  "annotations": [],
+  "scene": {}
+}

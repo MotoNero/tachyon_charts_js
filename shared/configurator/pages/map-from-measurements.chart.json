@@ -1,0 +1,71 @@
+{
+  "version": 1,
+  "title": "Temperature over speed and load",
+  "theme": "Instrument",
+  "xDown": false,
+  "xAxes": [
+    {
+      "id": "x",
+      "kind": "numeric",
+      "title": "x",
+      "isInverted": false,
+      "isOpposite": false,
+      "skipsWeekends": false,
+      "categories": "",
+      "crossesZero": false,
+      "breaks": "",
+      "pane": 0,
+      "paneWeight": 1,
+      "isHidden": false,
+      "logBase": 10,
+      "nonPositive": "Hide",
+      "labelRotation": 0,
+      "isAutoRange": true
+    }
+  ],
+  "yAxes": [
+    {
+      "id": "y",
+      "kind": "numeric",
+      "title": "y",
+      "isInverted": false,
+      "isOpposite": false,
+      "skipsWeekends": false,
+      "categories": "",
+      "crossesZero": false,
+      "breaks": "",
+      "pane": 0,
+      "paneWeight": 1,
+      "isHidden": false,
+      "logBase": 10,
+      "nonPositive": "Hide",
+      "labelRotation": 0,
+      "isAutoRange": true
+    }
+  ],
+  "series": [
+    {
+      "type": "map3d",
+      "name": "Map from measurements",
+      "parameters": {},
+      "data": {
+        "kind": "sample",
+        "sample": "engineMap",
+        "count": 160,
+        "options": {}
+      }
+    }
+  ],
+  "modifiers": [],
+  "exportMenu": false,
+  "overview": false,
+  "annotations": [],
+  "scene": {
+    "xRange": "0..6000",
+    "xTitle": "Speed in rpm",
+    "yRange": "0..100",
+    "yTitle": "Load in %",
+    "zRange": "60..120",
+    "zTitle": "Temperature in \u00B0C"
+  }
+}

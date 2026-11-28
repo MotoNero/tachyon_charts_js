@@ -1,0 +1,73 @@
+{
+  "version": 1,
+  "title": "",
+  "theme": "Instrument",
+  "xDown": false,
+  "xAxes": [
+    {
+      "id": "x",
+      "kind": "numeric",
+      "title": "",
+      "isInverted": false,
+      "isOpposite": false,
+      "skipsWeekends": false,
+      "categories": "",
+      "crossesZero": false,
+      "breaks": "",
+      "pane": 0,
+      "paneWeight": 1,
+      "isHidden": false,
+      "logBase": 10,
+      "nonPositive": "Hide",
+      "labelRotation": 0,
+      "isAutoRange": true
+    }
+  ],
+  "yAxes": [
+    {
+      "id": "y",
+      "kind": "numeric",
+      "title": "",
+      "isInverted": false,
+      "isOpposite": false,
+      "skipsWeekends": false,
+      "categories": "",
+      "crossesZero": false,
+      "breaks": "",
+      "pane": 0,
+      "paneWeight": 1,
+      "isHidden": false,
+      "logBase": 10,
+      "nonPositive": "Hide",
+      "labelRotation": 0,
+      "isAutoRange": true
+    }
+  ],
+  "series": [
+    {
+      "type": "oscilloscope",
+      "name": "",
+      "parameters": {
+        "channels": 1,
+        "live": true,
+        "noise": 0.3,
+        "persistence": "ColorGrade",
+        "positions": "0",
+        "signals": "Sine",
+        "trigger": 0,
+        "volts": "1"
+      },
+      "data": {
+        "kind": "sample",
+        "sample": "scope",
+        "count": 3000,
+        "options": {}
+      }
+    }
+  ],
+  "modifiers": [],
+  "exportMenu": false,
+  "overview": false,
+  "annotations": [],
+  "scene": {}
+}

@@ -1,0 +1,137 @@
+{
+  "version": 1,
+  "title": "Harbor, a theme from JSON",
+  "ownTheme": {
+    "name": "Harbor",
+    "base": "TachyonDark",
+    "values": {
+      "surface.background": "#0B0E16",
+      "surface.plotArea": "linear(#202D42, #0C121F)",
+      "surface.border": "#2C3A52",
+      "grid.major": "#AABEDC48",
+      "grid.minor": "#AABEDC1C",
+      "grid.band": "#6EA0DC14",
+      "axis.line": "#4A5A74",
+      "axis.tick": "#4A5A74",
+      "axis.label": "#A9B8CF",
+      "axis.title": "#E3EAF5",
+      "palette": "#5CC8FF, #FFB454, #7EE0A1, #FF7A90"
+    }
+  },
+  "xDown": false,
+  "xAxes": [
+    {
+      "id": "x",
+      "kind": "numeric",
+      "title": "Time (s)",
+      "minimum": 0,
+      "maximum": 10,
+      "isInverted": false,
+      "isOpposite": false,
+      "skipsWeekends": false,
+      "categories": "",
+      "crossesZero": false,
+      "breaks": "",
+      "pane": 0,
+      "paneWeight": 1,
+      "isHidden": false,
+      "logBase": 10,
+      "nonPositive": "Hide",
+      "labelRotation": 0,
+      "isAutoRange": false
+    }
+  ],
+  "yAxes": [
+    {
+      "id": "y",
+      "kind": "numeric",
+      "title": "Level",
+      "minimum": -1.5,
+      "maximum": 1.5,
+      "isInverted": false,
+      "isOpposite": false,
+      "skipsWeekends": false,
+      "categories": "",
+      "crossesZero": false,
+      "breaks": "",
+      "pane": 0,
+      "paneWeight": 1,
+      "isHidden": false,
+      "logBase": 10,
+      "nonPositive": "Hide",
+      "labelRotation": 0,
+      "isAutoRange": false
+    }
+  ],
+  "series": [
+    {
+      "type": "line",
+      "name": "Tide",
+      "parameters": {
+        "color": "#5CC8FF",
+        "thickness": 2
+      },
+      "data": {
+        "kind": "sample",
+        "sample": "tide",
+        "count": 300,
+        "options": {}
+      }
+    },
+    {
+      "type": "line",
+      "name": "Swell",
+      "parameters": {
+        "color": "#FFB454",
+        "thickness": 2
+      },
+      "data": {
+        "kind": "sample",
+        "sample": "swell",
+        "count": 300,
+        "options": {}
+      }
+    },
+    {
+      "type": "line",
+      "name": "Ripple",
+      "parameters": {
+        "color": "#7EE0A1",
+        "thickness": 1.5
+      },
+      "data": {
+        "kind": "sample",
+        "sample": "ripple",
+        "count": 300,
+        "options": {}
+      }
+    }
+  ],
+  "modifiers": [
+    {
+      "type": "zoompan",
+      "parameters": {}
+    },
+    {
+      "type": "rubberband",
+      "parameters": {}
+    },
+    {
+      "type": "crosshair",
+      "parameters": {}
+    },
+    {
+      "type": "tooltip",
+      "parameters": {}
+    }
+  ],
+  "legend": {
+    "title": "",
+    "placement": "TopRight",
+    "series": ""
+  },
+  "exportMenu": false,
+  "overview": false,
+  "annotations": [],
+  "scene": {}
+}

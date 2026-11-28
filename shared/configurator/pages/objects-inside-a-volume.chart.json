@@ -1,0 +1,100 @@
+{
+  "version": 1,
+  "title": "Objects inside a volume",
+  "theme": "Instrument",
+  "xDown": false,
+  "xAxes": [
+    {
+      "id": "x",
+      "kind": "numeric",
+      "title": "x",
+      "isInverted": false,
+      "isOpposite": false,
+      "skipsWeekends": false,
+      "categories": "",
+      "crossesZero": false,
+      "breaks": "",
+      "pane": 0,
+      "paneWeight": 1,
+      "isHidden": false,
+      "logBase": 10,
+      "nonPositive": "Hide",
+      "labelRotation": 0,
+      "isAutoRange": true
+    }
+  ],
+  "yAxes": [
+    {
+      "id": "y",
+      "kind": "numeric",
+      "title": "y",
+      "isInverted": false,
+      "isOpposite": false,
+      "skipsWeekends": false,
+      "categories": "",
+      "crossesZero": false,
+      "breaks": "",
+      "pane": 0,
+      "paneWeight": 1,
+      "isHidden": false,
+      "logBase": 10,
+      "nonPositive": "Hide",
+      "labelRotation": 0,
+      "isAutoRange": true
+    }
+  ],
+  "series": [
+    {
+      "type": "volume3d",
+      "name": "Volume",
+      "parameters": {
+        "size": 2,
+        "slices": false,
+        "start": -1,
+        "transfer": "Tissue and spots"
+      },
+      "data": {
+        "kind": "sample",
+        "sample": "layeredBody",
+        "count": 128,
+        "options": {}
+      }
+    },
+    {
+      "type": "line3d",
+      "name": "Line 3D",
+      "parameters": {
+        "width": 3
+      },
+      "data": {
+        "kind": "sample",
+        "sample": "greenSpiral",
+        "count": 400,
+        "options": {}
+      }
+    },
+    {
+      "type": "model3d",
+      "name": "Model 3D",
+      "parameters": {},
+      "data": {
+        "kind": "sample",
+        "sample": "saddleMesh",
+        "count": 96,
+        "options": {}
+      }
+    }
+  ],
+  "modifiers": [],
+  "exportMenu": false,
+  "overview": false,
+  "annotations": [],
+  "scene": {
+    "xRange": "-1..1",
+    "xTitle": "x",
+    "yRange": "-1..1",
+    "yTitle": "y",
+    "zRange": "-1..1",
+    "zTitle": "z"
+  }
+}

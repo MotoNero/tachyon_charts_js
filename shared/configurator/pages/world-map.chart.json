@@ -1,0 +1,96 @@
+{
+  "version": 1,
+  "title": "Countries by distance from the equator",
+  "xDown": false,
+  "xAxes": [
+    {
+      "id": "x",
+      "kind": "numeric",
+      "title": "",
+      "minimum": -2.7066299836960743,
+      "maximum": 2.7066299836960743,
+      "isInverted": false,
+      "isOpposite": false,
+      "skipsWeekends": false,
+      "categories": "",
+      "crossesZero": false,
+      "breaks": "",
+      "pane": 0,
+      "paneWeight": 1,
+      "isHidden": true,
+      "logBase": 10,
+      "nonPositive": "Hide",
+      "labelRotation": 0,
+      "isAutoRange": false
+    }
+  ],
+  "yAxes": [
+    {
+      "id": "y",
+      "kind": "numeric",
+      "title": "",
+      "minimum": -1.3099478794260733,
+      "maximum": 1.3099478794260733,
+      "isInverted": false,
+      "isOpposite": false,
+      "skipsWeekends": false,
+      "categories": "",
+      "crossesZero": false,
+      "breaks": "",
+      "pane": 0,
+      "paneWeight": 1,
+      "isHidden": true,
+      "logBase": 10,
+      "nonPositive": "Hide",
+      "labelRotation": 0,
+      "isAutoRange": false
+    }
+  ],
+  "series": [
+    {
+      "type": "geoMap",
+      "name": "",
+      "parameters": {
+        "colors": "Distance from the equator"
+      },
+      "data": {
+        "kind": "sample",
+        "sample": "world",
+        "count": 1,
+        "options": {}
+      }
+    },
+    {
+      "type": "scatter",
+      "name": "Capitals",
+      "parameters": {
+        "color": "#E63C3C",
+        "size": 7
+      },
+      "data": {
+        "kind": "sample",
+        "sample": "capitals",
+        "count": 20,
+        "options": {}
+      }
+    }
+  ],
+  "modifiers": [
+    {
+      "type": "zoompan",
+      "parameters": {}
+    },
+    {
+      "type": "rubberband",
+      "parameters": {}
+    },
+    {
+      "type": "tooltip",
+      "parameters": {}
+    }
+  ],
+  "exportMenu": false,
+  "overview": false,
+  "annotations": [],
+  "scene": {}
+}

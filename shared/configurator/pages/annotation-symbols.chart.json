@@ -1,0 +1,112 @@
+{
+  "version": 1,
+  "title": "Symbols at annotations",
+  "theme": "TachyonDark",
+  "xDown": false,
+  "xAxes": [
+    {
+      "id": "x",
+      "kind": "numeric",
+      "title": "Time in s",
+      "minimum": 0,
+      "maximum": 10,
+      "isInverted": false,
+      "isOpposite": false,
+      "skipsWeekends": false,
+      "categories": "",
+      "crossesZero": false,
+      "breaks": "",
+      "pane": 0,
+      "paneWeight": 1,
+      "isHidden": false,
+      "logBase": 10,
+      "nonPositive": "Hide",
+      "labelRotation": 0,
+      "isAutoRange": false
+    }
+  ],
+  "yAxes": [
+    {
+      "id": "y",
+      "kind": "numeric",
+      "title": "Level",
+      "minimum": -1.5,
+      "maximum": 1.5,
+      "isInverted": false,
+      "isOpposite": false,
+      "skipsWeekends": false,
+      "categories": "",
+      "crossesZero": false,
+      "breaks": "",
+      "pane": 0,
+      "paneWeight": 1,
+      "isHidden": false,
+      "logBase": 10,
+      "nonPositive": "Hide",
+      "labelRotation": 0,
+      "isAutoRange": false
+    }
+  ],
+  "series": [
+    {
+      "type": "line",
+      "name": "Wave",
+      "parameters": {
+        "color": "#50AAF0",
+        "thickness": 2
+      },
+      "data": {
+        "kind": "sample",
+        "sample": "wave13",
+        "count": 240,
+        "options": {}
+      }
+    }
+  ],
+  "modifiers": [
+    {
+      "type": "annotationedit",
+      "parameters": {}
+    }
+  ],
+  "exportMenu": false,
+  "overview": false,
+  "annotations": [
+    {
+      "type": "hline",
+      "parameters": {
+        "color": "#F05A5AFF",
+        "label": "Too hot",
+        "labelColor": "#FFFFFFFF",
+        "labelPlace": "End",
+        "labelSymbol": "thermostat",
+        "y": 1.1
+      }
+    },
+    {
+      "type": "vline",
+      "parameters": {
+        "color": "#F0BE5AFF",
+        "label": "Power on",
+        "labelIconColor": "#1E1E1EFF",
+        "labelSymbol": "bolt",
+        "labelSymbolSize": 20,
+        "x": 6
+      }
+    },
+    {
+      "type": "hline",
+      "parameters": {
+        "color": "#6ED282FF",
+        "label": "Service due",
+        "labelColor": "#6ED282FF",
+        "labelFill": "#00000000",
+        "labelPlace": "Start",
+        "labelSymbol": "build",
+        "labelSymbolSize": 24,
+        "y": -1.2
+      }
+    }
+  ],
+  "scene": {}
+}

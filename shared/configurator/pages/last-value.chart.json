@@ -1,0 +1,108 @@
+{
+  "version": 1,
+  "title": "Temperatures",
+  "theme": "TachyonDark",
+  "xDown": false,
+  "xAxes": [
+    {
+      "id": "t",
+      "kind": "numeric",
+      "title": "Time in s",
+      "minimum": 0,
+      "maximum": 28.4,
+      "isInverted": false,
+      "isOpposite": false,
+      "skipsWeekends": false,
+      "categories": "",
+      "crossesZero": false,
+      "breaks": "",
+      "pane": 0,
+      "paneWeight": 1,
+      "isHidden": false,
+      "logBase": 10,
+      "nonPositive": "Hide",
+      "labelRotation": 0,
+      "isAutoRange": false
+    }
+  ],
+  "yAxes": [
+    {
+      "id": "temperature",
+      "kind": "numeric",
+      "title": "Temperature in \u00B0C",
+      "minimum": 45,
+      "maximum": 75,
+      "isInverted": false,
+      "isOpposite": true,
+      "skipsWeekends": false,
+      "categories": "",
+      "crossesZero": false,
+      "breaks": "",
+      "pane": 0,
+      "paneWeight": 1,
+      "isHidden": false,
+      "logBase": 10,
+      "nonPositive": "Hide",
+      "labelRotation": 0,
+      "isAutoRange": false
+    }
+  ],
+  "series": [
+    {
+      "type": "line",
+      "name": "Inlet",
+      "xAxis": "t",
+      "yAxis": "temperature",
+      "parameters": {
+        "color": "#4CC9F0",
+        "lastValue": true,
+        "thickness": 1.5
+      },
+      "data": {
+        "kind": "sample",
+        "sample": "recordedTemperature1",
+        "count": 285,
+        "options": {}
+      }
+    },
+    {
+      "type": "line",
+      "name": "Core",
+      "xAxis": "t",
+      "yAxis": "temperature",
+      "parameters": {
+        "color": "#FFBE0B",
+        "lastValue": true,
+        "thickness": 1.5
+      },
+      "data": {
+        "kind": "sample",
+        "sample": "recordedTemperature2",
+        "count": 285,
+        "options": {}
+      }
+    },
+    {
+      "type": "line",
+      "name": "Outlet",
+      "xAxis": "t",
+      "yAxis": "temperature",
+      "parameters": {
+        "color": "#F72585",
+        "lastValue": true,
+        "thickness": 1.5
+      },
+      "data": {
+        "kind": "sample",
+        "sample": "recordedTemperature3",
+        "count": 285,
+        "options": {}
+      }
+    }
+  ],
+  "modifiers": [],
+  "exportMenu": false,
+  "overview": false,
+  "annotations": [],
+  "scene": {}
+}

@@ -4,11 +4,8 @@
 
 ```ts
 
-import { ChartBuilder } from '@tachyon-charts/core';
-import type { ChartModifier } from '@tachyon-charts/core';
-import { DoubleRange as DoubleRange_2 } from '@tachyon-charts/core';
+import type { ChartBuilder } from '@tachyon-charts/core';
 import type { Rgba8 } from '@tachyon-charts/core';
-import { ThemeDocument } from '@tachyon-charts/core';
 
 // @public
 export interface AnnotationSpec {
@@ -48,7 +45,10 @@ export interface AxisSpec {
 }
 
 // @public
-export function breaksOf(text: string): DoubleRange_2[] | undefined;
+export function breaksOf(text: string): [number, number][] | undefined;
+
+// @public
+export function camel(name: string): string;
 
 // @public
 export class ChartCatalog {
@@ -58,7 +58,6 @@ export class ChartCatalog {
     findModifier(id: string): ModifierInfo | undefined;
     findSample(id: string): SampleInfo | undefined;
     findType(id: string): ChartTypeInfo | undefined;
-    makeSample(id: string, count: number): unknown;
     get modifiers(): readonly ModifierInfo[];
     get samples(): readonly SampleInfo[];
     get types(): readonly ChartTypeInfo[];
@@ -66,6 +65,9 @@ export class ChartCatalog {
 
 // @public
 export type ChartCategory = 'twoD' | 'instrument' | 'threeD' | 'medical';
+
+// @public
+export function chartCode(spec: ChartSpec, catalog: ChartCatalog, language?: CodeLanguage): string;
 
 // @public
 export interface ChartModule {
@@ -115,8 +117,8 @@ export const chartSpecVersion = 1;
 
 // @public
 export interface ChartTypeInfo {
-    apply(chart: ChartBuilder, series: SeriesSpec, data: unknown, axes: SeriesAxes): void;
     readonly category: ChartCategory;
+    code(writer: CodeWriter, series: SeriesSpec, data: string, axes: SeriesAxes, index: number): string;
     readonly defaultSample: string;
     readonly id: string;
     readonly name: string;
@@ -126,13 +128,31 @@ export interface ChartTypeInfo {
 }
 
 // @public
+export type CodeLanguage = 'typescript' | 'javascript';
+
+// @public
+export const codePackages: Record<string, Record<string, unknown>>;
+
+// @public
+export class CodeWriter {
+    constructor(
+    language: CodeLanguage);
+    as(expression: string, type: string): string;
+    helper(name: string, code: string): string;
+    helperCode(): string[];
+    importedNames(): ReadonlyMap<string, ReadonlySet<string>>;
+    importLines(): string[];
+    readonly language: CodeLanguage;
+    type(annotation: string): string;
+    use(name: string, from?: string): string;
+    useType(name: string, from?: string): string;
+}
+
+// @public
 export const coreModule: ChartModule;
 
 // @public
 export type DataKind = 'sample' | 'csv' | 'live' | 'medicalFile' | 'hdf5' | 'file';
-
-// @public
-export function dataOf(catalog: ChartCatalog, series: SeriesSpec): unknown;
 
 // @public
 export type DataShape = string;
@@ -157,6 +177,9 @@ export interface FontSpec {
 }
 
 // @public
+export function identifier(text: string): string;
+
+// @public
 export interface LegendSpec {
     placement: string;
     series: string;
@@ -165,7 +188,7 @@ export interface LegendSpec {
 
 // @public
 export interface ModifierInfo {
-    create(values: SpecValues): ChartModifier;
+    code(writer: CodeWriter, values: SpecValues): string;
     readonly id: string;
     readonly name: string;
     readonly parameters: readonly ParameterInfo[];
@@ -182,6 +205,9 @@ export function newAxis(id: string, kind?: AxisKind): AxisSpec;
 
 // @public
 export function newChartSpec(): ChartSpec;
+
+// @public
+export function num(value: number): string;
 
 // @public
 export function numberOf(values: SpecValues, name: string, fallback: number): number;
@@ -208,6 +234,9 @@ export function parseColor(text: string): Rgba8 | undefined;
 export function readChartSpec(json: string): ChartSpec;
 
 // @public
+export function rgba(color: Rgba8): string;
+
+// @public
 export interface SampleInfo {
     readonly body: string;
     readonly defaultCount: number;
@@ -219,9 +248,6 @@ export interface SampleInfo {
     readonly shape: DataShape;
     readonly uses: readonly string[];
 }
-
-// @public
-export const sampleScope: Record<string, unknown>;
 
 // @public
 export interface SeriesAxes {
@@ -243,10 +269,13 @@ export interface SeriesSpec {
 export type SpecValues = Record<string, number | boolean | string>;
 
 // @public
+export function str(text: string): string;
+
+// @public
 export function textOf(values: SpecValues, name: string, fallback?: string): string;
 
 // @public
-export function themeOf(name: string): ThemeDocument | undefined;
+export function themeId(name: string): string;
 
 // @public
 export interface ThemeSpec {

@@ -1,0 +1,128 @@
+{
+  "version": 1,
+  "title": "Live: 50,000 points per second",
+  "theme": "TachyonDark",
+  "xDown": false,
+  "xAxes": [
+    {
+      "id": "x",
+      "kind": "numeric",
+      "title": "Time in s",
+      "isInverted": false,
+      "isOpposite": false,
+      "skipsWeekends": false,
+      "categories": "",
+      "crossesZero": false,
+      "breaks": "",
+      "pane": 0,
+      "paneWeight": 1,
+      "isHidden": false,
+      "logBase": 10,
+      "nonPositive": "Hide",
+      "labelRotation": 0,
+      "isAutoRange": true
+    }
+  ],
+  "yAxes": [
+    {
+      "id": "y",
+      "kind": "numeric",
+      "title": "Value",
+      "minimum": -2,
+      "maximum": 2,
+      "isInverted": false,
+      "isOpposite": false,
+      "skipsWeekends": false,
+      "categories": "",
+      "crossesZero": false,
+      "breaks": "",
+      "pane": 0,
+      "paneWeight": 1,
+      "isHidden": false,
+      "logBase": 10,
+      "nonPositive": "Hide",
+      "labelRotation": 0,
+      "isAutoRange": false
+    }
+  ],
+  "series": [
+    {
+      "type": "line",
+      "name": "Fixed",
+      "parameters": {
+        "color": "#50AAF0",
+        "thickness": 2
+      },
+      "data": {
+        "kind": "sample",
+        "sample": "fixedCurve",
+        "count": 2000,
+        "options": {}
+      }
+    },
+    {
+      "type": "line",
+      "name": "Live",
+      "parameters": {
+        "color": "#F0825A",
+        "thickness": 1
+      },
+      "data": {
+        "kind": "live",
+        "sample": "liveNoisy",
+        "count": 1000000,
+        "options": {
+          "rate": 50000
+        }
+      }
+    }
+  ],
+  "modifiers": [
+    {
+      "type": "zoompan",
+      "parameters": {}
+    },
+    {
+      "type": "rubberband",
+      "parameters": {}
+    },
+    {
+      "type": "axisdrag",
+      "parameters": {}
+    },
+    {
+      "type": "crosshair",
+      "parameters": {}
+    },
+    {
+      "type": "tooltip",
+      "parameters": {}
+    },
+    {
+      "type": "legend",
+      "parameters": {}
+    },
+    {
+      "type": "keyboard",
+      "parameters": {}
+    },
+    {
+      "type": "selection",
+      "parameters": {
+        "lasso": true
+      }
+    },
+    {
+      "type": "measure",
+      "parameters": {}
+    },
+    {
+      "type": "diagnostics",
+      "parameters": {}
+    }
+  ],
+  "exportMenu": false,
+  "overview": true,
+  "annotations": [],
+  "scene": {}
+}

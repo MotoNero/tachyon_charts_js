@@ -1,0 +1,337 @@
+{
+  "version": 1,
+  "title": "16 channels of 1 billion points each",
+  "xDown": false,
+  "xAxes": [
+    {
+      "id": "x",
+      "kind": "numeric",
+      "title": "Time in s",
+      "isInverted": false,
+      "isOpposite": false,
+      "skipsWeekends": false,
+      "categories": "",
+      "crossesZero": false,
+      "breaks": "",
+      "pane": 0,
+      "paneWeight": 1,
+      "isHidden": false,
+      "logBase": 10,
+      "nonPositive": "Hide",
+      "labelRotation": 0,
+      "isAutoRange": true
+    }
+  ],
+  "yAxes": [
+    {
+      "id": "y",
+      "kind": "category",
+      "title": "",
+      "isInverted": false,
+      "isOpposite": false,
+      "skipsWeekends": false,
+      "categories": "SYNC, LED, PWR, ERR, IRQ, D7, D6, D5, D4, D3, D2, D1, D0, WR, CS, CLK",
+      "crossesZero": false,
+      "breaks": "",
+      "pane": 0,
+      "paneWeight": 1,
+      "isHidden": false,
+      "logBase": 10,
+      "nonPositive": "Hide",
+      "labelRotation": 0,
+      "isAutoRange": true
+    }
+  ],
+  "series": [
+    {
+      "type": "digital",
+      "name": "CLK",
+      "parameters": {
+        "channel": 0,
+        "color": "#F0C850",
+        "high": 15.3,
+        "low": 14.7,
+        "thickness": 1
+      },
+      "data": {
+        "kind": "sample",
+        "sample": "logicBus",
+        "count": 1000000000,
+        "options": {}
+      }
+    },
+    {
+      "type": "digital",
+      "name": "CS",
+      "parameters": {
+        "channel": 1,
+        "color": "#F09646",
+        "high": 14.3,
+        "low": 13.7,
+        "thickness": 1
+      },
+      "data": {
+        "kind": "sample",
+        "sample": "logicBus",
+        "count": 1000000000,
+        "options": {}
+      }
+    },
+    {
+      "type": "digital",
+      "name": "WR",
+      "parameters": {
+        "channel": 2,
+        "color": "#F09646",
+        "high": 13.3,
+        "low": 12.7,
+        "thickness": 1
+      },
+      "data": {
+        "kind": "sample",
+        "sample": "logicBus",
+        "count": 1000000000,
+        "options": {}
+      }
+    },
+    {
+      "type": "digital",
+      "name": "D0",
+      "parameters": {
+        "channel": 3,
+        "color": "#5AC878",
+        "high": 12.3,
+        "low": 11.7,
+        "thickness": 1
+      },
+      "data": {
+        "kind": "sample",
+        "sample": "logicBus",
+        "count": 1000000000,
+        "options": {}
+      }
+    },
+    {
+      "type": "digital",
+      "name": "D1",
+      "parameters": {
+        "channel": 4,
+        "color": "#5AC878",
+        "high": 11.3,
+        "low": 10.7,
+        "thickness": 1
+      },
+      "data": {
+        "kind": "sample",
+        "sample": "logicBus",
+        "count": 1000000000,
+        "options": {}
+      }
+    },
+    {
+      "type": "digital",
+      "name": "D2",
+      "parameters": {
+        "channel": 5,
+        "color": "#5AC878",
+        "high": 10.3,
+        "low": 9.7,
+        "thickness": 1
+      },
+      "data": {
+        "kind": "sample",
+        "sample": "logicBus",
+        "count": 1000000000,
+        "options": {}
+      }
+    },
+    {
+      "type": "digital",
+      "name": "D3",
+      "parameters": {
+        "channel": 6,
+        "color": "#5AC878",
+        "high": 9.3,
+        "low": 8.7,
+        "thickness": 1
+      },
+      "data": {
+        "kind": "sample",
+        "sample": "logicBus",
+        "count": 1000000000,
+        "options": {}
+      }
+    },
+    {
+      "type": "digital",
+      "name": "D4",
+      "parameters": {
+        "channel": 7,
+        "color": "#5AC878",
+        "high": 8.3,
+        "low": 7.7,
+        "thickness": 1
+      },
+      "data": {
+        "kind": "sample",
+        "sample": "logicBus",
+        "count": 1000000000,
+        "options": {}
+      }
+    },
+    {
+      "type": "digital",
+      "name": "D5",
+      "parameters": {
+        "channel": 8,
+        "color": "#5AC878",
+        "high": 7.3,
+        "low": 6.7,
+        "thickness": 1
+      },
+      "data": {
+        "kind": "sample",
+        "sample": "logicBus",
+        "count": 1000000000,
+        "options": {}
+      }
+    },
+    {
+      "type": "digital",
+      "name": "D6",
+      "parameters": {
+        "channel": 9,
+        "color": "#5AC878",
+        "high": 6.3,
+        "low": 5.7,
+        "thickness": 1
+      },
+      "data": {
+        "kind": "sample",
+        "sample": "logicBus",
+        "count": 1000000000,
+        "options": {}
+      }
+    },
+    {
+      "type": "digital",
+      "name": "D7",
+      "parameters": {
+        "channel": 10,
+        "color": "#5AC878",
+        "high": 5.3,
+        "low": 4.7,
+        "thickness": 1
+      },
+      "data": {
+        "kind": "sample",
+        "sample": "logicBus",
+        "count": 1000000000,
+        "options": {}
+      }
+    },
+    {
+      "type": "digital",
+      "name": "IRQ",
+      "parameters": {
+        "channel": 11,
+        "color": "#F05A5A",
+        "high": 4.3,
+        "low": 3.7,
+        "thickness": 1
+      },
+      "data": {
+        "kind": "sample",
+        "sample": "logicBus",
+        "count": 1000000000,
+        "options": {}
+      }
+    },
+    {
+      "type": "digital",
+      "name": "ERR",
+      "parameters": {
+        "channel": 12,
+        "color": "#F05A5A",
+        "high": 3.3,
+        "low": 2.7,
+        "thickness": 1
+      },
+      "data": {
+        "kind": "sample",
+        "sample": "logicBus",
+        "count": 1000000000,
+        "options": {}
+      }
+    },
+    {
+      "type": "digital",
+      "name": "PWR",
+      "parameters": {
+        "channel": 13,
+        "color": "#5AA0F0",
+        "high": 2.3,
+        "low": 1.7,
+        "thickness": 1
+      },
+      "data": {
+        "kind": "sample",
+        "sample": "logicBus",
+        "count": 1000000000,
+        "options": {}
+      }
+    },
+    {
+      "type": "digital",
+      "name": "LED",
+      "parameters": {
+        "channel": 14,
+        "color": "#5AA0F0",
+        "high": 1.3,
+        "low": 0.7,
+        "thickness": 1
+      },
+      "data": {
+        "kind": "sample",
+        "sample": "logicBus",
+        "count": 1000000000,
+        "options": {}
+      }
+    },
+    {
+      "type": "digital",
+      "name": "SYNC",
+      "parameters": {
+        "channel": 15,
+        "color": "#5AA0F0",
+        "high": 0.3,
+        "low": -0.3,
+        "thickness": 1
+      },
+      "data": {
+        "kind": "sample",
+        "sample": "logicBus",
+        "count": 1000000000,
+        "options": {}
+      }
+    }
+  ],
+  "modifiers": [
+    {
+      "type": "zoompan",
+      "parameters": {}
+    },
+    {
+      "type": "rubberband",
+      "parameters": {}
+    },
+    {
+      "type": "tooltip",
+      "parameters": {}
+    }
+  ],
+  "exportMenu": false,
+  "overview": false,
+  "annotations": [],
+  "scene": {}
+}

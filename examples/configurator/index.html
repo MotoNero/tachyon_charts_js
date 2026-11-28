@@ -1,0 +1,196 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <title>Tachyon Charts – Configurator</title>
+    <link id="icon" rel="icon" />
+    <style>
+      :root {
+        --bg: #0e1116;
+        --panel: #151a22;
+        --line: #252c38;
+        --text: #c8d0dc;
+        --muted: #7d8899;
+        --accent: #50aaf0;
+      }
+      * {
+        box-sizing: border-box;
+      }
+      body {
+        margin: 0;
+        height: 100vh;
+        display: grid;
+        grid-template: 56px 1fr / 230px 1fr 340px;
+        background: var(--bg);
+        color: var(--text);
+        font:
+          13px/1.4 system-ui,
+          sans-serif;
+      }
+      header {
+        grid-column: 1 / 4;
+        display: flex;
+        align-items: center;
+        gap: 12px;
+        padding: 0 16px;
+        background: var(--panel);
+        border-bottom: 1px solid var(--line);
+      }
+      header img {
+        height: 28px;
+      }
+      header .spacer {
+        flex: 1;
+      }
+      button,
+      select,
+      input,
+      textarea {
+        font: inherit;
+        color: var(--text);
+        background: var(--bg);
+        border: 1px solid var(--line);
+        border-radius: 4px;
+        padding: 4px 6px;
+      }
+      button {
+        cursor: pointer;
+      }
+      button:hover {
+        border-color: var(--accent);
+      }
+      nav,
+      aside {
+        overflow: auto;
+        background: var(--panel);
+        padding: 8px;
+      }
+      nav {
+        border-right: 1px solid var(--line);
+      }
+      aside {
+        border-left: 1px solid var(--line);
+      }
+      nav h2,
+      aside h2 {
+        font-size: 11px;
+        text-transform: uppercase;
+        letter-spacing: 0.06em;
+        color: var(--muted);
+        margin: 12px 4px 4px;
+      }
+      nav a {
+        display: block;
+        padding: 3px 6px;
+        border-radius: 4px;
+        color: var(--text);
+        text-decoration: none;
+      }
+      nav a:hover,
+      nav a[aria-current='page'] {
+        background: var(--line);
+      }
+      nav a.later {
+        color: var(--muted);
+      }
+      main {
+        display: grid;
+        grid-template-rows: 1fr 38%;
+        min-width: 0;
+        min-height: 0;
+      }
+      tachyon-chart {
+        display: block;
+        min-height: 0;
+      }
+      .code {
+        display: grid;
+        grid-template-rows: auto 1fr;
+        border-top: 1px solid var(--line);
+        min-height: 0;
+      }
+      .code .bar {
+        display: flex;
+        gap: 6px;
+        padding: 6px 8px;
+        background: var(--panel);
+        align-items: center;
+      }
+      .code .bar .problem {
+        color: #f08060;
+      }
+      pre {
+        margin: 0;
+        padding: 8px 12px;
+        overflow: auto;
+        font:
+          12px/1.45 ui-monospace,
+          monospace;
+      }
+      label.row {
+        display: grid;
+        grid-template-columns: 120px 1fr;
+        align-items: center;
+        gap: 6px;
+        margin: 4px;
+      }
+      label.row > select,
+      label.row > input {
+        min-width: 0;
+        width: 100%;
+      }
+      label.row input[type='checkbox'] {
+        width: auto;
+        justify-self: start;
+      }
+      .series {
+        border: 1px solid var(--line);
+        border-radius: 6px;
+        margin: 6px 0;
+        padding: 4px;
+      }
+      .series .head {
+        display: flex;
+        gap: 6px;
+        align-items: center;
+        margin: 4px;
+      }
+      .series .head strong {
+        flex: 1;
+      }
+      .hint {
+        color: var(--muted);
+        margin: 4px;
+      }
+    </style>
+  </head>
+  <body>
+    <header>
+      <img id="logo" alt="Tachyon Charts" />
+      <strong>Configurator</strong>
+      <span class="spacer"></span>
+      <button id="new">New</button>
+      <button id="open">Open…</button>
+      <button id="save">Save</button>
+      <input id="file" type="file" accept=".json" hidden />
+    </header>
+    <nav id="templates"></nav>
+    <main>
+      <tachyon-chart id="chart"></tachyon-chart>
+      <section class="code">
+        <div class="bar">
+          <select id="language" aria-label="Language of the code">
+            <option value="typescript">TypeScript</option>
+            <option value="javascript">JavaScript</option>
+          </select>
+          <button id="copy">Copy</button>
+          <span id="problem" class="problem"></span>
+        </div>
+        <pre id="code"></pre>
+      </section>
+    </main>
+    <aside id="editor"></aside>
+    <script type="module" src="./src/main.ts"></script>
+  </body>
+</html>

@@ -1,0 +1,80 @@
+{
+  "version": 1,
+  "title": "Knot of tube, colored by height",
+  "theme": "Instrument",
+  "xDown": false,
+  "xAxes": [
+    {
+      "id": "x",
+      "kind": "numeric",
+      "title": "x",
+      "isInverted": false,
+      "isOpposite": false,
+      "skipsWeekends": false,
+      "categories": "",
+      "crossesZero": false,
+      "breaks": "",
+      "pane": 0,
+      "paneWeight": 1,
+      "isHidden": false,
+      "logBase": 10,
+      "nonPositive": "Hide",
+      "labelRotation": 0,
+      "isAutoRange": true
+    }
+  ],
+  "yAxes": [
+    {
+      "id": "y",
+      "kind": "numeric",
+      "title": "y",
+      "isInverted": false,
+      "isOpposite": false,
+      "skipsWeekends": false,
+      "categories": "",
+      "crossesZero": false,
+      "breaks": "",
+      "pane": 0,
+      "paneWeight": 1,
+      "isHidden": false,
+      "logBase": 10,
+      "nonPositive": "Hide",
+      "labelRotation": 0,
+      "isAutoRange": true
+    }
+  ],
+  "series": [
+    {
+      "type": "model3d",
+      "name": "Model 3D",
+      "parameters": {
+        "colorBy": "Height",
+        "colormap": "Viridis",
+        "colorsFollow": false,
+        "gloss": 0.4,
+        "scaleFrom": -1.4,
+        "scaleTitle": "Height in m",
+        "scaleTo": 1.4,
+        "sharpness": 48
+      },
+      "data": {
+        "kind": "sample",
+        "sample": "tubeKnot",
+        "count": 4000,
+        "options": {}
+      }
+    }
+  ],
+  "modifiers": [],
+  "exportMenu": false,
+  "overview": false,
+  "annotations": [],
+  "scene": {
+    "xRange": "-2.99531..3.630977",
+    "xTitle": "x in m",
+    "yRange": "-3.313152..3.313136",
+    "yTitle": "y in m",
+    "zRange": "-3.313141..3.313146",
+    "zTitle": "z in m"
+  }
+}

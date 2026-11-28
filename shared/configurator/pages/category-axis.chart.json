@@ -1,0 +1,65 @@
+{
+  "version": 1,
+  "title": "CategoryAxis",
+  "xDown": false,
+  "xAxes": [
+    {
+      "id": "x",
+      "kind": "category",
+      "title": "",
+      "isInverted": false,
+      "isOpposite": false,
+      "skipsWeekends": false,
+      "categories": "Januar, Februar, M\u00E4rz, April, Mai, Juni, Juli, August, September, Oktober, November, Dezember",
+      "crossesZero": false,
+      "breaks": "",
+      "pane": 0,
+      "paneWeight": 1,
+      "isHidden": false,
+      "logBase": 10,
+      "nonPositive": "Hide",
+      "labelRotation": -45,
+      "isAutoRange": true
+    }
+  ],
+  "yAxes": [
+    {
+      "id": "y",
+      "kind": "numeric",
+      "title": "",
+      "minimum": 0,
+      "maximum": 10,
+      "isInverted": false,
+      "isOpposite": false,
+      "skipsWeekends": false,
+      "categories": "",
+      "crossesZero": false,
+      "breaks": "",
+      "pane": 0,
+      "paneWeight": 1,
+      "isHidden": false,
+      "logBase": 10,
+      "nonPositive": "Hide",
+      "labelRotation": 0,
+      "isAutoRange": false
+    }
+  ],
+  "series": [
+    {
+      "type": "bars",
+      "name": "",
+      "parameters": {},
+      "data": {
+        "kind": "sample",
+        "sample": "months",
+        "count": 12,
+        "options": {}
+      }
+    }
+  ],
+  "modifiers": [],
+  "exportMenu": false,
+  "overview": false,
+  "annotations": [],
+  "scene": {}
+}

@@ -1,0 +1,67 @@
+{
+  "version": 1,
+  "title": "Drawing tools",
+  "theme": "TachyonDark",
+  "xDown": false,
+  "xAxes": [
+    {
+      "id": "time",
+      "kind": "dateTime",
+      "title": "",
+      "isInverted": false,
+      "isOpposite": false,
+      "skipsWeekends": false,
+      "categories": "",
+      "crossesZero": false,
+      "breaks": "",
+      "pane": 0,
+      "paneWeight": 1,
+      "isHidden": false,
+      "logBase": 10,
+      "nonPositive": "Hide",
+      "labelRotation": 0,
+      "isAutoRange": true
+    }
+  ],
+  "yAxes": [
+    {
+      "id": "price",
+      "kind": "numeric",
+      "title": "Price",
+      "isInverted": false,
+      "isOpposite": false,
+      "skipsWeekends": false,
+      "categories": "",
+      "crossesZero": false,
+      "breaks": "",
+      "pane": 0,
+      "paneWeight": 1,
+      "isHidden": false,
+      "logBase": 10,
+      "nonPositive": "Hide",
+      "labelRotation": 0,
+      "isAutoRange": true
+    }
+  ],
+  "series": [
+    {
+      "type": "candles",
+      "name": "",
+      "parameters": {
+        "examples": true,
+        "volume": false
+      },
+      "data": {
+        "kind": "sample",
+        "sample": "dailyWalk5",
+        "count": 160,
+        "options": {}
+      }
+    }
+  ],
+  "modifiers": [],
+  "exportMenu": false,
+  "overview": false,
+  "annotations": [],
+  "scene": {}
+}

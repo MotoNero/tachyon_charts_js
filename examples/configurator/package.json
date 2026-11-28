@@ -1,0 +1,10 @@
+{
+  "name": "@tachyon-charts/example-configurator",
+  "private": true,
+  "type": "module",
+  "dependencies": {
+    "@tachyon-charts/configurator": "workspace:*",
+    "@tachyon-charts/core": "workspace:*",
+    "@tachyon-charts/element": "workspace:*"
+  }
+}

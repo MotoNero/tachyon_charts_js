@@ -1,0 +1,81 @@
+{
+  "version": 1,
+  "title": "GridBands",
+  "ownTheme": {
+    "name": "Grid bands",
+    "base": "TachyonDark",
+    "values": {
+      "surface.background": "#0B0E16",
+      "surface.plotArea": "linear(#202D42, #0C121F)",
+      "grid.major": "#AABEDC48",
+      "grid.minor": "#AABEDC1C",
+      "grid.band": "#6EA0DC14"
+    }
+  },
+  "xDown": false,
+  "xAxes": [
+    {
+      "id": "x",
+      "kind": "numeric",
+      "title": "Major and minor grid",
+      "minimum": 0,
+      "maximum": 12,
+      "isInverted": false,
+      "isOpposite": false,
+      "skipsWeekends": false,
+      "categories": "",
+      "crossesZero": false,
+      "breaks": "",
+      "pane": 0,
+      "paneWeight": 1,
+      "isHidden": false,
+      "logBase": 10,
+      "nonPositive": "Hide",
+      "labelRotation": 0,
+      "isAutoRange": false
+    }
+  ],
+  "yAxes": [
+    {
+      "id": "y",
+      "kind": "numeric",
+      "title": "",
+      "minimum": 0,
+      "maximum": 8,
+      "isInverted": false,
+      "isOpposite": false,
+      "skipsWeekends": false,
+      "categories": "",
+      "crossesZero": false,
+      "breaks": "",
+      "pane": 0,
+      "paneWeight": 1,
+      "isHidden": false,
+      "logBase": 10,
+      "nonPositive": "Hide",
+      "labelRotation": 0,
+      "isAutoRange": false
+    }
+  ],
+  "series": [
+    {
+      "type": "line",
+      "name": "Wave",
+      "parameters": {
+        "color": "#5CC8FF",
+        "thickness": 2
+      },
+      "data": {
+        "kind": "sample",
+        "sample": "bandsWave",
+        "count": 300,
+        "options": {}
+      }
+    }
+  ],
+  "modifiers": [],
+  "exportMenu": false,
+  "overview": false,
+  "annotations": [],
+  "scene": {}
+}

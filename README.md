@@ -1127,6 +1127,22 @@ scatter, areas, bands, bars, logarithmic, category and time axes, axes in the or
 many charts, files larger than memory, CSV, recording, digital channels, rasters and scatter density. A theme and the
 language of the axes can be chosen at the top for all pages. Every new feature brings its page.
 
+## Configurator
+
+![The configurator: templates at the left, a sine line in the middle with its TypeScript code below, the parameters of the series and the interactions at the right](docs/images/configurator.png)
+
+`examples/configurator` builds a chart without writing code: choose a template or start a new chart, pick the type of
+each series, its sample data and parameters, the interactions and a legend. The code of the chart shows below it in
+TypeScript or JavaScript, ready to copy; the preview runs exactly this code, so the copied code draws the same chart.
+Descriptions save and open as `.chart.json`, the same format as the configurator of the .NET version.
+
+```ts
+import { ChartCatalog, chartCode, coreModule, readChartSpec } from '@tachyon-charts/configurator';
+
+const catalog = new ChartCatalog([coreModule]);
+const code = chartCode(readChartSpec(json), catalog, 'typescript');
+```
+
 ## Packages
 
 | Package | Content |

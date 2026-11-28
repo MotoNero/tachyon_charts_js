@@ -1,0 +1,296 @@
+{
+  "type": "object",
+  "properties": {
+    "version": {
+      "type": "integer"
+    },
+    "title": {
+      "type": "string"
+    },
+    "theme": {
+      "type": [
+        "string",
+        "null"
+      ]
+    },
+    "ownTheme": {
+      "type": [
+        "object",
+        "null"
+      ],
+      "properties": {
+        "name": {
+          "type": "string"
+        },
+        "base": {
+          "type": "string"
+        },
+        "values": {
+          "type": "object",
+          "additionalProperties": {
+            "type": "string"
+          }
+        }
+      }
+    },
+    "titleFont": {
+      "type": [
+        "object",
+        "null"
+      ],
+      "properties": {
+        "family": {
+          "type": "string"
+        },
+        "bold": {
+          "type": "boolean"
+        },
+        "italic": {
+          "type": "boolean"
+        }
+      }
+    },
+    "axisFont": {
+      "type": [
+        "object",
+        "null"
+      ],
+      "properties": {
+        "family": {
+          "type": "string"
+        },
+        "bold": {
+          "type": "boolean"
+        },
+        "italic": {
+          "type": "boolean"
+        }
+      }
+    },
+    "xDown": {
+      "type": "boolean"
+    },
+    "group": {
+      "type": [
+        "string",
+        "null"
+      ]
+    },
+    "xAxes": {
+      "type": "array",
+      "items": {
+        "type": "object",
+        "properties": {
+          "id": {
+            "type": "string"
+          },
+          "kind": {
+            "enum": [
+              "numeric",
+              "logarithmic",
+              "dateTime",
+              "category"
+            ]
+          },
+          "title": {
+            "type": "string"
+          },
+          "minimum": {
+            "type": [
+              "number",
+              "null"
+            ]
+          },
+          "maximum": {
+            "type": [
+              "number",
+              "null"
+            ]
+          },
+          "isInverted": {
+            "type": "boolean"
+          },
+          "isOpposite": {
+            "type": "boolean"
+          },
+          "skipsWeekends": {
+            "type": "boolean"
+          },
+          "categories": {
+            "type": "string"
+          },
+          "crossesZero": {
+            "type": "boolean"
+          },
+          "breaks": {
+            "type": "string"
+          },
+          "pane": {
+            "type": "integer"
+          },
+          "paneWeight": {
+            "type": "number"
+          },
+          "isHidden": {
+            "type": "boolean"
+          },
+          "logBase": {
+            "type": "number"
+          },
+          "nonPositive": {
+            "type": "string"
+          },
+          "floor": {
+            "type": [
+              "number",
+              "null"
+            ]
+          },
+          "labelRotation": {
+            "type": "number"
+          },
+          "isAutoRange": {
+            "type": "boolean"
+          }
+        }
+      }
+    },
+    "yAxes": {
+      "type": "array",
+      "items": {
+        "$ref": "#/properties/xAxes/items"
+      }
+    },
+    "series": {
+      "type": "array",
+      "items": {
+        "type": "object",
+        "properties": {
+          "type": {
+            "type": "string"
+          },
+          "name": {
+            "type": "string"
+          },
+          "xAxis": {
+            "type": [
+              "string",
+              "null"
+            ]
+          },
+          "yAxis": {
+            "type": [
+              "string",
+              "null"
+            ]
+          },
+          "parameters": true,
+          "data": {
+            "type": "object",
+            "properties": {
+              "kind": {
+                "enum": [
+                  "sample",
+                  "csv",
+                  "live",
+                  "medicalFile",
+                  "hdf5",
+                  "file"
+                ]
+              },
+              "sample": {
+                "type": "string"
+              },
+              "count": {
+                "type": "integer"
+              },
+              "options": true,
+              "path": {
+                "type": [
+                  "string",
+                  "null"
+                ]
+              }
+            }
+          }
+        }
+      }
+    },
+    "modifiers": {
+      "type": "array",
+      "items": {
+        "type": "object",
+        "properties": {
+          "type": {
+            "type": "string"
+          },
+          "parameters": true
+        }
+      }
+    },
+    "legend": {
+      "type": [
+        "object",
+        "null"
+      ],
+      "properties": {
+        "title": {
+          "type": "string"
+        },
+        "placement": {
+          "type": "string"
+        },
+        "series": {
+          "type": "string"
+        }
+      }
+    },
+    "exportMenu": {
+      "type": "boolean"
+    },
+    "overview": {
+      "type": "boolean"
+    },
+    "annotations": {
+      "type": "array",
+      "items": {
+        "type": "object",
+        "properties": {
+          "type": {
+            "type": "string"
+          },
+          "parameters": true
+        }
+      }
+    },
+    "secondLegend": {
+      "type": [
+        "object",
+        "null"
+      ],
+      "properties": {
+        "title": {
+          "type": "string"
+        },
+        "placement": {
+          "type": "string"
+        },
+        "series": {
+          "type": "string"
+        }
+      }
+    },
+    "scene": true,
+    "charts": {
+      "type": "array",
+      "items": {
+        "$ref": "#"
+      }
+    },
+    "columns": {
+      "type": "integer"
+    }
+  },
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "title": "Tachyon Charts chart description (.chart.json)"
+}

@@ -1,0 +1,72 @@
+{
+  "version": 1,
+  "title": "Surface",
+  "theme": "Instrument",
+  "xDown": false,
+  "xAxes": [
+    {
+      "id": "x",
+      "kind": "numeric",
+      "title": "x",
+      "isInverted": false,
+      "isOpposite": false,
+      "skipsWeekends": false,
+      "categories": "",
+      "crossesZero": false,
+      "breaks": "",
+      "pane": 0,
+      "paneWeight": 1,
+      "isHidden": false,
+      "logBase": 10,
+      "nonPositive": "Hide",
+      "labelRotation": 0,
+      "isAutoRange": true
+    }
+  ],
+  "yAxes": [
+    {
+      "id": "y",
+      "kind": "numeric",
+      "title": "y",
+      "isInverted": false,
+      "isOpposite": false,
+      "skipsWeekends": false,
+      "categories": "",
+      "crossesZero": false,
+      "breaks": "",
+      "pane": 0,
+      "paneWeight": 1,
+      "isHidden": false,
+      "logBase": 10,
+      "nonPositive": "Hide",
+      "labelRotation": 0,
+      "isAutoRange": true
+    }
+  ],
+  "series": [
+    {
+      "type": "model3d",
+      "name": "Model 3D",
+      "parameters": {},
+      "data": {
+        "kind": "sample",
+        "sample": "hillMesh",
+        "count": 96,
+        "options": {}
+      }
+    }
+  ],
+  "modifiers": [],
+  "exportMenu": false,
+  "overview": false,
+  "annotations": [],
+  "scene": {
+    "planes": "-1 0 0 @ -0.35; -0.5 1 0 @ -0.5",
+    "xRange": "-1..1",
+    "xTitle": "x",
+    "yRange": "-1..1",
+    "yTitle": "y",
+    "zRange": "-1..1",
+    "zTitle": "z"
+  }
+}

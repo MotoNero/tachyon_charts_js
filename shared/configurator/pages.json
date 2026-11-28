@@ -1,0 +1,734 @@
+[
+  {
+    "page": "Live-Chart (interaktiv)",
+    "file": "pages/live-chart-interaktiv.chart.json"
+  },
+  {
+    "page": "Line",
+    "file": "pages/line.chart.json"
+  },
+  {
+    "page": "Step line",
+    "file": "pages/step-line.chart.json"
+  },
+  {
+    "page": "Spline",
+    "file": "pages/spline.chart.json"
+  },
+  {
+    "page": "Scatter",
+    "file": "pages/scatter.chart.json"
+  },
+  {
+    "page": "Bubble",
+    "file": "pages/bubble.chart.json"
+  },
+  {
+    "page": "Area",
+    "file": "pages/area.chart.json"
+  },
+  {
+    "page": "Stacked area",
+    "file": "pages/stacked-area.chart.json"
+  },
+  {
+    "page": "Band",
+    "file": "pages/band.chart.json"
+  },
+  {
+    "page": "Bars",
+    "file": "pages/bars.chart.json"
+  },
+  {
+    "page": "Stacked bars",
+    "file": "pages/stacked-bars.chart.json"
+  },
+  {
+    "page": "Horizontal bars",
+    "file": "pages/horizontal-bars.chart.json"
+  },
+  {
+    "page": "Error bars",
+    "file": "pages/error-bars.chart.json"
+  },
+  {
+    "page": "Stems",
+    "file": "pages/stems.chart.json"
+  },
+  {
+    "page": "Histogram",
+    "file": "pages/histogram.chart.json"
+  },
+  {
+    "page": "Box plot",
+    "file": "pages/box-plot.chart.json"
+  },
+  {
+    "page": "Violin",
+    "file": "pages/violin.chart.json"
+  },
+  {
+    "page": "Categories",
+    "file": "pages/categories.chart.json"
+  },
+  {
+    "page": "Scale break",
+    "file": "pages/scale-break.chart.json"
+  },
+  {
+    "page": "Last value at the axis",
+    "file": "pages/last-value-at-the-axis.chart.json"
+  },
+  {
+    "page": "Several legends",
+    "file": "pages/several-legends.chart.json"
+  },
+  {
+    "page": "Own theme",
+    "file": "pages/own-theme.chart.json"
+  },
+  {
+    "page": "Axes in the origin",
+    "file": "pages/axes-in-the-origin.chart.json"
+  },
+  {
+    "page": "Depth profile",
+    "file": "pages/depth-profile.chart.json"
+  },
+  {
+    "page": "Polygons",
+    "file": "pages/polygons.chart.json"
+  },
+  {
+    "page": "10 000 polygons",
+    "file": "pages/10-000-polygons.chart.json"
+  },
+  {
+    "page": "Heatmap in an area",
+    "file": "pages/heatmap-in-an-area.chart.json"
+  },
+  {
+    "page": "Uneven heatmap 4096\u00B2",
+    "file": "pages/uneven-heatmap-4096.chart.json"
+  },
+  {
+    "page": "Labelled contours",
+    "file": "pages/labelled-contours.chart.json"
+  },
+  {
+    "page": "Polar",
+    "file": "pages/polar.chart.json"
+  },
+  {
+    "page": "Antenna cut",
+    "file": "pages/antenna-cut.chart.json"
+  },
+  {
+    "page": "Cut through a surface",
+    "file": "pages/cut-through-a-surface.chart.json"
+  },
+  {
+    "page": "Radar",
+    "file": "pages/radar.chart.json"
+  },
+  {
+    "page": "Pie",
+    "file": "pages/pie.chart.json"
+  },
+  {
+    "page": "Donut",
+    "file": "pages/donut.chart.json"
+  },
+  {
+    "page": "Candles",
+    "file": "pages/candles.chart.json"
+  },
+  {
+    "page": "OHLC bars",
+    "file": "pages/ohlc-bars.chart.json"
+  },
+  {
+    "page": "1 million candles",
+    "file": "pages/1-million-candles.chart.json"
+  },
+  {
+    "page": "Large file",
+    "file": "pages/large-file.chart.json"
+  },
+  {
+    "page": "Recording",
+    "file": "pages/recording.chart.json"
+  },
+  {
+    "page": "Digital channels",
+    "file": "pages/digital-channels.chart.json"
+  },
+  {
+    "page": "Scatter from a file",
+    "file": "pages/scatter-from-a-file.chart.json"
+  },
+  {
+    "page": "Heatmap from a file",
+    "file": "pages/heatmap-from-a-file.chart.json"
+  },
+  {
+    "page": "Candles without weekends",
+    "file": "pages/candles-without-weekends.chart.json"
+  },
+  {
+    "page": "Market profile",
+    "file": "pages/market-profile.chart.json"
+  },
+  {
+    "page": "Drawing tools",
+    "file": "pages/drawing-tools.chart.json"
+  },
+  {
+    "page": "Gantt",
+    "file": "pages/gantt.chart.json"
+  },
+  {
+    "page": "Gantt, 100 000 tasks",
+    "file": "pages/gantt-100-000-tasks.chart.json"
+  },
+  {
+    "page": "Ternary",
+    "file": "pages/ternary.chart.json"
+  },
+  {
+    "page": "Annotations",
+    "file": "pages/annotations.chart.json"
+  },
+  {
+    "page": "LineBasic",
+    "file": "pages/line-basic.chart.json"
+  },
+  {
+    "page": "LineStep",
+    "file": "pages/line-step.chart.json"
+  },
+  {
+    "page": "LineGaps",
+    "file": "pages/line-gaps.chart.json"
+  },
+  {
+    "page": "LineDash",
+    "file": "pages/line-dash.chart.json"
+  },
+  {
+    "page": "AnnotationStyles",
+    "file": "pages/annotation-styles.chart.json"
+  },
+  {
+    "page": "TextFonts",
+    "file": "pages/text-fonts.chart.json"
+  },
+  {
+    "page": "ZoomPreview",
+    "file": "pages/zoom-preview.chart.json"
+  },
+  {
+    "page": "LineFifoWrap",
+    "file": "pages/line-fifo-wrap.chart.json"
+  },
+  {
+    "page": "Crosshair",
+    "file": "pages/crosshair.chart.json"
+  },
+  {
+    "page": "CrosshairSnap",
+    "file": "pages/crosshair-snap.chart.json"
+  },
+  {
+    "page": "Rollover",
+    "file": "pages/rollover.chart.json"
+  },
+  {
+    "page": "MeasureCursors",
+    "file": "pages/measure-cursors.chart.json"
+  },
+  {
+    "page": "Legend",
+    "file": "pages/legend.chart.json"
+  },
+  {
+    "page": "Selection",
+    "file": "pages/selection.chart.json"
+  },
+  {
+    "page": "BarsGrouped",
+    "file": "pages/bars-grouped.chart.json"
+  },
+  {
+    "page": "BarsStacked",
+    "file": "pages/bars-stacked.chart.json"
+  },
+  {
+    "page": "BarsPercent",
+    "file": "pages/bars-percent.chart.json"
+  },
+  {
+    "page": "BarsHorizontal",
+    "file": "pages/bars-horizontal.chart.json"
+  },
+  {
+    "page": "ErrorBars",
+    "file": "pages/error-bars-2.chart.json"
+  },
+  {
+    "page": "Stem",
+    "file": "pages/stem.chart.json"
+  },
+  {
+    "page": "GlowNeon",
+    "file": "pages/glow-neon.chart.json"
+  },
+  {
+    "page": "ThemeHighContrast",
+    "file": "pages/theme-high-contrast.chart.json"
+  },
+  {
+    "page": "ThemeNeon",
+    "file": "pages/theme-neon.chart.json"
+  },
+  {
+    "page": "ThemePaper",
+    "file": "pages/theme-paper.chart.json"
+  },
+  {
+    "page": "ThemeInstrument",
+    "file": "pages/theme-instrument.chart.json"
+  },
+  {
+    "page": "ThemeSignal",
+    "file": "pages/theme-signal.chart.json"
+  },
+  {
+    "page": "LastValue",
+    "file": "pages/last-value.chart.json"
+  },
+  {
+    "page": "ValueLabels",
+    "file": "pages/value-labels.chart.json"
+  },
+  {
+    "page": "CategoryThinning",
+    "file": "pages/category-thinning.chart.json"
+  },
+  {
+    "page": "Contour",
+    "file": "pages/contour.chart.json"
+  },
+  {
+    "page": "DonutLight",
+    "file": "pages/donut-light.chart.json"
+  },
+  {
+    "page": "BoxViolin",
+    "file": "pages/box-violin.chart.json"
+  },
+  {
+    "page": "OhlcLight",
+    "file": "pages/ohlc-light.chart.json"
+  },
+  {
+    "page": "Drawings",
+    "file": "pages/drawings.chart.json"
+  },
+  {
+    "page": "AreaStacked",
+    "file": "pages/area-stacked.chart.json"
+  },
+  {
+    "page": "DrawingPatterns",
+    "file": "pages/drawing-patterns.chart.json"
+  },
+  {
+    "page": "ThemeDark",
+    "file": "pages/theme-dark.chart.json"
+  },
+  {
+    "page": "ThemeLight",
+    "file": "pages/theme-light.chart.json"
+  },
+  {
+    "page": "CategoryAxis",
+    "file": "pages/category-axis.chart.json"
+  },
+  {
+    "page": "Overview",
+    "file": "pages/overview.chart.json"
+  },
+  {
+    "page": "GridBands",
+    "file": "pages/grid-bands.chart.json"
+  },
+  {
+    "page": "CrosshairValues",
+    "file": "pages/crosshair-values.chart.json"
+  },
+  {
+    "page": "CrosshairValuesTurned",
+    "file": "pages/crosshair-values-turned.chart.json"
+  },
+  {
+    "page": "GanttCollapsedLight",
+    "file": "pages/gantt-collapsed-light.chart.json"
+  },
+  {
+    "page": "MarketProfile",
+    "file": "pages/market-profile-2.chart.json"
+  },
+  {
+    "page": "Smith",
+    "file": "pages/smith.chart.json"
+  },
+  {
+    "page": "Smith (interaktiv)",
+    "file": "pages/smith-interaktiv.chart.json"
+  },
+  {
+    "page": "ParallelCoordinates",
+    "file": "pages/parallel-coordinates.chart.json"
+  },
+  {
+    "page": "Parallel (interaktiv)",
+    "file": "pages/parallel-interaktiv.chart.json"
+  },
+  {
+    "page": "Gruppe (3 Charts)",
+    "file": "pages/gruppe-3-charts.chart.json"
+  },
+  {
+    "page": "Raster (interaktiv)",
+    "file": "pages/raster-interaktiv.chart.json"
+  },
+  {
+    "page": "GroupStacked",
+    "file": "pages/group-stacked.chart.json"
+  },
+  {
+    "page": "Oszilloskop (interaktiv)",
+    "file": "pages/oszilloskop-interaktiv.chart.json"
+  },
+  {
+    "page": "Oscilloscope",
+    "file": "pages/oscilloscope.chart.json"
+  },
+  {
+    "page": "ColorGrade",
+    "file": "pages/color-grade.chart.json"
+  },
+  {
+    "page": "Spektrum (interaktiv)",
+    "file": "pages/spektrum-interaktiv.chart.json"
+  },
+  {
+    "page": "Spectrum",
+    "file": "pages/spectrum.chart.json"
+  },
+  {
+    "page": "Network (interaktiv)",
+    "file": "pages/network-interaktiv.chart.json"
+  },
+  {
+    "page": "Network",
+    "file": "pages/network.chart.json"
+  },
+  {
+    "page": "Sweep monitor",
+    "file": "pages/sweep-monitor.chart.json"
+  },
+  {
+    "page": "Stepping monitor",
+    "file": "pages/stepping-monitor.chart.json"
+  },
+  {
+    "page": "Sweep",
+    "file": "pages/sweep.chart.json"
+  },
+  {
+    "page": "Stepping",
+    "file": "pages/stepping.chart.json"
+  },
+  {
+    "page": "ScatterMarkers",
+    "file": "pages/scatter-markers.chart.json"
+  },
+  {
+    "page": "PointCloud50M",
+    "file": "pages/point-cloud50m.chart.json"
+  },
+  {
+    "page": "Heatmap4k",
+    "file": "pages/heatmap4k.chart.json"
+  },
+  {
+    "page": "HeatmapNonUniform",
+    "file": "pages/heatmap-non-uniform.chart.json"
+  },
+  {
+    "page": "Spectrogram",
+    "file": "pages/spectrogram.chart.json"
+  },
+  {
+    "page": "LogAxis",
+    "file": "pages/log-axis.chart.json"
+  },
+  {
+    "page": "Gradients",
+    "file": "pages/gradients.chart.json"
+  },
+  {
+    "page": "ScatterPerPointColor",
+    "file": "pages/scatter-per-point-color.chart.json"
+  },
+  {
+    "page": "Logarithmic axis",
+    "file": "pages/logarithmic-axis.chart.json"
+  },
+  {
+    "page": "ScaleBreak",
+    "file": "pages/scale-break-2.chart.json"
+  },
+  {
+    "page": "CandlesWithoutWeekends",
+    "file": "pages/candles-without-weekends-2.chart.json"
+  },
+  {
+    "page": "ContourLabels",
+    "file": "pages/contour-labels.chart.json"
+  },
+  {
+    "page": "AxesInTheOrigin",
+    "file": "pages/axes-in-the-origin-2.chart.json"
+  },
+  {
+    "page": "DepthProfile",
+    "file": "pages/depth-profile-2.chart.json"
+  },
+  {
+    "page": "Legends",
+    "file": "pages/legends.chart.json"
+  },
+  {
+    "page": "HeatmapInAnArea",
+    "file": "pages/heatmap-in-an-area-2.chart.json"
+  },
+  {
+    "page": "Scatter of 3000 points",
+    "file": "pages/scatter-of-3000-points.chart.json"
+  },
+  {
+    "page": "Scatter of 10 million points",
+    "file": "pages/scatter-of-10-million-points.chart.json"
+  },
+  {
+    "page": "Columns",
+    "file": "pages/columns.chart.json"
+  },
+  {
+    "page": "1 million columns",
+    "file": "pages/1-million-columns.chart.json"
+  },
+  {
+    "page": "Pie 3D",
+    "file": "pages/pie-3d.chart.json"
+  },
+  {
+    "page": "Donut 3D",
+    "file": "pages/donut-3d.chart.json"
+  },
+  {
+    "page": "Bubbles",
+    "file": "pages/bubbles.chart.json"
+  },
+  {
+    "page": "1 million bubbles",
+    "file": "pages/1-million-bubbles.chart.json"
+  },
+  {
+    "page": "Antenna pattern",
+    "file": "pages/antenna-pattern.chart.json"
+  },
+  {
+    "page": "Map from measurements",
+    "file": "pages/map-from-measurements.chart.json"
+  },
+  {
+    "page": "Height lines",
+    "file": "pages/height-lines.chart.json"
+  },
+  {
+    "page": "Surface 4096 \u00D7 4096",
+    "file": "pages/surface-4096-4096.chart.json"
+  },
+  {
+    "page": "Surface with light",
+    "file": "pages/surface-with-light.chart.json"
+  },
+  {
+    "page": "Video recording",
+    "file": "pages/video-recording.chart.json"
+  },
+  {
+    "page": "Cut planes",
+    "file": "pages/cut-planes.chart.json"
+  },
+  {
+    "page": "One plane, all kinds",
+    "file": "pages/one-plane-all-kinds.chart.json"
+  },
+  {
+    "page": "Planes and limits",
+    "file": "pages/planes-and-limits.chart.json"
+  },
+  {
+    "page": "Axis box",
+    "file": "pages/axis-box.chart.json"
+  },
+  {
+    "page": "Model with measuring points",
+    "file": "pages/model-with-measuring-points.chart.json"
+  },
+  {
+    "page": "Model of 1 million triangles",
+    "file": "pages/model-of-1-million-triangles.chart.json"
+  },
+  {
+    "page": "Volume slices 512\u00B3",
+    "file": "pages/volume-slices-512.chart.json"
+  },
+  {
+    "page": "Through a volume 512\u00B3",
+    "file": "pages/through-a-volume-512.chart.json"
+  },
+  {
+    "page": "Maximum projection 512\u00B3",
+    "file": "pages/maximum-projection-512.chart.json"
+  },
+  {
+    "page": "Surface of equal value 512\u00B3",
+    "file": "pages/surface-of-equal-value-512.chart.json"
+  },
+  {
+    "page": "Objects inside a volume",
+    "file": "pages/objects-inside-a-volume.chart.json"
+  },
+  {
+    "page": "Cloud of 20 million points",
+    "file": "pages/cloud-of-20-million-points.chart.json"
+  },
+  {
+    "page": "Cloud of 100 million points",
+    "file": "pages/cloud-of-100-million-points.chart.json"
+  },
+  {
+    "page": "Cloud from a file",
+    "file": "pages/cloud-from-a-file.chart.json"
+  },
+  {
+    "page": "Path of 200 000 points",
+    "file": "pages/path-of-200-000-points.chart.json"
+  },
+  {
+    "page": "Path, live",
+    "file": "pages/path-live.chart.json"
+  },
+  {
+    "page": "Cloud, live",
+    "file": "pages/cloud-live.chart.json"
+  },
+  {
+    "page": "Waterfall, live",
+    "file": "pages/waterfall-live.chart.json"
+  },
+  {
+    "page": "Cut, live",
+    "file": "pages/cut-live.chart.json"
+  },
+  {
+    "page": "Medical image",
+    "file": "pages/medical-image.chart.json"
+  },
+  {
+    "page": "Medical measurements",
+    "file": "pages/medical-measurements.chart.json"
+  },
+  {
+    "page": "Medical MPR",
+    "file": "pages/medical-mpr.chart.json"
+  },
+  {
+    "page": "Medical analysis",
+    "file": "pages/medical-analysis.chart.json"
+  },
+  {
+    "page": "Medical CT and MRI",
+    "file": "pages/medical-ct-and-mri.chart.json"
+  },
+  {
+    "page": "Medical oblique and curved",
+    "file": "pages/medical-oblique-and-curved.chart.json"
+  },
+  {
+    "page": "MedicalAxial",
+    "file": "pages/medical-axial.chart.json"
+  },
+  {
+    "page": "MedicalCoronal",
+    "file": "pages/medical-coronal.chart.json"
+  },
+  {
+    "page": "MedicalSagittal",
+    "file": "pages/medical-sagittal.chart.json"
+  },
+  {
+    "page": "MedicalMeasurements",
+    "file": "pages/medical-measurements-2.chart.json"
+  },
+  {
+    "page": "MedicalAnalysisSlice",
+    "file": "pages/medical-analysis-slice.chart.json"
+  },
+  {
+    "page": "MedicalProfile",
+    "file": "pages/medical-profile.chart.json"
+  },
+  {
+    "page": "MedicalHistogram",
+    "file": "pages/medical-histogram.chart.json"
+  },
+  {
+    "page": "MedicalThoraxAxial",
+    "file": "pages/medical-thorax-axial.chart.json"
+  },
+  {
+    "page": "MedicalThoraxCoronal",
+    "file": "pages/medical-thorax-coronal.chart.json"
+  },
+  {
+    "page": "MedicalReformatSlice",
+    "file": "pages/medical-reformat-slice.chart.json"
+  },
+  {
+    "page": "MedicalOblique",
+    "file": "pages/medical-oblique.chart.json"
+  },
+  {
+    "page": "MedicalCurved",
+    "file": "pages/medical-curved.chart.json"
+  },
+  {
+    "page": "AnnotationSymbols",
+    "file": "pages/annotation-symbols.chart.json"
+  },
+  {
+    "page": "World map",
+    "file": "pages/world-map.chart.json"
+  },
+  {
+    "page": "Tile map",
+    "file": "pages/tile-map.chart.json"
+  }
+]

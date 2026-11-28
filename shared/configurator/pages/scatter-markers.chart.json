@@ -1,0 +1,158 @@
+{
+  "version": 1,
+  "title": "ScatterMarkers",
+  "xDown": false,
+  "xAxes": [
+    {
+      "id": "x",
+      "kind": "numeric",
+      "title": "",
+      "minimum": 0,
+      "maximum": 10,
+      "isInverted": false,
+      "isOpposite": false,
+      "skipsWeekends": false,
+      "categories": "",
+      "crossesZero": false,
+      "breaks": "",
+      "pane": 0,
+      "paneWeight": 1,
+      "isHidden": false,
+      "logBase": 10,
+      "nonPositive": "Hide",
+      "labelRotation": 0,
+      "isAutoRange": false
+    }
+  ],
+  "yAxes": [
+    {
+      "id": "y",
+      "kind": "numeric",
+      "title": "",
+      "minimum": 0,
+      "maximum": 7,
+      "isInverted": false,
+      "isOpposite": false,
+      "skipsWeekends": false,
+      "categories": "",
+      "crossesZero": false,
+      "breaks": "",
+      "pane": 0,
+      "paneWeight": 1,
+      "isHidden": false,
+      "logBase": 10,
+      "nonPositive": "Hide",
+      "labelRotation": 0,
+      "isAutoRange": false
+    }
+  ],
+  "series": [
+    {
+      "type": "scatter",
+      "name": "",
+      "parameters": {
+        "border": 2,
+        "borderColor": "#0A0F18",
+        "color": "#50AAF0",
+        "marker": "Circle",
+        "size": 16
+      },
+      "data": {
+        "kind": "sample",
+        "sample": "markerRow1",
+        "count": 9,
+        "options": {}
+      }
+    },
+    {
+      "type": "scatter",
+      "name": "",
+      "parameters": {
+        "border": 0,
+        "borderColor": "#0A0F18",
+        "color": "#F0825A",
+        "marker": "Square",
+        "size": 16
+      },
+      "data": {
+        "kind": "sample",
+        "sample": "markerRow2",
+        "count": 9,
+        "options": {}
+      }
+    },
+    {
+      "type": "scatter",
+      "name": "",
+      "parameters": {
+        "border": 0,
+        "borderColor": "#0A0F18",
+        "color": "#6ED282",
+        "marker": "Triangle",
+        "size": 16
+      },
+      "data": {
+        "kind": "sample",
+        "sample": "markerRow3",
+        "count": 9,
+        "options": {}
+      }
+    },
+    {
+      "type": "scatter",
+      "name": "",
+      "parameters": {
+        "border": 0,
+        "borderColor": "#0A0F18",
+        "color": "#DCB446",
+        "marker": "Diamond",
+        "size": 16
+      },
+      "data": {
+        "kind": "sample",
+        "sample": "markerRow4",
+        "count": 9,
+        "options": {}
+      }
+    },
+    {
+      "type": "scatter",
+      "name": "",
+      "parameters": {
+        "border": 0,
+        "borderColor": "#0A0F18",
+        "color": "#B478E6",
+        "marker": "Cross",
+        "size": 16
+      },
+      "data": {
+        "kind": "sample",
+        "sample": "markerRow5",
+        "count": 9,
+        "options": {}
+      }
+    },
+    {
+      "type": "scatter",
+      "name": "",
+      "parameters": {
+        "border": 0,
+        "borderColor": "#0A0F18",
+        "color": "#50D2CD",
+        "marker": "Plus",
+        "size": 16
+      },
+      "data": {
+        "kind": "sample",
+        "sample": "markerRow6",
+        "count": 9,
+        "options": {}
+      }
+    }
+  ],
+  "modifiers": [],
+  "exportMenu": false,
+  "overview": false,
+  "annotations": [],
+  "scene": {}
+}

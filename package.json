@@ -8,7 +8,7 @@
     "node": ">=22.12"
   },
   "scripts": {
-    "build": "tsc -b && vite build examples/basic --logLevel warn && vite build examples/web-component --logLevel warn && vite build examples/showroom --logLevel warn",
+    "build": "tsc -b && vite build examples/basic --logLevel warn && vite build examples/web-component --logLevel warn && vite build examples/showroom --logLevel warn && vite build examples/configurator --logLevel warn",
     "clean": "tsc -b --clean",
     "format": "prettier --write ."
   },

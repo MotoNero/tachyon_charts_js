@@ -1,0 +1,82 @@
+{
+  "version": 1,
+  "title": "4096 \u00D7 4096 cells of their own sizes",
+  "xDown": false,
+  "xAxes": [
+    {
+      "id": "frequency",
+      "kind": "logarithmic",
+      "title": "Frequency in Hz",
+      "minimum": 1,
+      "maximum": 10000,
+      "isInverted": false,
+      "isOpposite": false,
+      "skipsWeekends": false,
+      "categories": "",
+      "crossesZero": false,
+      "breaks": "",
+      "pane": 0,
+      "paneWeight": 1,
+      "isHidden": false,
+      "logBase": 10,
+      "nonPositive": "Hide",
+      "labelRotation": 0,
+      "isAutoRange": false
+    }
+  ],
+  "yAxes": [
+    {
+      "id": "depth",
+      "kind": "numeric",
+      "title": "Depth in m",
+      "minimum": 0,
+      "maximum": 100,
+      "isInverted": false,
+      "isOpposite": false,
+      "skipsWeekends": false,
+      "categories": "",
+      "crossesZero": false,
+      "breaks": "",
+      "pane": 0,
+      "paneWeight": 1,
+      "isHidden": false,
+      "logBase": 10,
+      "nonPositive": "Hide",
+      "labelRotation": 0,
+      "isAutoRange": false
+    }
+  ],
+  "series": [
+    {
+      "type": "unevenheatmap",
+      "name": "",
+      "parameters": {
+        "colormap": "Turbo"
+      },
+      "data": {
+        "kind": "sample",
+        "sample": "fineCells",
+        "count": 4096,
+        "options": {}
+      }
+    }
+  ],
+  "modifiers": [
+    {
+      "type": "zoompan",
+      "parameters": {}
+    },
+    {
+      "type": "crosshair",
+      "parameters": {}
+    },
+    {
+      "type": "tooltip",
+      "parameters": {}
+    }
+  ],
+  "exportMenu": false,
+  "overview": false,
+  "annotations": [],
+  "scene": {}
+}

@@ -1,0 +1,91 @@
+{
+  "version": 1,
+  "title": "Pipe bend, wall temperature in \u00B0C",
+  "theme": "Instrument",
+  "xDown": false,
+  "xAxes": [
+    {
+      "id": "x",
+      "kind": "numeric",
+      "title": "x",
+      "isInverted": false,
+      "isOpposite": false,
+      "skipsWeekends": false,
+      "categories": "",
+      "crossesZero": false,
+      "breaks": "",
+      "pane": 0,
+      "paneWeight": 1,
+      "isHidden": false,
+      "logBase": 10,
+      "nonPositive": "Hide",
+      "labelRotation": 0,
+      "isAutoRange": true
+    }
+  ],
+  "yAxes": [
+    {
+      "id": "y",
+      "kind": "numeric",
+      "title": "y",
+      "isInverted": false,
+      "isOpposite": false,
+      "skipsWeekends": false,
+      "categories": "",
+      "crossesZero": false,
+      "breaks": "",
+      "pane": 0,
+      "paneWeight": 1,
+      "isHidden": false,
+      "logBase": 10,
+      "nonPositive": "Hide",
+      "labelRotation": 0,
+      "isAutoRange": true
+    }
+  ],
+  "series": [
+    {
+      "type": "model3d",
+      "name": "Model 3D",
+      "parameters": {
+        "colorBy": "Values",
+        "colormap": "Turbo",
+        "colorsFollow": false,
+        "gloss": 0.3,
+        "scaleFrom": 55,
+        "scaleTitle": "\u00B0C",
+        "scaleTo": 115
+      },
+      "data": {
+        "kind": "sample",
+        "sample": "pipeBend",
+        "count": 96,
+        "options": {}
+      }
+    },
+    {
+      "type": "scatter3d",
+      "name": "Scatter 3D",
+      "parameters": {},
+      "data": {
+        "kind": "sample",
+        "sample": "pipeSensors",
+        "count": 9,
+        "options": {}
+      }
+    }
+  ],
+  "modifiers": [],
+  "exportMenu": false,
+  "overview": false,
+  "annotations": [],
+  "scene": {
+    "planes": "0 1 0 @ -0.05",
+    "xRange": "-1.25..126.25",
+    "xTitle": "x in mm",
+    "yRange": "-63.75..63.75",
+    "yTitle": "y in mm",
+    "zRange": "-26.25..101.25",
+    "zTitle": "z in mm"
+  }
+}

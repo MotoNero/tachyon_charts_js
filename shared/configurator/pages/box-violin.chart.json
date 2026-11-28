@@ -1,0 +1,100 @@
+{
+  "version": 1,
+  "title": "BoxViolin",
+  "xDown": false,
+  "xAxes": [
+    {
+      "id": "x",
+      "kind": "category",
+      "title": "",
+      "isInverted": false,
+      "isOpposite": false,
+      "skipsWeekends": false,
+      "categories": "Normal, Schief, Zweigipflig",
+      "crossesZero": false,
+      "breaks": "",
+      "pane": 0,
+      "paneWeight": 1,
+      "isHidden": false,
+      "logBase": 10,
+      "nonPositive": "Hide",
+      "labelRotation": 0,
+      "isAutoRange": true
+    }
+  ],
+  "yAxes": [
+    {
+      "id": "top",
+      "kind": "numeric",
+      "title": "",
+      "minimum": 0,
+      "maximum": 8,
+      "isInverted": false,
+      "isOpposite": false,
+      "skipsWeekends": false,
+      "categories": "",
+      "crossesZero": false,
+      "breaks": "",
+      "pane": 0,
+      "paneWeight": 1,
+      "isHidden": false,
+      "logBase": 10,
+      "nonPositive": "Hide",
+      "labelRotation": 0,
+      "isAutoRange": false
+    },
+    {
+      "id": "bottom",
+      "kind": "numeric",
+      "title": "",
+      "minimum": 0,
+      "maximum": 8,
+      "isInverted": false,
+      "isOpposite": false,
+      "skipsWeekends": false,
+      "categories": "",
+      "crossesZero": false,
+      "breaks": "",
+      "pane": 1,
+      "paneWeight": 1,
+      "isHidden": false,
+      "logBase": 10,
+      "nonPositive": "Hide",
+      "labelRotation": 0,
+      "isAutoRange": false
+    }
+  ],
+  "series": [
+    {
+      "type": "boxplot",
+      "name": "",
+      "yAxis": "top",
+      "parameters": {},
+      "data": {
+        "kind": "sample",
+        "sample": "threeGroups",
+        "count": 300,
+        "options": {}
+      }
+    },
+    {
+      "type": "violin",
+      "name": "",
+      "yAxis": "bottom",
+      "parameters": {
+        "color": "#F7258540"
+      },
+      "data": {
+        "kind": "sample",
+        "sample": "threeGroups",
+        "count": 300,
+        "options": {}
+      }
+    }
+  ],
+  "modifiers": [],
+  "exportMenu": false,
+  "overview": false,
+  "annotations": [],
+  "scene": {}
+}

@@ -1,17 +1,10 @@
-// A chart from its description, as SpecChartBuilder of the .NET version: title, theme, axes, the series with their
-// data, the interactions and the legends.
-import {
-  DoubleRange,
-  findBuiltInTheme,
-  type AxisBuilder,
-  type ChartBuilder,
-  type LegendPlacement,
-  type NonPositiveValues,
-  type ThemeDocument,
-} from '@tachyon-charts/core';
-import { axesOf, type ChartCatalog } from './catalog';
-import { camel } from './core-module';
-import type { AxisSpec, ChartSpec, LegendSpec, SeriesSpec } from './spec';
+// The code of a chart from its description, and the chart itself by running that code, as CodeGenerator and
+// SpecChartBuilder of the .NET version in one: the preview and the code cannot differ.
+import * as core from '@tachyon-charts/core';
+import type { ChartBuilder } from '@tachyon-charts/core';
+import { axesOf, type ChartCatalog, type SampleInfo } from './catalog';
+import { CodeWriter, identifier, num, str, type CodeLanguage } from './code';
+import type { AxisSpec, ChartSpec, LegendSpec } from './spec';
 
 /** A description that cannot be shown, with what keeps it from it. */
 export class ChartSpecProblem extends Error {
@@ -25,14 +18,22 @@ export class ChartSpecProblem extends Error {
   }
 }
 
-/** A built-in theme by its name in a description, such as TachyonDark or HighContrast. */
-export function themeOf(name: string): ThemeDocument | undefined {
-  return findBuiltInTheme(name.replace(/([a-z])([A-Z])/gu, '$1-$2').toLowerCase());
+/** The packages the code of a chart may import, by name; modules add theirs. */
+export const codePackages: Record<string, Record<string, unknown>> = { '@tachyon-charts/core': core };
+
+/** A name of the .NET version, such as NameAndPercent, as the JS version spells it, nameAndPercent. */
+export function camel(name: string): string {
+  return name.length === 0 ? name : name.charAt(0).toLowerCase() + name.slice(1);
+}
+
+/** The id of a built-in theme for its name in a description, such as TachyonDark: tachyon-dark. */
+export function themeId(name: string): string {
+  return name.replace(/([a-z])([A-Z])/gu, '$1-$2').toLowerCase();
 }
 
 /** The ranges of the breaks of an axis, such as `2..3, 5..6`, or undefined when one does not read. */
-export function breaksOf(text: string): DoubleRange[] | undefined {
-  const ranges: DoubleRange[] = [];
+export function breaksOf(text: string): [number, number][] | undefined {
+  const ranges: [number, number][] = [];
   for (const part of text
     .split(',')
     .map((item) => item.trim())
@@ -43,135 +44,237 @@ export function breaksOf(text: string): DoubleRange[] | undefined {
     if (ends.length !== 2 || !Number.isFinite(from) || !Number.isFinite(to) || !(to > from)) {
       return undefined;
     }
-    ranges.push(new DoubleRange(from, to));
+    ranges.push([from, to]);
   }
   return ranges;
 }
 
-function axis(builder: AxisBuilder, spec: AxisSpec, opposite: 'top' | 'right'): void {
+function roundHelper(writer: CodeWriter): void {
+  writer.helper(
+    'round',
+    [
+      '// Rounds halves to the even neighbour, as the sample data of the .NET version do.',
+      `function round(value${writer.type('number')})${writer.type('number')} {`,
+      '  const floor = Math.floor(value);',
+      '  const rest = value - floor;',
+      '  return rest === 0.5 ? (floor % 2 === 0 ? floor : floor + 1) : Math.round(value);',
+      '}',
+    ].join('\n'),
+  );
+}
+
+function sampleFunction(writer: CodeWriter, sample: SampleInfo): string {
+  const name = identifier(sample.id);
+  for (const used of sample.uses) {
+    if (used === 'round') {
+      roundHelper(writer);
+    } else {
+      writer.use(used);
+    }
+  }
+  if (sample.returns.includes('Rgba8')) {
+    writer.useType('Rgba8');
+  }
+  const parameter = sample.hasCount === false ? '' : `count${writer.type('number')}`;
+  const body = sample.body
+    .split('\n')
+    .map((line) => `  ${line}`)
+    .join('\n');
+  return writer.helper(
+    name,
+    `// ${sample.name}.\nfunction ${name}(${parameter})${writer.type(sample.returns)} {\n${body}\n}`,
+  );
+}
+
+function axisCode(writer: CodeWriter, spec: AxisSpec, opposite: 'top' | 'right'): string {
+  let code = 'a';
   switch (spec.kind) {
     case 'logarithmic':
-      builder.log(spec.id, spec.logBase, camel(spec.nonPositive) as NonPositiveValues);
+      code += `.log(${str(spec.id)}, ${num(spec.logBase)}, ${str(spec.nonPositive.toLowerCase())})`;
       break;
     case 'dateTime':
-      builder.dateTime(spec.id);
+      code += `.dateTime(${str(spec.id)})`;
       break;
     case 'category':
-      builder.category(
-        spec.categories
-          .split(',')
-          .map((item) => item.trim())
-          .filter((item) => item.length > 0),
-        spec.id,
-      );
+      code += `.category([${spec.categories
+        .split(',')
+        .map((item) => item.trim())
+        .filter((item) => item.length > 0)
+        .map(str)
+        .join(', ')}], ${str(spec.id)})`;
       break;
     default:
-      builder.numeric(spec.id);
+      code += `.numeric(${str(spec.id)})`;
   }
   if (spec.title.length > 0) {
-    builder.title(spec.title);
+    code += `.title(${str(spec.title)})`;
   }
-  if (spec.minimum !== undefined && spec.maximum !== undefined) {
-    builder.range(spec.minimum, spec.maximum);
-  } else {
-    builder.autoRange();
-  }
+  code +=
+    spec.minimum !== undefined && spec.maximum !== undefined
+      ? `.range(${num(spec.minimum)}, ${num(spec.maximum)})`
+      : '.autoRange()';
   if (spec.isInverted) {
-    builder.inverted();
+    code += '.inverted()';
   }
   if (spec.isOpposite) {
-    builder.position(opposite);
+    code += `.position(${str(opposite)})`;
   }
   if (spec.crossesZero) {
-    builder.crossesAt(0);
+    code += '.crossesAt(0)';
   }
   if (spec.labelRotation !== 0) {
-    builder.labelRotation(spec.labelRotation);
+    code += `.labelRotation(${num(spec.labelRotation)})`;
   }
   if (spec.kind === 'logarithmic' && spec.floor !== undefined) {
-    builder.floor(spec.floor);
+    code += `.floor(${num(spec.floor)})`;
   }
   const breaks = breaksOf(spec.breaks);
   if (breaks && breaks.length > 0) {
-    builder.breaks(...breaks);
+    const range = writer.use('DoubleRange');
+    code += `.breaks(${breaks.map(([from, to]) => `new ${range}(${num(from)}, ${num(to)})`).join(', ')})`;
   }
   if (spec.pane > 0 || spec.paneWeight !== 1) {
-    builder.pane(spec.pane, spec.paneWeight);
+    code += `.pane(${num(spec.pane)}, ${num(spec.paneWeight)})`;
   }
   if (spec.isHidden) {
-    builder.hidden();
+    code += '.hidden()';
   }
+  return code;
 }
 
-function legend(chart: ChartBuilder, spec: LegendSpec): void {
-  chart.legend((builder) => {
-    if (spec.title.length > 0) {
-      builder.title(spec.title);
-    }
-    if (spec.placement !== 'TopRight') {
-      builder.place(camel(spec.placement) as LegendPlacement);
-    }
-    const names = spec.series
-      .split(',')
-      .map((item) => item.trim())
-      .filter((item) => item.length > 0);
-    if (names.length > 0) {
-      builder.series(...names);
-    }
-  });
+function legendCode(spec: LegendSpec): string {
+  let code = 'l';
+  if (spec.title.length > 0) {
+    code += `.title(${str(spec.title)})`;
+  }
+  if (spec.placement !== 'TopRight') {
+    code += `.place(${str(camel(spec.placement))})`;
+  }
+  const names = spec.series
+    .split(',')
+    .map((item) => item.trim())
+    .filter((item) => item.length > 0);
+  if (names.length > 0) {
+    code += `.series(${names.map(str).join(', ')})`;
+  }
+  return code === 'l' ? 'c.legend();' : `c.legend((l) => ${code});`;
 }
 
-/** The data of a series: its sample made for its count. */
-export function dataOf(catalog: ChartCatalog, series: SeriesSpec): unknown {
-  return catalog.makeSample(series.data.sample, series.data.count);
+interface CodeParts {
+  readonly writer: CodeWriter;
+  readonly describe: string;
 }
 
-/**
- * Describes a chart after a description.
- * @throws ChartSpecProblem when a type, a sample or an interaction of the description is unknown.
- */
-export function applyChartSpec(spec: ChartSpec, catalog: ChartCatalog, chart: ChartBuilder): ChartBuilder {
+function describeChart(spec: ChartSpec, catalog: ChartCatalog, language: CodeLanguage): CodeParts {
   const problems = catalog.check(spec);
   if (problems.length > 0) {
     throw new ChartSpecProblem(problems);
   }
+  const writer = new CodeWriter(language);
+  const lines: string[] = [];
   if (spec.title.length > 0) {
-    chart.title(spec.title);
+    lines.push(`c.title(${str(spec.title)});`);
   }
-  const theme = spec.theme === undefined ? undefined : themeOf(spec.theme);
-  if (theme) {
-    chart.theme(theme);
+  if (spec.theme !== undefined) {
+    const find = writer.use('findBuiltInTheme');
+    lines.push(`c.theme(${writer.as(`${find}(${str(themeId(spec.theme))})`, writer.useType('ThemeDocument'))});`);
   }
   const ownsAxes = spec.series.some((series) => catalog.findType(series.type)?.ownsAxes === true);
   if (!ownsAxes) {
-    for (const each of spec.xAxes) {
-      chart.xAxis((builder) => {
-        axis(builder, each, 'top');
-      });
+    for (const axis of spec.xAxes) {
+      lines.push(`c.xAxis((a) => ${axisCode(writer, axis, 'top')});`);
     }
-    for (const each of spec.yAxes) {
-      chart.yAxis((builder) => {
-        axis(builder, each, 'right');
-      });
+    for (const axis of spec.yAxes) {
+      lines.push(`c.yAxis((a) => ${axisCode(writer, axis, 'right')});`);
     }
   }
-  for (const series of spec.series) {
+  const taken = new Map<string, number>();
+  spec.series.forEach((series, index) => {
     const type = catalog.findType(series.type);
-    type?.apply(chart, series, dataOf(catalog, series), axesOf(spec, series));
-  }
-  for (const each of spec.modifiers) {
-    const info = catalog.findModifier(each.type);
+    const sample = catalog.findSample(series.data.sample);
+    if (!type || !sample) {
+      return;
+    }
+    const make = sampleFunction(writer, sample);
+    const times = (taken.get(make) ?? 0) + 1;
+    taken.set(make, times);
+    const data = `${make}Data${times === 1 ? '' : String(times)}`;
+    const argument = sample.hasCount === false ? '' : num(series.data.count);
+    lines.push(`const ${data} = ${make}(${argument});`);
+    lines.push(type.code(writer, series, data, axesOf(spec, series), index));
+  });
+  for (const modifier of spec.modifiers) {
+    const info = catalog.findModifier(modifier.type);
     if (info) {
-      chart.addModifier(() => info.create(each.parameters));
+      lines.push(`c.addModifier(() => ${info.code(writer, modifier.parameters)});`);
     }
   }
-  for (const each of [spec.legend, spec.secondLegend]) {
-    if (each) {
-      legend(chart, each);
+  for (const legend of [spec.legend, spec.secondLegend]) {
+    if (legend) {
+      lines.push(legendCode(legend));
     }
   }
   if (spec.group !== undefined && spec.group.length > 0) {
-    chart.group(spec.group);
+    lines.push(`c.group(${str(spec.group)});`);
   }
-  return chart;
+  const builder = writer.useType('ChartBuilder');
+  const signature =
+    language === 'typescript'
+      ? `export function describeChart(c: ${builder}): ${builder} {`
+      : 'export function describeChart(c) {';
+  const describe = [
+    signature,
+    ...lines.flatMap((line) => line.split('\n')).map((line) => `  ${line}`),
+    '  return c;',
+    '}',
+  ].join('\n');
+  return { writer, describe };
+}
+
+/**
+ * The code of a chart: a module that exports `describeChart(c)`, to call with a `ChartBuilder` and give to a
+ * `<tachyon-chart>` element.
+ * @throws ChartSpecProblem when a type, a sample or an interaction of the description is unknown.
+ */
+export function chartCode(spec: ChartSpec, catalog: ChartCatalog, language: CodeLanguage = 'typescript'): string {
+  const { writer, describe } = describeChart(spec, catalog, language);
+  const usage = [
+    '// Shows the chart in a <tachyon-chart> element of the page:',
+    "// const element = document.querySelector('tachyon-chart');",
+    '// element.chart = describeChart(new ChartBuilder());',
+  ];
+  return [
+    ...writer.importLines(),
+    '',
+    ...writer.helperCode().flatMap((code) => [code, '']),
+    describe,
+    '',
+    ...usage,
+    '',
+  ].join('\n');
+}
+
+/**
+ * Describes a chart after a description by running the code the configurator writes for it.
+ * @throws ChartSpecProblem when a type, a sample or an interaction of the description is unknown.
+ */
+export function applyChartSpec(spec: ChartSpec, catalog: ChartCatalog, chart: ChartBuilder): ChartBuilder {
+  const { writer, describe } = describeChart(spec, catalog, 'javascript');
+  const names: string[] = [];
+  const values: unknown[] = [];
+  for (const [source, imported] of writer.importedNames()) {
+    const module = codePackages[source];
+    if (!module) {
+      throw new ChartSpecProblem([`The package ${source} is not loaded.`]);
+    }
+    for (const name of imported) {
+      names.push(name);
+      values.push(module[name]);
+    }
+  }
+  const body = [...writer.helperCode(), describe.replace(/^export /u, ''), 'return describeChart;'].join('\n');
+  // The code is the configurator's own, made from the description; running it keeps preview and code equal.
+  // eslint-disable-next-line @typescript-eslint/no-implied-eval
+  const make = new Function(...names, body) as (...args: unknown[]) => (c: ChartBuilder) => ChartBuilder;
+  return make(...values)(chart);
 }

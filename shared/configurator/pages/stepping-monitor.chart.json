@@ -1,0 +1,75 @@
+{
+  "version": 1,
+  "title": "Monitor, 4 channels \u00D7 25 000 samples per second",
+  "xDown": false,
+  "xAxes": [
+    {
+      "id": "x",
+      "kind": "numeric",
+      "title": "",
+      "isInverted": false,
+      "isOpposite": false,
+      "skipsWeekends": false,
+      "categories": "",
+      "crossesZero": false,
+      "breaks": "",
+      "pane": 0,
+      "paneWeight": 1,
+      "isHidden": false,
+      "logBase": 10,
+      "nonPositive": "Hide",
+      "labelRotation": 0,
+      "isAutoRange": true
+    }
+  ],
+  "yAxes": [
+    {
+      "id": "y",
+      "kind": "numeric",
+      "title": "",
+      "isInverted": false,
+      "isOpposite": false,
+      "skipsWeekends": false,
+      "categories": "",
+      "crossesZero": false,
+      "breaks": "",
+      "pane": 0,
+      "paneWeight": 1,
+      "isHidden": false,
+      "logBase": 10,
+      "nonPositive": "Hide",
+      "labelRotation": 0,
+      "isAutoRange": true
+    }
+  ],
+  "series": [
+    {
+      "type": "monitor",
+      "name": "",
+      "parameters": {
+        "gap": 0.03,
+        "live": true,
+        "mode": "Stepping",
+        "names": "ECG I, ECG II, Pleth, Resp",
+        "ranges": "-0.6..1.4, -0.6..1.4, -0.1..1.1, -1.2..1.2",
+        "rate": 25000
+      },
+      "data": {
+        "kind": "sample",
+        "sample": "patient",
+        "count": 2,
+        "options": {}
+      }
+    }
+  ],
+  "modifiers": [
+    {
+      "type": "axisdrag",
+      "parameters": {}
+    }
+  ],
+  "exportMenu": false,
+  "overview": false,
+  "annotations": [],
+  "scene": {}
+}

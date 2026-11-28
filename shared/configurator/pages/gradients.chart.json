@@ -1,0 +1,111 @@
+{
+  "version": 1,
+  "title": "Gradients",
+  "xDown": false,
+  "xAxes": [
+    {
+      "id": "x",
+      "kind": "numeric",
+      "title": "",
+      "minimum": -0.5,
+      "maximum": 9.5,
+      "isInverted": false,
+      "isOpposite": false,
+      "skipsWeekends": false,
+      "categories": "",
+      "crossesZero": false,
+      "breaks": "",
+      "pane": 0,
+      "paneWeight": 1,
+      "isHidden": false,
+      "logBase": 10,
+      "nonPositive": "Hide",
+      "labelRotation": 0,
+      "isAutoRange": false
+    }
+  ],
+  "yAxes": [
+    {
+      "id": "top",
+      "kind": "numeric",
+      "title": "",
+      "minimum": 0,
+      "maximum": 40,
+      "isInverted": false,
+      "isOpposite": false,
+      "skipsWeekends": false,
+      "categories": "",
+      "crossesZero": false,
+      "breaks": "",
+      "pane": 0,
+      "paneWeight": 1,
+      "isHidden": false,
+      "logBase": 10,
+      "nonPositive": "Hide",
+      "labelRotation": 0,
+      "isAutoRange": false
+    },
+    {
+      "id": "bottom",
+      "kind": "numeric",
+      "title": "",
+      "minimum": 0,
+      "maximum": 10,
+      "isInverted": false,
+      "isOpposite": false,
+      "skipsWeekends": false,
+      "categories": "",
+      "crossesZero": false,
+      "breaks": "",
+      "pane": 1,
+      "paneWeight": 1,
+      "isHidden": false,
+      "logBase": 10,
+      "nonPositive": "Hide",
+      "labelRotation": 0,
+      "isAutoRange": false
+    }
+  ],
+  "series": [
+    {
+      "type": "area",
+      "name": "",
+      "yAxis": "top",
+      "parameters": {
+        "colorFrom": 0,
+        "colorTo": 40,
+        "colormap": "Turbo",
+        "valueColors": true
+      },
+      "data": {
+        "kind": "sample",
+        "sample": "gradientWave",
+        "count": 200,
+        "options": {}
+      }
+    },
+    {
+      "type": "bars",
+      "name": "",
+      "yAxis": "bottom",
+      "parameters": {
+        "corners": 8,
+        "gradientFrom": "#FFB703",
+        "gradientTo": "#F72585",
+        "shadowColor": "#0000003C",
+        "width": 0.6
+      },
+      "data": {
+        "kind": "sample",
+        "sample": "gradientRow",
+        "count": 10,
+        "options": {}
+      }
+    }
+  ],
+  "modifiers": [],
+  "exportMenu": false,
+  "overview": false,
+  "annotations": [],
+  "scene": {}
+}

@@ -1,0 +1,338 @@
+{
+  "version": 1,
+  "title": "Heatmap 4096 \u00D7 4096",
+  "theme": "TachyonDark",
+  "xDown": false,
+  "xAxes": [
+    {
+      "id": "x",
+      "kind": "numeric",
+      "title": "",
+      "isInverted": false,
+      "isOpposite": false,
+      "skipsWeekends": false,
+      "categories": "",
+      "crossesZero": false,
+      "breaks": "",
+      "pane": 0,
+      "paneWeight": 1,
+      "isHidden": false,
+      "logBase": 10,
+      "nonPositive": "Hide",
+      "labelRotation": 0,
+      "isAutoRange": true
+    }
+  ],
+  "yAxes": [
+    {
+      "id": "y",
+      "kind": "numeric",
+      "title": "",
+      "isInverted": false,
+      "isOpposite": false,
+      "skipsWeekends": false,
+      "categories": "",
+      "crossesZero": false,
+      "breaks": "",
+      "pane": 0,
+      "paneWeight": 1,
+      "isHidden": false,
+      "logBase": 10,
+      "nonPositive": "Hide",
+      "labelRotation": 0,
+      "isAutoRange": true
+    }
+  ],
+  "series": [
+    {
+      "type": "heatmap",
+      "name": "Value",
+      "parameters": {
+        "colormap": "Inferno",
+        "size": 8
+      },
+      "data": {
+        "kind": "sample",
+        "sample": "fineField",
+        "count": 4096,
+        "options": {}
+      }
+    }
+  ],
+  "modifiers": [
+    {
+      "type": "zoompan",
+      "parameters": {}
+    },
+    {
+      "type": "rubberband",
+      "parameters": {}
+    },
+    {
+      "type": "axisdrag",
+      "parameters": {}
+    },
+    {
+      "type": "tooltip",
+      "parameters": {}
+    }
+  ],
+  "exportMenu": false,
+  "overview": false,
+  "annotations": [],
+  "scene": {},
+  "charts": [
+    {
+      "version": 1,
+      "title": "Spectrogram, 60 rows per second",
+      "theme": "TachyonDark",
+      "xDown": false,
+      "xAxes": [
+        {
+          "id": "x",
+          "kind": "numeric",
+          "title": "",
+          "minimum": 0,
+          "maximum": 1024,
+          "isInverted": false,
+          "isOpposite": false,
+          "skipsWeekends": false,
+          "categories": "",
+          "crossesZero": false,
+          "breaks": "",
+          "pane": 0,
+          "paneWeight": 1,
+          "isHidden": false,
+          "logBase": 10,
+          "nonPositive": "Hide",
+          "labelRotation": 0,
+          "isAutoRange": false
+        }
+      ],
+      "yAxes": [
+        {
+          "id": "y",
+          "kind": "numeric",
+          "title": "",
+          "minimum": -512,
+          "maximum": 0,
+          "isInverted": false,
+          "isOpposite": false,
+          "skipsWeekends": false,
+          "categories": "",
+          "crossesZero": false,
+          "breaks": "",
+          "pane": 0,
+          "paneWeight": 1,
+          "isHidden": false,
+          "logBase": 10,
+          "nonPositive": "Hide",
+          "labelRotation": 0,
+          "isAutoRange": false
+        }
+      ],
+      "series": [
+        {
+          "type": "spectrogram",
+          "name": "Level",
+          "parameters": {
+            "colorRange": "-0.1..1.1",
+            "colormap": "Plasma",
+            "live": true,
+            "rate": 60
+          },
+          "data": {
+            "kind": "sample",
+            "sample": "steadyTone",
+            "count": 1024,
+            "options": {}
+          }
+        }
+      ],
+      "modifiers": [
+        {
+          "type": "zoompan",
+          "parameters": {}
+        },
+        {
+          "type": "axisdrag",
+          "parameters": {}
+        },
+        {
+          "type": "tooltip",
+          "parameters": {}
+        }
+      ],
+      "exportMenu": false,
+      "overview": false,
+      "annotations": [],
+      "scene": {}
+    },
+    {
+      "version": 1,
+      "title": "Contour, filled",
+      "theme": "TachyonDark",
+      "xDown": false,
+      "xAxes": [
+        {
+          "id": "x",
+          "kind": "numeric",
+          "title": "",
+          "isInverted": false,
+          "isOpposite": false,
+          "skipsWeekends": false,
+          "categories": "",
+          "crossesZero": false,
+          "breaks": "",
+          "pane": 0,
+          "paneWeight": 1,
+          "isHidden": false,
+          "logBase": 10,
+          "nonPositive": "Hide",
+          "labelRotation": 0,
+          "isAutoRange": true
+        }
+      ],
+      "yAxes": [
+        {
+          "id": "y",
+          "kind": "numeric",
+          "title": "",
+          "isInverted": false,
+          "isOpposite": false,
+          "skipsWeekends": false,
+          "categories": "",
+          "crossesZero": false,
+          "breaks": "",
+          "pane": 0,
+          "paneWeight": 1,
+          "isHidden": false,
+          "logBase": 10,
+          "nonPositive": "Hide",
+          "labelRotation": 0,
+          "isAutoRange": true
+        }
+      ],
+      "series": [
+        {
+          "type": "contour",
+          "name": "Height",
+          "parameters": {
+            "filled": true,
+            "from": -1,
+            "labels": false,
+            "levels": 10,
+            "size": 6,
+            "to": 1.25
+          },
+          "data": {
+            "kind": "sample",
+            "sample": "hills",
+            "count": 256,
+            "options": {}
+          }
+        }
+      ],
+      "modifiers": [
+        {
+          "type": "zoompan",
+          "parameters": {}
+        },
+        {
+          "type": "rubberband",
+          "parameters": {}
+        }
+      ],
+      "exportMenu": false,
+      "overview": false,
+      "annotations": [],
+      "scene": {}
+    },
+    {
+      "version": 1,
+      "title": "5 million points: zoom in for markers",
+      "theme": "TachyonDark",
+      "xDown": false,
+      "xAxes": [
+        {
+          "id": "x",
+          "kind": "numeric",
+          "title": "",
+          "minimum": 0,
+          "maximum": 10,
+          "isInverted": false,
+          "isOpposite": false,
+          "skipsWeekends": false,
+          "categories": "",
+          "crossesZero": false,
+          "breaks": "",
+          "pane": 0,
+          "paneWeight": 1,
+          "isHidden": false,
+          "logBase": 10,
+          "nonPositive": "Hide",
+          "labelRotation": 0,
+          "isAutoRange": false
+        }
+      ],
+      "yAxes": [
+        {
+          "id": "y",
+          "kind": "numeric",
+          "title": "",
+          "minimum": 0,
+          "maximum": 10,
+          "isInverted": false,
+          "isOpposite": false,
+          "skipsWeekends": false,
+          "categories": "",
+          "crossesZero": false,
+          "breaks": "",
+          "pane": 0,
+          "paneWeight": 1,
+          "isHidden": false,
+          "logBase": 10,
+          "nonPositive": "Hide",
+          "labelRotation": 0,
+          "isAutoRange": false
+        }
+      ],
+      "series": [
+        {
+          "type": "scatter",
+          "name": "Points",
+          "parameters": {
+            "density": true,
+            "densityColormap": "Inferno",
+            "size": 4
+          },
+          "data": {
+            "kind": "sample",
+            "sample": "cloud50M",
+            "count": 5000000,
+            "options": {}
+          }
+        }
+      ],
+      "modifiers": [
+        {
+          "type": "zoompan",
+          "parameters": {}
+        },
+        {
+          "type": "rubberband",
+          "parameters": {}
+        },
+        {
+          "type": "tooltip",
+          "parameters": {}
+        }
+      ],
+      "exportMenu": false,
+      "overview": false,
+      "annotations": [],
+      "scene": {}
+    }
+  ],
+  "columns": 2
+}

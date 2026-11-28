@@ -1,0 +1,194 @@
+{
+  "version": 1,
+  "title": "Test bench",
+  "theme": "TachyonDark",
+  "xDown": false,
+  "xAxes": [
+    {
+      "id": "t",
+      "kind": "numeric",
+      "title": "Time in s",
+      "minimum": 0,
+      "maximum": 60,
+      "isInverted": false,
+      "isOpposite": false,
+      "skipsWeekends": false,
+      "categories": "",
+      "crossesZero": false,
+      "breaks": "",
+      "pane": 0,
+      "paneWeight": 1,
+      "isHidden": false,
+      "logBase": 10,
+      "nonPositive": "Hide",
+      "labelRotation": 0,
+      "isAutoRange": false
+    }
+  ],
+  "yAxes": [
+    {
+      "id": "temperature",
+      "kind": "numeric",
+      "title": "Temperature in \u00B0C",
+      "minimum": 0,
+      "maximum": 120,
+      "isInverted": false,
+      "isOpposite": false,
+      "skipsWeekends": false,
+      "categories": "",
+      "crossesZero": false,
+      "breaks": "",
+      "pane": 0,
+      "paneWeight": 1,
+      "isHidden": false,
+      "logBase": 10,
+      "nonPositive": "Hide",
+      "labelRotation": 0,
+      "isAutoRange": false
+    },
+    {
+      "id": "pressure",
+      "kind": "numeric",
+      "title": "Pressure in bar",
+      "minimum": 0,
+      "maximum": 12,
+      "isInverted": false,
+      "isOpposite": true,
+      "skipsWeekends": false,
+      "categories": "",
+      "crossesZero": false,
+      "breaks": "",
+      "pane": 0,
+      "paneWeight": 1,
+      "isHidden": false,
+      "logBase": 10,
+      "nonPositive": "Hide",
+      "labelRotation": 0,
+      "isAutoRange": false
+    }
+  ],
+  "series": [
+    {
+      "type": "line",
+      "name": "Inlet",
+      "xAxis": "t",
+      "yAxis": "temperature",
+      "parameters": {
+        "color": "#FFBE0B",
+        "thickness": 1.5
+      },
+      "data": {
+        "kind": "sample",
+        "sample": "bench1",
+        "count": 601,
+        "options": {}
+      }
+    },
+    {
+      "type": "line",
+      "name": "Core",
+      "xAxis": "t",
+      "yAxis": "temperature",
+      "parameters": {
+        "color": "#FB5607",
+        "thickness": 1.5
+      },
+      "data": {
+        "kind": "sample",
+        "sample": "bench2",
+        "count": 601,
+        "options": {}
+      }
+    },
+    {
+      "type": "line",
+      "name": "Outlet",
+      "xAxis": "t",
+      "yAxis": "temperature",
+      "parameters": {
+        "color": "#F72585",
+        "thickness": 1.5
+      },
+      "data": {
+        "kind": "sample",
+        "sample": "bench3",
+        "count": 601,
+        "options": {}
+      }
+    },
+    {
+      "type": "line",
+      "name": "Pump",
+      "xAxis": "t",
+      "yAxis": "pressure",
+      "parameters": {
+        "color": "#4CC9F0",
+        "thickness": 1.5
+      },
+      "data": {
+        "kind": "sample",
+        "sample": "bench4",
+        "count": 601,
+        "options": {}
+      }
+    },
+    {
+      "type": "line",
+      "name": "Filter",
+      "xAxis": "t",
+      "yAxis": "pressure",
+      "parameters": {
+        "color": "#3A86FF",
+        "thickness": 1.5
+      },
+      "data": {
+        "kind": "sample",
+        "sample": "bench5",
+        "count": 601,
+        "options": {}
+      }
+    },
+    {
+      "type": "line",
+      "name": "Valve",
+      "xAxis": "t",
+      "yAxis": "pressure",
+      "parameters": {
+        "color": "#06D6A0",
+        "thickness": 1.5
+      },
+      "data": {
+        "kind": "sample",
+        "sample": "bench6",
+        "count": 601,
+        "options": {}
+      }
+    }
+  ],
+  "modifiers": [
+    {
+      "type": "zoompan",
+      "parameters": {}
+    },
+    {
+      "type": "crosshair",
+      "parameters": {
+        "values": true
+      }
+    }
+  ],
+  "legend": {
+    "title": "Temperatures",
+    "placement": "TopLeft",
+    "series": "Inlet, Core, Outlet"
+  },
+  "exportMenu": false,
+  "overview": false,
+  "annotations": [],
+  "secondLegend": {
+    "title": "Pressures",
+    "placement": "Bottom",
+    "series": "Pump, Filter, Valve"
+  },
+  "scene": {}
+}

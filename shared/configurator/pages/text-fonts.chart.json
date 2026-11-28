@@ -1,0 +1,118 @@
+{
+  "version": 1,
+  "title": "Fonts: Roboto Slab, bold and italic",
+  "theme": "TachyonDark",
+  "titleFont": {
+    "family": "Roboto Slab",
+    "bold": true,
+    "italic": false
+  },
+  "axisFont": {
+    "family": "Default",
+    "bold": false,
+    "italic": true
+  },
+  "xDown": false,
+  "xAxes": [
+    {
+      "id": "x",
+      "kind": "numeric",
+      "title": "Time in s",
+      "minimum": 0,
+      "maximum": 10,
+      "isInverted": false,
+      "isOpposite": false,
+      "skipsWeekends": false,
+      "categories": "",
+      "crossesZero": false,
+      "breaks": "",
+      "pane": 0,
+      "paneWeight": 1,
+      "isHidden": false,
+      "logBase": 10,
+      "nonPositive": "Hide",
+      "labelRotation": 0,
+      "isAutoRange": false
+    }
+  ],
+  "yAxes": [
+    {
+      "id": "y",
+      "kind": "numeric",
+      "title": "Level",
+      "minimum": -1.5,
+      "maximum": 1.5,
+      "isInverted": false,
+      "isOpposite": false,
+      "skipsWeekends": false,
+      "categories": "",
+      "crossesZero": false,
+      "breaks": "",
+      "pane": 0,
+      "paneWeight": 1,
+      "isHidden": false,
+      "logBase": 10,
+      "nonPositive": "Hide",
+      "labelRotation": 0,
+      "isAutoRange": false
+    }
+  ],
+  "series": [
+    {
+      "type": "line",
+      "name": "Wave",
+      "parameters": {
+        "color": "#50AAF0",
+        "thickness": 2
+      },
+      "data": {
+        "kind": "sample",
+        "sample": "wave13",
+        "count": 240,
+        "options": {}
+      }
+    }
+  ],
+  "modifiers": [
+    {
+      "type": "annotationedit",
+      "parameters": {}
+    }
+  ],
+  "exportMenu": false,
+  "overview": false,
+  "annotations": [
+    {
+      "type": "hline",
+      "parameters": {
+        "color": "#F05A5AFF",
+        "label": "Bold label",
+        "labelBold": true,
+        "labelPlace": "End",
+        "y": 1.1
+      }
+    },
+    {
+      "type": "vline",
+      "parameters": {
+        "color": "#6ED282FF",
+        "label": "Italic label",
+        "labelItalic": true,
+        "x": 6
+      }
+    },
+    {
+      "type": "hline",
+      "parameters": {
+        "color": "#F0A03CFF",
+        "label": "Roboto Slab, bold italic",
+        "labelBold": true,
+        "labelFont": "Roboto Slab",
+        "labelItalic": true,
+        "labelPlace": "Start",
+        "y": -1.2
+      }
+    }
+  ],
+  "scene": {}
+}
