@@ -1,6 +1,7 @@
 // The grid of a Smith chart, the marker of one point, its modifier and the chart itself, as SmithGridOverlay,
 // SmithMarkerOverlay, SmithMarkerModifier and SmithChart of the .NET version.
 import { NumericAxis } from '../axes/numeric-axis';
+import type { ChartBuilder } from '../fluent/chart-builder';
 import { ZoomPanModifier } from '../input/navigation-modifiers';
 import { ChartModifier, type ModifierResult } from '../input/modifier-pipeline';
 import type { Point, PointerInputEvent } from '../input/primitives';
@@ -246,4 +247,39 @@ export function createSmithChart(textEngine: TextEngine, referenceImpedance = de
   const grid = new SmithGridOverlay(referenceImpedance);
   chart.addOverlay(grid);
   return { chart, x, y, grid };
+}
+
+/**
+ * Describes a Smith chart: hidden axes, the curve of the impedances, the grid and, for a marked point, its marker that
+ * the pointer moves along the curve.
+ * @param builder - The description.
+ * @param resistance - The real part of each impedance in ohms.
+ * @param reactance - The imaginary part of each impedance in ohms.
+ * @param markerIndex - The point to mark, or a negative value for none.
+ * @param referenceImpedance - The reference in ohms.
+ */
+export function smith(
+  builder: ChartBuilder,
+  resistance: ArrayLike<number>,
+  reactance: ArrayLike<number>,
+  markerIndex = -1,
+  referenceImpedance = defaultReferenceImpedance,
+): ChartBuilder {
+  builder
+    .xAxis((a) => a.numeric('x').range(-1, 1).hidden())
+    .yAxis((a) => a.numeric('y').range(-1, 1).hidden())
+    .addSeries((x, y) => new SmithSeries(resistance, reactance, x, y, referenceImpedance), 'x', 'y')
+    .addOverlay(() => new SmithGridOverlay(referenceImpedance));
+  if (markerIndex >= 0) {
+    builder
+      .addOverlay(
+        (chart) =>
+          new SmithMarkerOverlay(
+            chart.series.find((series) => series instanceof SmithSeries) as SmithSeries,
+            markerIndex,
+          ),
+      )
+      .addModifier(() => new SmithMarkerModifier());
+  }
+  return builder;
 }

@@ -125,6 +125,8 @@ export interface ChartTypeInfo {
     readonly ownsAxes?: boolean;
     readonly parameters: readonly ParameterInfo[];
     readonly shape: DataShape;
+    readonly takesInteractions?: boolean;
+    readonly usesTime?: boolean;
 }
 
 // @public

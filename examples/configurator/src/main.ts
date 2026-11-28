@@ -169,6 +169,10 @@ function seriesEditor(series: SeriesSpec, index: number): HTMLElement {
         series.type,
         (value) => {
           spec.series[index] = { ...newSeries(value), name: series.name };
+          const first = spec.xAxes[0];
+          if (catalog.findType(value)?.usesTime === true && first) {
+            first.kind = 'dateTime';
+          }
           showEditor();
           refresh();
         },

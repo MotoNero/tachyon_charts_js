@@ -1,6 +1,7 @@
 // The grid of a ternary chart and the axes of parallel coordinates with their modifier, as TernaryGridOverlay,
 // ParallelAxesOverlay and ParallelAxesModifier of the .NET version.
 import { ZoomPanModifier } from '../input/navigation-modifiers';
+import type { ChartBuilder } from '../fluent/chart-builder';
 import { ChartModifier, type ModifierResult } from '../input/modifier-pipeline';
 import type { PointerInputEvent } from '../input/primitives';
 import { DipRect } from '../layout/chart-layout';
@@ -8,7 +9,8 @@ import { invariantCulture } from '../locale/culture';
 import { formatFixed, formatWithPrefix } from '../locale/format';
 import { roundHalfEven } from '../numerics/nice';
 import { DoubleRange } from '../numerics/range';
-import { ParallelCoordinatesSeries, TernaryProjection } from '../series/scientific-series';
+import type { Rgba8 } from '../render/types';
+import { ParallelCoordinatesSeries, TernaryProjection, TernarySeries } from '../series/scientific-series';
 import { ChartOverlay, type OverlayCanvas } from './chart-overlay';
 
 const f = Math.fround;
@@ -189,4 +191,64 @@ export class ParallelAxesModifier extends ChartModifier {
   override onCaptureLost(): void {
     this.place = -1;
   }
+}
+
+/**
+ * Describes a ternary diagram: hidden axes, the points of three shares and the triangle with the names of its corners.
+ * @param builder - The description.
+ * @param a - The shares of the top corner.
+ * @param b - The shares of the left corner.
+ * @param c - The shares of the right corner.
+ * @param names - The names of the corners: top, left, right.
+ */
+export function ternary(
+  builder: ChartBuilder,
+  a: ArrayLike<number>,
+  b: ArrayLike<number>,
+  c: ArrayLike<number>,
+  names: readonly [string, string, string] = ['A', 'B', 'C'],
+): ChartBuilder {
+  return builder
+    .xAxis((axis) => axis.numeric('x').range(0, 1).hidden())
+    .yAxis((axis) => axis.numeric('y').range(0, 1).hidden())
+    .addSeries((x, y) => new TernarySeries(a, b, c, x, y), 'x', 'y')
+    .addOverlay(() => new TernaryGridOverlay(names[0], names[1], names[2]));
+}
+
+/**
+ * Describes parallel coordinates: an axis per measure with its name, the lines of all rows, and moving and filtering
+ * the axes with the pointer.
+ * @param builder - The description.
+ * @param columns - The values of each measure.
+ * @param names - The names of the measures.
+ * @param color - The color of the lines, with little opacity so that many lines show where they gather.
+ */
+export function parallelCoordinates(
+  builder: ChartBuilder,
+  columns: readonly ArrayLike<number>[],
+  names: readonly string[],
+  color?: Rgba8,
+): ChartBuilder {
+  return builder
+    .xAxis((axis) => axis.numeric('x').range(0, 1).hidden())
+    .yAxis((axis) => axis.numeric('y').range(0, 1).hidden())
+    .addSeries(
+      (x, y) => {
+        const series = new ParallelCoordinatesSeries(columns, x, y);
+        if (color) {
+          series.color = color;
+        }
+        return series;
+      },
+      'x',
+      'y',
+    )
+    .addOverlay(
+      (chart) =>
+        new ParallelAxesOverlay(
+          chart.series.find((series) => series instanceof ParallelCoordinatesSeries) as ParallelCoordinatesSeries,
+          names,
+        ),
+    )
+    .addModifier(() => new ParallelAxesModifier());
 }

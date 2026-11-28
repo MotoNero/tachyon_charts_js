@@ -6,6 +6,7 @@ import {
   BarSeries,
   ColorAxis,
   ContourSeries,
+  ErrorBarSeries,
   PolarGridOverlay,
   FrequencyMask,
   networkAnalyzer,
@@ -32,6 +33,7 @@ import {
   SmithMarkerModifier,
   SmithMarkerOverlay,
   SmithSeries,
+  StemSeries,
   TernaryGridOverlay,
   TernarySeries,
   ZoomPanModifier,
@@ -1483,6 +1485,27 @@ export const pages: readonly PageEntry[] = [
       return numeric(c, 0, 12, 0, 1200).addSeries((x, y) =>
         BarSeries.fromHistogram(computeHistogram(values, 'freedmanDiaconis'), x, y),
       );
+    },
+  },
+  {
+    id: 'error-bars-and-stems',
+    name: 'Error bars and stems',
+    group: 'Statistics',
+    hint: plain,
+    configure: (c) => {
+      // Thirteen measurements with errors of five sizes, and the samples of fading pulses as stems below.
+      const measured = new DataSource(13);
+      const pulses = new DataSource(41);
+      for (let i = 0; i < 13; i++) {
+        measured.append(i, 6 + Math.sin(i * 0.8));
+      }
+      for (let i = 0; i < 41; i++) {
+        pulses.append(i * 0.3, 2.5 * Math.exp(-0.1 * i) * Math.abs(Math.cos(i * 0.6)));
+      }
+      const errors = Array.from({ length: 13 }, (_, i) => 0.15 + 0.05 * (i % 5));
+      return numeric(c, -0.5, 12.5, -0.5, 8)
+        .addSeries((x, y) => Object.assign(new ErrorBarSeries(measured, errors, errors, x, y), { thickness: 1.5 }))
+        .addSeries((x, y) => Object.assign(new StemSeries(pulses, x, y), { color: { r: 240, g: 130, b: 90, a: 255 } }));
     },
   },
   {

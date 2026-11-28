@@ -1,6 +1,8 @@
 // The rings, spokes and labels of a polar chart, zooming of its radius, and the chart itself, as PolarGridOverlay,
 // RadialZoomModifier and PolarChart of the .NET version.
 import type { Axis } from '../axes/axis';
+import type { ChartBuilder } from '../fluent/chart-builder';
+import type { ChartSeries } from '../pipeline/chart-series';
 import { NumericAxis } from '../axes/numeric-axis';
 import { ZoomPanModifier } from '../input/navigation-modifiers';
 import { ChartModifier, type ModifierResult } from '../input/modifier-pipeline';
@@ -125,4 +127,32 @@ export function createPolarChart(textEngine: TextEngine, range: DoubleRange, spo
   const chart = new ChartSurface([angle], [{ axes: [radial] }], textEngine);
   chart.addOverlay(new PolarGridOverlay(radial, spokes ?? degrees));
   return { chart, angle, radial };
+}
+
+/**
+ * Describes a polar chart: hidden axes for the angle from 0 to 360 degrees and the radius from 0, the series, a grid
+ * of rings and spokes, and zooming around the middle with the wheel.
+ * @param builder - The description.
+ * @param radius - The value at the outer ring.
+ * @param spokes - The names of the spokes, evenly around the circle, such as degrees or the criteria of a radar.
+ * @param series - Creates the series, a `PolarSeries`, from the axes.
+ */
+export function polar(
+  builder: ChartBuilder,
+  radius: number,
+  spokes: readonly string[],
+  series: (x: Axis, y: Axis) => ChartSeries,
+): ChartBuilder {
+  return builder
+    .xAxis((a) => a.numeric('angle').range(0, 360).hidden())
+    .yAxis((a) => a.numeric('radial').range(0, radius).hidden())
+    .addSeries(series, 'angle', 'radial')
+    .addOverlay((chart) => {
+      const first = chart.series[0];
+      if (!first) {
+        throw new Error('A polar chart needs its series.');
+      }
+      return new PolarGridOverlay(first.yAxis, spokes);
+    })
+    .addModifier(() => new RadialZoomModifier());
 }

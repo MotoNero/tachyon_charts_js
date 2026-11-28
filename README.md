@@ -197,6 +197,23 @@ builder.addSeries((x, y) => new BoxPlotSeries([first, second, third], x, y));
 builder.addSeries((x, y) => new ViolinSeries([first, second, third], x, y));
 ```
 
+## Error bars and stems
+
+![Thirteen measured values with error bars of five sizes and caps; one value is missing](docs/images/error-bars.png)
+
+![Fading pulses as stems with round heads from the zero line](docs/images/stems.png)
+
+`ErrorBarSeries` shows measured values with their errors below and above: a line with caps and a point at the value;
+a missing value leaves a gap. `StemSeries` draws a line from a baseline to each point with a round head, as for the
+samples of a signal. Both lie on whole pixels, so all renderers agree.
+
+```ts
+import { ErrorBarSeries, StemSeries } from '@tachyon-charts/core';
+
+builder.addSeries((x, y) => new ErrorBarSeries(values, lower, upper, x, y));
+builder.addSeries((x, y) => Object.assign(new StemSeries(samples, x, y), { baseline: 0, headSize: 6 }));
+```
+
 ## Polar and radar charts
 
 ![A radar chart of two products over six qualities](docs/images/radar.png)
@@ -211,6 +228,18 @@ import { createPolarChart, DoubleRange, PolarSeries } from '@tachyon-charts/core
 
 const { chart, angle, radial } = createPolarChart(textEngine, new DoubleRange(0, 100), ['Speed', 'Price', 'Quality']);
 chart.addSeries(PolarSeries.radar([80, 60, 90], angle, radial));
+```
+
+With a chart builder, `polar`, `smith`, `ternary` and `parallelCoordinates` set up the hidden axes, the grid and the
+interactions in one call:
+
+```ts
+import { parallelCoordinates, polar, PolarSeries, smith, ternary } from '@tachyon-charts/core';
+
+polar(builder, 100, ['Speed', 'Price', 'Quality'], (x, y) => PolarSeries.radar([80, 60, 90], x, y));
+smith(builder, resistance, reactance, 100); // the marker at point 100
+ternary(builder, a, b, c, ['Sand', 'Silt', 'Clay']);
+parallelCoordinates(builder, columns, ['V', 'A', '°C']);
 ```
 
 ## Smith charts

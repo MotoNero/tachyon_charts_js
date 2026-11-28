@@ -1314,6 +1314,18 @@ export function emptySnapshot(): DataSnapshot;
 export const emptyTicks: TickSet;
 
 // @public
+export class ErrorBarSeries extends MarkSeries {
+    constructor(source: PointSource, lower: ArrayLike<number>, upper: ArrayLike<number>, xAxis: Axis, yAxis: Axis);
+    protected build(frame: SeriesFrame): void;
+    get capWidth(): number;
+    set capWidth(value: number);
+    dataRange(axis: 'x' | 'y'): DoubleRange | undefined;
+    get pointSize(): number;
+    set pointSize(value: number);
+    setErrors(lower: ArrayLike<number>, upper: ArrayLike<number>): void;
+}
+
+// @public
 export function estimateDensity(values: Values, bandwidth: number, position: number): number;
 
 // @public
@@ -1965,6 +1977,28 @@ export interface MarkerStyle {
 }
 
 // @public
+export abstract class MarkSeries extends ChartSeries {
+    constructor(
+    source: PointSource, xAxis: Axis, yAxis: Axis);
+    get accentColor(): Rgba8;
+    protected addHead(x: number, y: number, diameter: number): void;
+    protected addRectangle(left: number, top: number, right: number, bottom: number): void;
+    protected abstract build(frame: SeriesFrame): void;
+    protected changed(): void;
+    collectValueLabels(x: DoubleRange, y: DoubleRange, labels: ValueLabel[]): void;
+    get color(): Rgba8;
+    set color(value: Rgba8);
+    dispose(): void;
+    draw(commands: CommandList, frame: SeriesFrame): void;
+    prepare(device: RenderDevice, frame: SeriesFrame): void;
+    releaseResources(): void;
+    readonly source: PointSource;
+    get thickness(): number;
+    set thickness(value: number);
+    get version(): number;
+}
+
+// @public
 export function maskByPolygons(values: Float32Array, columns: ArrayLike<number>, rows: ArrayLike<number>, polygons: readonly Polygon[]): void;
 
 // @public
@@ -2245,6 +2279,9 @@ export class ParallelAxesOverlay extends ChartOverlay {
 }
 
 // @public
+export function parallelCoordinates(builder: ChartBuilder, columns: readonly ArrayLike<number>[], names: readonly string[], color?: Rgba8): ChartBuilder;
+
+// @public
 export class ParallelCoordinatesSeries extends ChartSeries {
     constructor(columns: readonly ArrayLike<number>[], xAxis: Axis, yAxis: Axis);
     get accentColor(): Rgba8;
@@ -2422,6 +2459,9 @@ export interface PointSource {
     snapshotInto(target: DataSnapshot): DataSnapshot;
     readonly version: number;
 }
+
+// @public
+export function polar(builder: ChartBuilder, radius: number, spokes: readonly string[], series: (x: Axis, y: Axis) => ChartSeries): ChartBuilder;
 
 // @public
 export interface PolarChart {
@@ -3187,6 +3227,9 @@ export class SharedDataWriter implements DataAppender {
 export function sharedTypeOf(values: NumberArray): SharedArrayType | undefined;
 
 // @public
+export function smith(builder: ChartBuilder, resistance: ArrayLike<number>, reactance: ArrayLike<number>, markerIndex?: number, referenceImpedance?: number): ChartBuilder;
+
+// @public
 export interface SmithChart {
     readonly chart: ChartSurface;
     readonly grid: SmithGridOverlay;
@@ -3380,6 +3423,16 @@ export class StackedAreaSeries extends RibbonSeries {
 export function stackLayers(layers: readonly ArrayLike<number>[], isPercent: boolean): Float64Array[];
 
 // @public
+export class StemSeries extends MarkSeries {
+    get baseline(): number;
+    set baseline(value: number);
+    protected build(frame: SeriesFrame): void;
+    dataRange(axis: 'x' | 'y'): DoubleRange | undefined;
+    get headSize(): number;
+    set headSize(value: number);
+}
+
+// @public
 export function stepOneTwoFive(value: number, steps: number): number;
 
 // @public
@@ -3463,6 +3516,9 @@ export class SymLogScaling implements AxisScaling {
     inverse(value: number): number;
     readonly linearThreshold: number;
 }
+
+// @public
+export function ternary(builder: ChartBuilder, a: ArrayLike<number>, b: ArrayLike<number>, c: ArrayLike<number>, names?: readonly [string, string, string]): ChartBuilder;
 
 // @public
 export class TernaryGridOverlay extends ChartOverlay {

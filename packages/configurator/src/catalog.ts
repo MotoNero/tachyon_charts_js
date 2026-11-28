@@ -62,6 +62,10 @@ export interface ChartTypeInfo {
   code(writer: CodeWriter, series: SeriesSpec, data: string, axes: SeriesAxes, index: number): string;
   /** Whether the type sets the axes itself, such as a pie. */
   readonly ownsAxes?: boolean;
+  /** Whether the type shows times along X, so that a new chart of it takes a time axis. */
+  readonly usesTime?: boolean;
+  /** Whether a new chart of a type that sets its axes itself still takes the usual interactions. */
+  readonly takesInteractions?: boolean;
 }
 
 /** An interaction the configurator offers. */
@@ -72,7 +76,6 @@ export interface ModifierInfo {
   readonly name: string;
   /** The parameters. */
   readonly parameters: readonly ParameterInfo[];
-  /** The create. */
   /** Writes the expression that makes the interaction. */
   code(writer: CodeWriter, values: SpecValues): string;
 }

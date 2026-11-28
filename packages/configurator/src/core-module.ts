@@ -3,9 +3,12 @@
 import { parseColor, type ChartModule, type ChartTypeInfo, type ModifierInfo, type ParameterInfo } from './catalog';
 import { camel } from './build';
 import { num, rgba, str } from './code';
+import { colorCode, madeWith, seriesCode } from './series-code';
+import { scienceTypes } from './science-types';
+import { scienceSamples } from './samples-science';
 import { coreSamples } from './samples-core';
 import { curveSamples } from './samples-curves';
-import { flagOf, numberOf, textOf, type SeriesSpec, type SpecValues } from './spec';
+import { flagOf, numberOf, textOf, type SeriesSpec } from './spec';
 
 const dashes: Record<string, readonly number[]> = {
   Solid: [],
@@ -32,47 +35,6 @@ const valuesParameter: ParameterInfo = {
   default: false,
   description: 'Labels with the values at the points; labels that would cover others are left out.',
 };
-
-/** @internal A color of the parameters as code, or undefined for none. */
-export function colorCode(values: SpecValues, name: string): string | undefined {
-  const parsed = parseColor(textOf(values, name));
-  return parsed ? rgba(parsed) : undefined;
-}
-
-/**
- * @internal The code that adds a series the code makes itself, `make`, with its properties set; `assignments` are
- * `property = value` in code, `before` statements ahead of it inside the function.
- */
-export function seriesCode(
-  series: SeriesSpec,
-  make: string,
-  assignments: readonly string[],
-  axes: { x: string; y: string },
-  before: readonly string[] = [],
-): string {
-  const usesAxis = before.some((line) => line.includes('axis(')) || make.includes('axis(');
-  const all = [...(series.name.length > 0 ? [`name = ${str(series.name)}`] : []), ...assignments];
-  return [
-    'c.addSeries(',
-    `  (x, y${usesAxis ? ', axis' : ''}) => {`,
-    ...before.map((line) => `    ${line}`),
-    `    const series = ${make};`,
-    ...all.map((line) => `    series.${line};`),
-    '    return series;',
-    '  },',
-    `  ${str(axes.x)},`,
-    `  ${str(axes.y)},`,
-    ');',
-  ].join('\n');
-}
-
-/** @internal An object made and set up in one expression. */
-export function madeWith(make: string, name: string, assignments: readonly string[]): string {
-  if (assignments.length === 0) {
-    return make;
-  }
-  return `(() => {\n  const ${name} = ${make};\n${assignments.map((line) => `  ${name}.${line};`).join('\n')}\n  return ${name};\n})()`;
-}
 
 function builderStart(series: SeriesSpec, axes: { x: string; y: string }): string {
   return `s.name(${str(series.name)}).xAxis(${str(axes.x)}).yAxis(${str(axes.y)})`;
@@ -516,7 +478,8 @@ export const coreModule: ChartModule = {
     pieType('pie', 'Pie', 0),
     pieType('donut', 'Donut', 0.55),
     heatmap,
+    ...scienceTypes,
   ],
-  samples: [...curveSamples, ...coreSamples],
+  samples: [...curveSamples, ...coreSamples, ...scienceSamples],
   modifiers,
 };

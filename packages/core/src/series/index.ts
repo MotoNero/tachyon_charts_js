@@ -56,3 +56,4 @@ export {
   type GanttTask,
 } from './gantt-series';
 export { polygons, PolygonSeries } from './polygon-series';
+export { ErrorBarSeries, MarkSeries, StemSeries } from './measurement-series';
