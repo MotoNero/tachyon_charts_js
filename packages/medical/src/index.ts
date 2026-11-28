@@ -13,7 +13,7 @@ export {
   type DicomPhotometricInterpretation,
   type DicomTransferSyntax,
 } from './dicom';
-export { NiftiImageReader, NiftiReadError } from './nifti';
+export { NiftiImageReader, NiftiReadError, NiftiSegmentationReader } from './nifti';
 export {
   MedicalMeasurement,
   MedicalMeasurementLayer,
@@ -24,3 +24,4 @@ export {
 export { MedicalHistogram, MedicalProfile, type MedicalMeasuredImage } from './analysis';
 export { MedicalMprDisplay, MedicalMprSlice } from './mpr';
 export { MedicalCurvedSlice, MedicalObliqueSlice } from './reformat';
+export { MedicalSegment, MedicalSegmentation, type MedicalSegmentation3DMode } from './segmentation';

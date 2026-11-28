@@ -1,7 +1,7 @@
 // Multiplanar reconstruction, as MedicalMprDisplay and MedicalMprSlice of the .NET version: one place in a volume and
 // the axial, coronal and sagittal slices through it, each a chart of its own with the place as a cross, the slice
 // number, the directions of the patient and measurements; a click moves the place, the wheel and the arrows the slice.
-import { Point3D, Volume3D, type Chart3DBuilder } from '@tachyon-charts/3d';
+import { Point3D, Volume3D, type Chart3DBuilder, type Scene3D } from '@tachyon-charts/3d';
 import {
   ChartModifier,
   ChartOverlay,
@@ -37,9 +37,16 @@ import {
   type MedicalVolume,
   type PatientOrientation,
 } from './medical-image';
+import { SegmentationLayer, SegmentationSeries, type MedicalSegmentation } from './segmentation';
 import { sliceIndex, sliceShape, sliceValue, type MedicalMprPlane } from './slices';
 
 const minimumWindowWidth = 1e-6;
+
+// The segmentations put onto the volume of a display, and a number that grows with every change of them or of the place.
+let segmentationOf: (display: MedicalMprDisplay) => {
+  layers: () => readonly SegmentationLayer[];
+  stamp: () => number;
+};
 
 /** Three slices through one place of a volume, with one window for all. */
 export class MedicalMprDisplay {
@@ -60,6 +67,17 @@ export class MedicalMprDisplay {
   private place: Point3D;
   private current: MedicalWindow;
   private volume3D: Volume3D | undefined;
+  private readonly layers: SegmentationLayer[] = [];
+
+  static {
+    segmentationOf = (display) => ({
+      layers: () => display.layers,
+      stamp: () => display.segmentationChanges * 65536 + display.positionChanges,
+    });
+  }
+  private readonly scenes: Scene3D[] = [];
+  private segmentationChanges = 0;
+  private positionChanges = 0;
   private readonly positionListeners = new Set<(position: Point3D) => void>();
   private readonly windowListeners = new Set<(window: MedicalWindow) => void>();
 
@@ -114,6 +132,7 @@ export class MedicalMprDisplay {
       return;
     }
     this.place = clamped;
+    this.positionChanges++;
     this.movePlanes(clamped);
     for (const listener of this.positionListeners) {
       listener(clamped);
@@ -165,15 +184,49 @@ export class MedicalMprDisplay {
     return this.volume3D;
   }
 
-  /** Describes a 3D chart of the volume with its three planes; a click on the volume moves the place. */
+  /** The segmentations shown over the slices and in 3D. */
+  get segmentations(): readonly MedicalSegmentation[] {
+    return this.layers.map((layer) => layer.source);
+  }
+
+  /**
+   * Shows a segmentation over the slices and in the 3D charts, its labels put onto the voxels of the volume.
+   * @throws RangeError when the segmentation is shown already, or a volume of labels has more than 255 labels.
+   */
+  addSegmentation(segmentation: MedicalSegmentation): void {
+    if (this.layers.some((layer) => layer.source === segmentation)) {
+      throw new RangeError('The segmentation is already part of this display.');
+    }
+    const layer = new SegmentationLayer(this.source, segmentation);
+    this.layers.push(layer);
+    for (const scene of this.scenes) {
+      for (const volume of layer.objects) {
+        scene.addVolume(volume);
+      }
+    }
+    segmentation.onChanged(() => {
+      layer.refresh3D();
+      this.segmentationChanges++;
+    });
+    this.segmentationChanges++;
+  }
+
+  /** Describes a 3D chart of the volume with its three planes and the segmentations. */
   configure3D(chart: Chart3DBuilder): Chart3DBuilder {
     const maximum = this.maximumPosition;
-    return chart
+    chart
       .title('Medical MPR')
       .xAxis(0, maximum.x, 'mm')
       .yAxis(0, maximum.y, 'mm')
       .zAxis(0, maximum.z, 'mm')
       .addVolume(this.volume);
+    for (const layer of this.layers) {
+      for (const volume of layer.objects) {
+        chart.addVolume(volume);
+      }
+    }
+    this.scenes.push(chart.scene);
+    return chart;
   }
 
   // The planes of the volume through the place, in the box from -1 to 1.
@@ -341,6 +394,12 @@ export class MedicalMprSlice {
           series.isInterpolated = this.display.isInterpolated;
           return series;
         },
+        'medical-mpr-x',
+        'medical-mpr-y',
+      )
+      .addSeries(
+        (x, y) =>
+          new SegmentationSeries(this, segmentationOf(this.display).layers, segmentationOf(this.display).stamp, x, y),
         'medical-mpr-x',
         'medical-mpr-y',
       )

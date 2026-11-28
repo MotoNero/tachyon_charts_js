@@ -37,6 +37,18 @@ export class TransferFunction3D {
     this.list = [...points];
   }
 
+  /**
+   * @internal Takes new points, such as the colors of the labels of a segmentation.
+   * @throws RangeError for fewer than two points.
+   */
+  replace(points: readonly TransferPoint3D[]): void {
+    if (points.length < 2) {
+      throw new RangeError('A transfer function needs at least two points.');
+    }
+    this.list = [...points];
+    this.changes++;
+  }
+
   /** The points. */
   get points(): readonly TransferPoint3D[] {
     return this.list;

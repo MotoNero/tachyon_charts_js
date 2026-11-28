@@ -114,6 +114,7 @@ import {
   Surface3D,
   type Vertex3D,
   Waterfall3D,
+  VolumeData,
 } from '@tachyon-charts/3d';
 import {
   BitColumn,
@@ -162,6 +163,8 @@ import {
   MedicalObliqueSlice,
   MedicalPhantoms,
   MedicalProfile,
+  MedicalSegment,
+  MedicalSegmentation,
   MedicalSlices,
   NiftiImageReader,
   type MedicalVolume,
@@ -1237,12 +1240,67 @@ function medicalReformatPage(): Page {
   };
 }
 
+// The labels of the synthetic head: a focus and a cavity, each an ellipsoid in shares of the volume.
+function headLabels(): MedicalSegmentation {
+  const head = MedicalPhantoms.head();
+  const data = head.data;
+  const labels = new Uint16Array(data.width * data.height * data.depth);
+  for (let z = 0; z < data.depth; z++) {
+    const nz = z / (data.depth - 1);
+    for (let y = 0; y < data.height; y++) {
+      const ny = y / (data.height - 1);
+      for (let x = 0; x < data.width; x++) {
+        const nx = x / (data.width - 1);
+        const focus = ((nx - 0.32) / 0.11) ** 2 + ((ny - 0.46) / 0.14) ** 2 + ((nz - 0.52) / 0.16) ** 2 < 1;
+        const cavity = ((nx - 0.56) / 0.12) ** 2 + ((ny - 0.5) / 0.19) ** 2 + ((nz - 0.5) / 0.28) ** 2 < 1;
+        labels[(z * data.height + y) * data.width + x] = focus ? 1 : cavity ? 2 : 0;
+      }
+    }
+  }
+  const focus = new MedicalSegment(1, t('Focus'), { r: 245, g: 70, b: 80, a: 255 });
+  focus.opacity = 0.62;
+  const cavity = new MedicalSegment(2, t('Cavity'), { r: 45, g: 205, b: 235, a: 255 });
+  cavity.opacity = 0.48;
+  return new MedicalSegmentation(
+    new VolumeData(labels, data.width, data.height, data.depth),
+    { row: head.voxelSpacing.y, column: head.voxelSpacing.x },
+    head.voxelSpacing.z,
+    head.origin,
+    head.orientation,
+    [focus, cavity],
+    'surface',
+  );
+}
+
+function medicalSegmentationPage(): Page {
+  let display: MedicalMprDisplay | undefined;
+  return {
+    id: 'medical-segmentation',
+    name: 'Medical segmentation',
+    group: 'Medical',
+    hint: mprHint,
+    configure: (c) => {
+      display = new MedicalMprDisplay(MedicalPhantoms.head());
+      display.addSegmentation(headLabels());
+      const shown = display;
+      scene3D(c, (s) => shown.configure3D(s));
+    },
+    start: () =>
+      chartRow(
+        display
+          ? [display.axial, display.coronal, display.sagittal].map((slice) => slice.configure(new ChartBuilder()))
+          : [],
+      ),
+  };
+}
+
 function medicalPages(): Page[] {
   return [
     medicalFilesPage(),
     medicalMprPage(),
     medicalAnalysisPage(),
     medicalReformatPage(),
+    medicalSegmentationPage(),
     {
       id: 'medical-measurements',
       name: 'Medical measurements',

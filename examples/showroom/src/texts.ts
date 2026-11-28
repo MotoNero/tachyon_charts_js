@@ -43,6 +43,8 @@ const german: Readonly<Record<string, string>> = {
   'Medical MPR': 'Medizinische MPR',
   'Medical analysis': 'Medizinische Analyse',
   'Medical oblique and curved': 'Medizinisch schräg und gekrümmt',
+  'Medical segmentation': 'Medizinische Segmentierung',
+  Cavity: 'Hohlraum',
   'Oblique plane': 'Schräge Ebene',
   Arc: 'Bogen',
   'Drag an end of the line: the oblique plane follows | Drag a point of the arc: the curved section follows | Wheel on the oblique plane: move it | Key V on the oblique plane: it faces the 3D view | Drag elsewhere: window':

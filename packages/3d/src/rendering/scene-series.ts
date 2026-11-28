@@ -454,8 +454,10 @@ export class Scene3DSeries extends ChartSeries {
       ),
       volume.colorShares.map((value) => Math.fround(value)),
     );
-    buffer.showsSlices = volume.showsSlices;
-    if (volume.marches) {
+    buffer.showsSlices = volume.showsSlices && volume.isVisible;
+    if (!volume.isVisible) {
+      buffer.marches = false;
+    } else if (volume.marches) {
       volume.transfer?.writeTable(this.transferTable);
       // Two steps per voxel; a volume reduced on the GPU has bigger voxels, so the rays take fewer steps.
       const voxel = (((high[0] as number) - (low[0] as number)) / data.width) * (volume.gpuFit?.reduction ?? 1);
@@ -475,7 +477,7 @@ export class Scene3DSeries extends ChartSeries {
       const eye = scene.camera.eye;
       const material = fullMaterial(volume.material);
       buffer.setMarch(
-        [voxel * ratio, voxel, ratio, 1].map((value) => Math.fround(value)),
+        [voxel * ratio, voxel, ratio, volume.isInterpolated ? 1 : 0].map((value) => Math.fround(value)),
         [volumeModes.indexOf(volume.mode), Math.fround(volume.isoShare)],
         [eye.x, eye.y, eye.z, 1].map((value) => Math.fround(value)),
         [material.gloss, material.sharpness, material.opacity, material.isLit ? 1 : 0].map((value) =>

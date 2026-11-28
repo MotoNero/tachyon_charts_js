@@ -17,6 +17,7 @@ import { Histogram } from '@tachyon-charts/core';
 import { OverlayCanvas } from '@tachyon-charts/core';
 import { Point } from '@tachyon-charts/core';
 import { Point3D } from '@tachyon-charts/3d';
+import { Rgba8 } from '@tachyon-charts/core';
 import { Volume3D } from '@tachyon-charts/3d';
 import { VolumeData } from '@tachyon-charts/3d';
 
@@ -225,6 +226,7 @@ export interface MedicalMeasurementResult {
 export class MedicalMprDisplay {
     constructor(
     source: MedicalVolume);
+    addSegmentation(segmentation: MedicalSegmentation): void;
     applyPreset(window: MedicalWindow): void;
     readonly axial: MedicalMprSlice;
     colormap: Colormap;
@@ -238,6 +240,7 @@ export class MedicalMprDisplay {
     onWindowChanged(listener: (window: MedicalWindow) => void): () => void;
     get position(): Point3D;
     readonly sagittal: MedicalMprSlice;
+    get segmentations(): readonly MedicalSegmentation[];
     setPosition(position: Point3D): void;
     setWindow(center: number, width: number): void;
     readonly source: MedicalVolume;
@@ -328,6 +331,43 @@ export class MedicalProfile {
 }
 
 // @public
+export class MedicalSegment {
+    constructor(
+    label: number, name: string, color: Rgba8);
+    get color(): Rgba8;
+    set color(value: Rgba8);
+    get isVisible(): boolean;
+    set isVisible(value: boolean);
+    readonly label: number;
+    // @internal
+    readonly listeners: Set<() => void>;
+    get name(): string;
+    set name(value: string);
+    get opacity(): number;
+    set opacity(value: number);
+}
+
+// @public
+export class MedicalSegmentation {
+    constructor(
+    data: VolumeData, inPlane: ImageSpacing, sliceSpacing: number,
+    origin: Point3D,
+    orientation: PatientOrientation, segments?: readonly MedicalSegment[], threeDMode?: MedicalSegmentation3DMode);
+    readonly data: VolumeData;
+    onChanged(listener: () => void): () => void;
+    readonly orientation: PatientOrientation;
+    readonly origin: Point3D;
+    readonly segments: readonly MedicalSegment[];
+    readonly threeDMode: MedicalSegmentation3DMode;
+    // @internal
+    get version(): number;
+    readonly voxelSpacing: Point3D;
+}
+
+// @public
+export type MedicalSegmentation3DMode = 'volume' | 'surface';
+
+// @public
 export interface MedicalSlice {
     readonly height: number;
     readonly index: number;
@@ -386,6 +426,12 @@ export const NiftiImageReader: {
 export class NiftiReadError extends Error {
     constructor(message: string);
 }
+
+// @public
+export const NiftiSegmentationReader: {
+    read(bytes: Uint8Array | ArrayBuffer, segments?: readonly MedicalSegment[], threeDMode?: MedicalSegmentation3DMode): Promise<MedicalSegmentation>;
+    readFile(file: Blob, segments?: readonly MedicalSegment[], threeDMode?: MedicalSegmentation3DMode): Promise<MedicalSegmentation>;
+};
 
 // @public
 export class PatientOrientation {

@@ -176,14 +176,13 @@ export interface Volume3DOptions {
  * GPU slice by slice over several frames, so the page never waits.
  */
 export class Volume3D {
-  /** The colors of the slices. */
-  readonly colormap: Colormap;
+  private colorTable: Colormap;
   /** The function for looking through the volume, or undefined for slices only. */
   readonly transfer: TransferFunction3D | undefined;
   /** How the volume shows beyond its slices. */
   readonly mode: VolumeMode;
-  /** How the surface takes the light. */
-  readonly material: Material3D;
+  private look: Material3D;
+  private visible = true;
   /** Whether the three slices show. */
   readonly showsSlices: boolean;
   /** The share of the value range below which a slice stays clear. */
@@ -204,6 +203,8 @@ export class Volume3D {
   private changes = 0;
   /** @internal Whether the slider of the surface or the editor of the transfer function shows. */
   showsEditor = true;
+  /** @internal Whether values blend between the voxels; labels of a segmentation keep their voxels. */
+  isInterpolated = true;
 
   /**
    * @param data - The values.
@@ -223,11 +224,11 @@ export class Volume3D {
     readonly z: DoubleRange,
     options: Volume3DOptions = {},
   ) {
-    this.colormap = options.colormap ?? Colormap.builtIn('viridis');
+    this.colorTable = options.colormap ?? Colormap.builtIn('viridis');
     this.colors = options.colorRange;
     this.transfer = options.transfer;
     this.mode = options.mode ?? 'transfer';
-    this.material = options.material ?? { gloss: 0.35 };
+    this.look = options.material ?? { gloss: 0.35 };
     this.showsSlices = options.showsSlices ?? true;
     this.sliceThreshold = options.sliceThreshold ?? 0;
     this.gpuMemoryLimit = options.gpuMemoryLimit ?? 2 ** 31;
@@ -271,6 +272,30 @@ export class Volume3D {
   }
 
   /** @internal Whether rays run through the volume. */
+  /** The colors of the slices. */
+  get colormap(): Colormap {
+    return this.colorTable;
+  }
+
+  /** How the surface takes the light. */
+  get material(): Material3D {
+    return this.look;
+  }
+
+  /** @internal Whether the volume shows at all. */
+  get isVisible(): boolean {
+    return this.visible;
+  }
+
+  /** @internal Changes the colors, the light and whether the volume shows, such as for the labels of a segmentation. */
+  setAppearance(colormap: Colormap, material: Material3D, isVisible: boolean): void {
+    this.colorTable = colormap;
+    this.look = material;
+    this.visible = isVisible;
+    this.changes++;
+  }
+
+  /** Whether rays look through the volume beyond its slices: with a transfer function, a surface or the maximum. */
   get marches(): boolean {
     return this.mode !== 'transfer' || this.transfer !== undefined;
   }

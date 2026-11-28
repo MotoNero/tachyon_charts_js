@@ -573,6 +573,18 @@ curved.path = display.axial.measurements.add('freehand', arc);
 curved.configure(curvedBuilder);
 ```
 
+![Two labels of the synthetic head in colour over the three slices and as lit surfaces in 3D](docs/images/medical-segmentation.png)
+
+`MedicalSegmentation` holds labels on a raster of its own with its geometry in the patient, and `MedicalSegment`
+the name, colour, opacity and visibility of each label. `addSegmentation` puts the labels onto the voxels of the volume
+of an MPR display: they show in colour over all slices, and in 3D either as one volume of labels or as a lit surface per
+label (`threeDMode`). `NiftiSegmentationReader` reads label maps of NIfTI files.
+
+```ts
+const labels = await NiftiSegmentationReader.readFile(file, [new MedicalSegment(1, 'Tumour', red)], 'surface');
+display.addSegmentation(labels);
+```
+
 ## Legends
 
 ![A test bench with a legend of temperatures in the plot and a legend of pressures below it](docs/images/legends.png)

@@ -3,6 +3,7 @@
 // normal.
 import { Point3D, VolumeData } from '@tachyon-charts/3d';
 import { MedicalVolume, PatientOrientation } from './medical-image';
+import { MedicalSegmentation, type MedicalSegment, type MedicalSegmentation3DMode } from './segmentation';
 
 /** A NIfTI file that cannot be read. */
 export class NiftiReadError extends Error {
@@ -193,7 +194,7 @@ async function unpacked(bytes: Uint8Array): Promise<Uint8Array> {
   }
 }
 
-function readVolume(bytes: Uint8Array): MedicalVolume {
+function readVolume(bytes: Uint8Array, asLabels = false): MedicalVolume {
   const header = readHeader(bytes);
   const { width, height, depth } = header;
   const count = width * height * depth;
@@ -227,7 +228,23 @@ function readVolume(bytes: Uint8Array): MedicalVolume {
     origin = origin.plus(slices.times((depth - 1) * sliceSpacing));
   }
   let data: VolumeData;
-  if (header.type === 2 || header.type === 256 || header.type === 4 || header.type === 512) {
+  if (asLabels) {
+    if (header.type === 16 || header.type === 64) {
+      throw new NiftiReadError('The NIfTI datatype is not an integer label type.');
+    }
+    const labels = new Uint16Array(count);
+    for (let i = 0; i < count; i++) {
+      const value = stored(view, i * header.bytes, header.type, header.little) * header.slope + header.intercept;
+      if (!(Number.isFinite(value) && value >= 0 && value <= 65535 && value === Math.trunc(value))) {
+        throw new NiftiReadError('The scaled NIfTI values are not integer labels from zero through 65,535.');
+      }
+      labels[i] = value;
+    }
+    if (reversed) {
+      reverseSlices(labels, width, height, depth);
+    }
+    data = new VolumeData(labels, width, height, depth);
+  } else if (header.type === 2 || header.type === 256 || header.type === 4 || header.type === 512) {
     // Integers of up to 16 bits stay two bytes each with their scale; signed ones move up by 32768.
     const lift = header.type === 256 || header.type === 4 ? 32768 : 0;
     const words = new Uint16Array(count);
@@ -273,5 +290,44 @@ export const NiftiImageReader = {
    */
   async readFile(file: Blob): Promise<MedicalVolume> {
     return NiftiImageReader.read(new Uint8Array(await file.arrayBuffer()));
+  },
+};
+
+/** Reads segmentations of single NIfTI-1 files: whole numbers from 0 (none) to 65 535, each a label. */
+export const NiftiSegmentationReader = {
+  /**
+   * Reads the labels of a file, packed with gzip or not, with their geometry in the patient.
+   * @param segments - Descriptions of labels; the others get a name and a colour.
+   * @param threeDMode - How the segmentation shows in 3D.
+   * @throws NiftiReadError when the file is no NIfTI-1 file of whole-numbered labels or is damaged.
+   */
+  async read(
+    bytes: Uint8Array | ArrayBuffer,
+    segments: readonly MedicalSegment[] = [],
+    threeDMode: MedicalSegmentation3DMode = 'volume',
+  ): Promise<MedicalSegmentation> {
+    const volume = readVolume(await unpacked(bytes instanceof Uint8Array ? bytes : new Uint8Array(bytes)), true);
+    const spacing = volume.voxelSpacing;
+    return new MedicalSegmentation(
+      volume.data,
+      { row: spacing.y, column: spacing.x },
+      spacing.z,
+      volume.origin,
+      volume.orientation,
+      segments,
+      threeDMode,
+    );
+  },
+
+  /**
+   * Reads the labels of a file, such as one a person drops on the page.
+   * @throws NiftiReadError when the file is no NIfTI-1 file of whole-numbered labels or is damaged.
+   */
+  async readFile(
+    file: Blob,
+    segments: readonly MedicalSegment[] = [],
+    threeDMode: MedicalSegmentation3DMode = 'volume',
+  ): Promise<MedicalSegmentation> {
+    return NiftiSegmentationReader.read(new Uint8Array(await file.arrayBuffer()), segments, threeDMode);
   },
 };
