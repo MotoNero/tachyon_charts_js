@@ -10,6 +10,7 @@ export class CodeWriter {
   private readonly imports = new Map<string, Set<string>>();
   private readonly typeImports = new Map<string, Set<string>>();
   private readonly helpers = new Map<string, string>();
+  private live = false;
 
   /** @param language - The language of the code. */
   constructor(
@@ -50,6 +51,25 @@ export class CodeWriter {
   /** An expression with a type for TypeScript, as it is for JavaScript. */
   as(expression: string, type: string): string {
     return this.language === 'typescript' ? `(${expression} as ${type})` : expression;
+  }
+
+  /**
+   * The name of the list that collects the functions that stop what keeps running, such as live data; using it makes
+   * `describeChart` take the list.
+   */
+  running(): string {
+    this.live = true;
+    return 'running';
+  }
+
+  /** Whether the code starts something that keeps running. */
+  get isLive(): boolean {
+    return this.live;
+  }
+
+  /** A parameter with its type for TypeScript, such as `count: number`; the name alone for JavaScript. */
+  parameter(name: string, annotation: string): string {
+    return `${name}${this.type(annotation)}`;
   }
 
   /** A type annotation for TypeScript, nothing for JavaScript. */

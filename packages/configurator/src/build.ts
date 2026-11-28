@@ -189,6 +189,7 @@ function describeChart(spec: ChartSpec, catalog: ChartCatalog, language: CodeLan
     }
   }
   const taken = new Map<string, number>();
+  const made = new Map<string, string>();
   spec.series.forEach((series, index) => {
     const type = catalog.findType(series.type);
     const sample = catalog.findSample(series.data.sample);
@@ -196,11 +197,16 @@ function describeChart(spec: ChartSpec, catalog: ChartCatalog, language: CodeLan
       return;
     }
     const make = sampleFunction(writer, sample);
-    const times = (taken.get(make) ?? 0) + 1;
-    taken.set(make, times);
-    const data = `${make}Data${times === 1 ? '' : String(times)}`;
     const argument = sample.hasCount === false ? '' : num(series.data.count);
-    lines.push(`const ${data} = ${make}(${argument});`);
+    const key = `${make}(${argument})`;
+    let data = sample.shared === true ? made.get(key) : undefined;
+    if (data === undefined) {
+      const times = (taken.get(make) ?? 0) + 1;
+      taken.set(make, times);
+      data = `${make}Data${times === 1 ? '' : String(times)}`;
+      made.set(key, data);
+      lines.push(`const ${data} = ${key};`);
+    }
     lines.push(type.code(writer, series, data, axesOf(spec, series), index));
   });
   for (const modifier of spec.modifiers) {
@@ -218,10 +224,11 @@ function describeChart(spec: ChartSpec, catalog: ChartCatalog, language: CodeLan
     lines.push(`c.group(${str(spec.group)});`);
   }
   const builder = writer.useType('ChartBuilder');
+  const running = writer.isLive ? `, ${writer.parameter('running', '(() => void)[]')} = []` : '';
   const signature =
     language === 'typescript'
-      ? `export function describeChart(c: ${builder}): ${builder} {`
-      : 'export function describeChart(c) {';
+      ? `export function describeChart(c: ${builder}${running}): ${builder} {`
+      : `export function describeChart(c${running}) {`;
   const describe = [
     signature,
     ...lines.flatMap((line) => line.split('\n')).map((line) => `  ${line}`),
@@ -242,6 +249,9 @@ export function chartCode(spec: ChartSpec, catalog: ChartCatalog, language: Code
     '// Shows the chart in a <tachyon-chart> element of the page:',
     "// const element = document.querySelector('tachyon-chart');",
     '// element.chart = describeChart(new ChartBuilder());',
+    ...(writer.isLive
+      ? ['// Live data keep coming until the functions in the list `running`, given as second argument, are called.']
+      : []),
   ];
   return [
     ...writer.importLines(),
@@ -255,10 +265,16 @@ export function chartCode(spec: ChartSpec, catalog: ChartCatalog, language: Code
 }
 
 /**
- * Describes a chart after a description by running the code the configurator writes for it.
+ * Describes a chart after a description by running the code the configurator writes for it. What keeps running, such
+ * as live data, puts the function that stops it into `running`.
  * @throws ChartSpecProblem when a type, a sample or an interaction of the description is unknown.
  */
-export function applyChartSpec(spec: ChartSpec, catalog: ChartCatalog, chart: ChartBuilder): ChartBuilder {
+export function applyChartSpec(
+  spec: ChartSpec,
+  catalog: ChartCatalog,
+  chart: ChartBuilder,
+  running: (() => void)[] = [],
+): ChartBuilder {
   const { writer, describe } = describeChart(spec, catalog, 'javascript');
   const names: string[] = [];
   const values: unknown[] = [];
@@ -275,6 +291,8 @@ export function applyChartSpec(spec: ChartSpec, catalog: ChartCatalog, chart: Ch
   const body = [...writer.helperCode(), describe.replace(/^export /u, ''), 'return describeChart;'].join('\n');
   // The code is the configurator's own, made from the description; running it keeps preview and code equal.
   // eslint-disable-next-line @typescript-eslint/no-implied-eval
-  const make = new Function(...names, body) as (...args: unknown[]) => (c: ChartBuilder) => ChartBuilder;
-  return make(...values)(chart);
+  const make = new Function(...names, body) as (
+    ...args: unknown[]
+  ) => (c: ChartBuilder, running: (() => void)[]) => ChartBuilder;
+  return make(...values)(chart, running);
 }

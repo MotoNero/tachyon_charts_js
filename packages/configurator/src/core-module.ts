@@ -6,6 +6,8 @@ import { num, rgba, str } from './code';
 import { colorCode, madeWith, seriesCode } from './series-code';
 import { scienceTypes } from './science-types';
 import { scienceSamples } from './samples-science';
+import { instrumentTypes } from './instrument-types';
+import { instrumentSamples } from './samples-instruments';
 import { coreSamples } from './samples-core';
 import { curveSamples } from './samples-curves';
 import { flagOf, numberOf, textOf, type SeriesSpec } from './spec';
@@ -479,7 +481,8 @@ export const coreModule: ChartModule = {
     pieType('donut', 'Donut', 0.55),
     heatmap,
     ...scienceTypes,
+    ...instrumentTypes,
   ],
-  samples: [...curveSamples, ...coreSamples, ...scienceSamples],
+  samples: [...curveSamples, ...coreSamples, ...scienceSamples, ...instrumentSamples],
   modifiers,
 };

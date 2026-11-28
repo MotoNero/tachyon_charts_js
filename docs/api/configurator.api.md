@@ -14,7 +14,7 @@ export interface AnnotationSpec {
 }
 
 // @public
-export function applyChartSpec(spec: ChartSpec, catalog: ChartCatalog, chart: ChartBuilder): ChartBuilder;
+export function applyChartSpec(spec: ChartSpec, catalog: ChartCatalog, chart: ChartBuilder, running?: (() => void)[]): ChartBuilder;
 
 // @public
 export function axesOf(spec: ChartSpec, series: SeriesSpec): SeriesAxes;
@@ -144,7 +144,10 @@ export class CodeWriter {
     helperCode(): string[];
     importedNames(): ReadonlyMap<string, ReadonlySet<string>>;
     importLines(): string[];
+    get isLive(): boolean;
     readonly language: CodeLanguage;
+    parameter(name: string, annotation: string): string;
+    running(): string;
     type(annotation: string): string;
     use(name: string, from?: string): string;
     useType(name: string, from?: string): string;
@@ -248,6 +251,7 @@ export interface SampleInfo {
     readonly name: string;
     readonly returns: string;
     readonly shape: DataShape;
+    readonly shared?: boolean;
     readonly uses: readonly string[];
 }
 

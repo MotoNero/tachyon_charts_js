@@ -103,6 +103,8 @@ export interface SampleInfo {
   readonly minimumCount?: number;
   /** Whether the count changes the data. */
   readonly hasCount?: boolean;
+  /** Whether series of the same sample and count share one set of data, as the channels of one bus do. */
+  readonly shared?: boolean;
 }
 
 /** A module of types, interactions and samples, such as the core, 3D or medical images. */

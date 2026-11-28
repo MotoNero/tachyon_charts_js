@@ -51,6 +51,7 @@ let templates: Template[] = [];
 
 let spec: ChartSpec = newChartSpec();
 let code = '';
+const running: (() => void)[] = [];
 
 function make<K extends keyof HTMLElementTagNameMap>(
   tag: K,
@@ -294,7 +295,11 @@ function refresh(): void {
     code = chartCode(spec, catalog, language.value as CodeLanguage);
     codeView.textContent = code;
     problemView.textContent = '';
-    chart.chart = applyChartSpec(spec, catalog, new ChartBuilder());
+    // Live data of the chart before stop; those of the new one start.
+    for (const stop of running.splice(0)) {
+      stop();
+    }
+    chart.chart = applyChartSpec(spec, catalog, new ChartBuilder(), running);
   } catch (error: unknown) {
     problemView.textContent =
       error instanceof ChartSpecProblem
