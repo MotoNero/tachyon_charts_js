@@ -70,6 +70,8 @@ const maximumLosses = 2;
 
 // The charts that draw, so that a lost device can be replaced for all of them.
 const charts = new Set<TachyonChartElement>();
+// Lays a chart out anew, after a font it asked for has come.
+let relayoutChart: (chart: TachyonChartElement) => void = () => undefined;
 
 // The smallest texture a GPU renderer must take: the largest raster and the glyph atlas need it.
 const minimumTextureDimension = 4096;
@@ -186,10 +188,31 @@ p[hidden] { display: none; }
  * `tachyon-error` when the browser cannot draw.
  */
 export class TachyonChartElement extends HTMLElement {
+  static {
+    relayoutChart = (chart) => {
+      chart.chartSurface?.invalidateLayout();
+      chart.chartSurface?.invalidate();
+    };
+  }
+
   /** The attributes the element follows. */
   static readonly observedAttributes = ['theme', 'interactive'];
   /** Where the default font comes from; set it before the first chart connects to serve the font elsewhere. */
   static fontUrl: string | URL = new URL('../fonts/Roboto-Regular.ttf', import.meta.url);
+  /**
+   * Where further cuts and families come from, by `family|cut` in lower case with `b` for bold and `i` for italic, the
+   * default font as an empty family: bold and italic Roboto and Roboto Slab. Each loads when a chart first asks for it.
+   */
+  static fontFaces: Record<string, string | URL> = {
+    '|b': new URL('../fonts/Roboto-Bold.ttf', import.meta.url),
+    '|i': new URL('../fonts/Roboto-Italic.ttf', import.meta.url),
+    '|bi': new URL('../fonts/Roboto-BoldItalic.ttf', import.meta.url),
+    'roboto|b': new URL('../fonts/Roboto-Bold.ttf', import.meta.url),
+    'roboto|i': new URL('../fonts/Roboto-Italic.ttf', import.meta.url),
+    'roboto|bi': new URL('../fonts/Roboto-BoldItalic.ttf', import.meta.url),
+    'roboto slab|': new URL('../fonts/RobotoSlab-Regular.ttf', import.meta.url),
+    'roboto slab|b': new URL('../fonts/RobotoSlab-Bold.ttf', import.meta.url),
+  };
   /**
    * Whether charts draw in a render worker, which keeps the main thread free; where the browser cannot, they draw on
    * the main thread. Set it before the first chart connects.
@@ -441,7 +464,11 @@ export class TachyonChartElement extends HTMLElement {
     shared.device ??= createDevice();
     shared.engine ??= fetch(TachyonChartElement.fontUrl)
       .then((response) => response.arrayBuffer())
-      .then((font) => new TextEngine(font));
+      .then((font) => {
+        const engine = new TextEngine(font);
+        engine.onMissingFont = loadFontFace;
+        return engine;
+      });
     const [pageDevice, engine] = await Promise.all([shared.device, shared.engine]);
     // The chart may have come while the page device was made: only now is it known whether it wants the main thread.
     let mainDevice: RenderDevice | undefined;
@@ -703,4 +730,22 @@ declare global {
   interface HTMLElementTagNameMap {
     'tachyon-chart': TachyonChartElement;
   }
+}
+
+// A cut or family a chart asked for, loaded from where `fontFaces` names it; the charts lay out anew once it came.
+function loadFontFace(family: string, bold: boolean, italic: boolean): void {
+  const url = TachyonChartElement.fontFaces[`${family.trim().toLowerCase()}|${bold ? 'b' : ''}${italic ? 'i' : ''}`];
+  if (url === undefined) {
+    return;
+  }
+  void Promise.all([fetch(url).then((response) => response.arrayBuffer()), shared.engine]).then(
+    ([data, engine]) => {
+      engine?.addFont(family, data, bold, italic);
+      for (const chart of charts) {
+        relayoutChart(chart);
+      }
+      wakeFrameLoop();
+    },
+    () => undefined,
+  );
 }

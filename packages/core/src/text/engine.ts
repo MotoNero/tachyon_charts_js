@@ -127,6 +127,12 @@ export class TextEngine {
   private shelfX = 1;
   private shelfY = 1;
   private shelfHeight = 0;
+  private readonly asked = new Set<string>();
+  /**
+   * Hears of a family and cut asked for that has no file, once each, with the family as asked (empty for the default
+   * font); a page can load the file then and give it with {@link TextEngine.addFont}, after which charts lay out anew.
+   */
+  onMissingFont: ((family: string, bold: boolean, italic: boolean) => void) | undefined;
 
   /**
    * @param defaultFont - The bytes of the default font, regular cut.
@@ -263,9 +269,14 @@ export class TextEngine {
   }
 
   private makeFace(family: string, bold: boolean, italic: boolean): FontFace {
-    const exact = this.files.get(TextEngine.key(family, bold, italic));
+    const key = TextEngine.key(family, bold, italic);
+    const exact = this.files.get(key);
     if (exact) {
       return new FontFace(exact, 0);
+    }
+    if (!this.asked.has(key)) {
+      this.asked.add(key);
+      this.onMissingFont?.(family, bold, italic);
     }
     if (italic) {
       const upright = this.files.get(TextEngine.key(family, bold, false));

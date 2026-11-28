@@ -31,6 +31,14 @@ const german: Readonly<Record<string, string>> = {
   Refining: 'Wird verfeinert',
   'Loading data': 'Daten werden geladen',
   'Time in s': 'Zeit in s',
+  Fonts: 'Schriften',
+  'Fonts: Roboto Slab, bold and italic': 'Schriften: Roboto Slab, fett und kursiv',
+  'Bold label': 'Fette Beschriftung',
+  'Italic label': 'Kursive Beschriftung',
+  Level: 'Pegel',
+  Wave: 'Welle',
+  'The fonts load when the chart first asks for them | Drag a line: move it':
+    'Die Schriften laden, wenn das Diagramm sie zuerst braucht | Linie ziehen: verschieben',
   'Every chart streams 100 000 points per second | Wheel: zoom | Drag: pan | Double click: all':
     'Jedes Diagramm streamt 100 000 Punkte je Sekunde | Rad: Zoom | Ziehen: Pan | Doppelklick: alles',
   'Shared memory': 'Geteilter Speicher',

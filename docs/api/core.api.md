@@ -3585,6 +3585,7 @@ export class TextEngine {
     layout(text: string, x: number, y: number, style: TextStyle, glyphs: Float32Array, first?: number): number;
     lineHeight(size: number, font?: TextFont): number;
     measureWidth(text: string, size: number, font?: TextFont): number;
+    onMissingFont: ((family: string, bold: boolean, italic: boolean) => void) | undefined;
     releaseAtlas(device: RenderDevice): void;
 }
 

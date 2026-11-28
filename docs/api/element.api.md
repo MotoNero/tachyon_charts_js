@@ -88,6 +88,7 @@ export class TachyonChartElement extends HTMLElement {
     exportCsv(): Promise<string>;
     exportPng(options?: ChartExportOptions): Promise<Blob>;
     exportSvg(options?: ChartExportOptions): Promise<string>;
+    static fontFaces: Record<string, string | URL>;
     static fontUrl: string | URL;
     get frameCount(): number;
     static readonly observedAttributes: string[];

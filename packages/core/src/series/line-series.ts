@@ -11,11 +11,13 @@ import {
 } from '../hit-testing/hit-test';
 import type { ValueLabel } from '../pipeline/value-label';
 import { DateTimeAxis } from '../axes/date-time-axis';
+import { FifoDataSource } from '../data/fifo-data-source';
 import { emptySnapshot, type DataSnapshot, type PointSource } from '../data/source';
 import { DoubleRange } from '../numerics/range';
 import type { CommandList, PolylineStyle } from '../render/commands';
 import type { RenderDevice } from '../render/device';
 import type { Rgba8 } from '../render/types';
+import { lowerBound, upperBound } from '../resampling/min-max-decimator';
 import { SeriesResampler, type ResampleResult, type ResamplingMode } from '../resampling/series-resampler';
 import { ChartSeries, type SeriesFrame } from '../pipeline/chart-series';
 import { expandDashes } from './dash-expander';
@@ -68,6 +70,7 @@ export class LineSeries extends ChartSeries {
   private step = false;
   private spline = false;
   private mode: ResamplingMode = 'auto';
+  private readonly bucketMap = new Float64Array(6);
   private glow: number | undefined;
   private intensity = 0.6;
   private appearance = 0;
@@ -313,6 +316,10 @@ export class LineSeries extends ChartSeries {
     const origin = originOf(this.xAxis);
     const range = this.xAxis.visibleRange;
     const visible = origin === 0 ? range : new DoubleRange(range.min + origin, range.max + origin);
+    if (this.source instanceof FifoDataSource && this.addBuckets(frame, visible, origin, columns)) {
+      this.line.endRun();
+      return;
+    }
     const result = this.resampler.resample(visible, this.mode, this.minima, this.maxima, this.indices);
     // Taken after resampling: its indices are valid here, the source only grows behind them.
     const snapshot = this.source.snapshotInto(this.view);
@@ -325,6 +332,95 @@ export class LineSeries extends ChartSeries {
     }
     this.line.endRun();
     this.shape(result.mode, frame);
+  }
+
+  // A ring of points reduced as the ring path of the .NET version does: buckets of a width of a power of two in data
+  // units, each with its lowest and highest value in the order they came, spread over the bucket, so that a dense
+  // signal fills its band. The positions go to pixels in float, as the GPU maps them from an anchor.
+  private addBuckets(frame: SeriesFrame, visible: DoubleRange, origin: number, columns: number): boolean {
+    const snapshot = this.source.snapshotInto(this.view);
+    const { x, y, count } = snapshot;
+    if (count === 0) {
+      return false;
+    }
+    const first = lowerBound(x, count, visible.min);
+    const last = upperBound(x, count, visible.max);
+    const visibleCount = last - first;
+    const usesBuckets = this.mode !== 'none' && (this.mode !== 'auto' || visibleCount > columns * 2);
+    if (!usesBuckets) {
+      return false;
+    }
+    const length = visible.max - visible.min;
+    const exact = length / columns;
+    const width = exact > 0 && Number.isFinite(exact) ? Math.pow(2, Math.floor(Math.log2(exact))) : 1;
+    const requested = columns * 4 + 64;
+    const slots = requested + Math.trunc(requested / 2);
+    const start = Math.max(first - 1, 0);
+    const limit = Math.min(count, last + 1 + Math.trunc(slots / 4));
+    const anchorX = x[start] as number;
+    const center = (this.yAxis.visibleRange.min + this.yAxis.visibleRange.max) / 2;
+    const anchorY = Number.isFinite(center) ? center : 0;
+    const scaleX = f(frame.x.toPixel(1) - frame.x.toPixel(0));
+    const scaleY = f(frame.y.toPixel(1) - frame.y.toPixel(0));
+    const offsetX = f(frame.x.toPixel(anchorX - origin));
+    const offsetY = f(frame.y.toPixel(anchorY));
+    // The mapping of the GPU, kept in fields so that the loop allocates nothing.
+    this.bucketMap[0] = width;
+    this.bucketMap[1] = offsetX;
+    this.bucketMap[2] = offsetY;
+    this.bucketMap[3] = scaleX;
+    this.bucketMap[4] = scaleY;
+    this.bucketMap[5] = anchorY;
+    let bucket = Number.NaN;
+    let low = Number.POSITIVE_INFINITY;
+    let high = Number.NEGATIVE_INFINITY;
+    let lowAt = 0;
+    let highAt = 0;
+    for (let i = start; i < limit; i++) {
+      const at = Math.floor(((x[i] as number) - anchorX) / width);
+      if (at !== bucket) {
+        if (!Number.isNaN(bucket)) {
+          this.addBucket(bucket, low, high, lowAt <= highAt);
+        }
+        bucket = at;
+        low = Number.POSITIVE_INFINITY;
+        high = Number.NEGATIVE_INFINITY;
+      }
+      const value = y[i] as number;
+      if (Number.isFinite(value)) {
+        if (value < low) {
+          low = value;
+          lowAt = i;
+        }
+        if (value > high) {
+          high = value;
+          highAt = i;
+        }
+      }
+    }
+    if (!Number.isNaN(bucket)) {
+      this.addBucket(bucket, low, high, lowAt <= highAt);
+    }
+    return true;
+  }
+
+  // A bucket: its extremes in the order they came, spread over its width; one without values is a gap.
+  private addBucket(bucket: number, low: number, high: number, lowFirst: boolean): void {
+    const map = this.bucketMap;
+    const width = map[0] as number;
+    const offsetX = map[1] as number;
+    const offsetY = map[2] as number;
+    const scaleX = map[3] as number;
+    const scaleY = map[4] as number;
+    const anchorY = map[5] as number;
+    if (low > high) {
+      this.line.addGap();
+      return;
+    }
+    const from = lowFirst ? low : high;
+    const to = lowFirst ? high : low;
+    this.line.add(f(offsetX + f(f(bucket * width) * scaleX)), f(offsetY + f(f(from - anchorY) * scaleY)));
+    this.line.add(f(offsetX + f(f((bucket + 1) * width) * scaleX)), f(offsetY + f(f(to - anchorY) * scaleY)));
   }
 
   private addSelection(snapshot: DataSnapshot, count: number, origin: number, frame: SeriesFrame): void {

@@ -2095,6 +2095,54 @@ export const pages: readonly PageEntry[] = [
         .addLine(curve(), (s) => s.name('y').thickness(2)),
   },
   {
+    id: 'text-fonts',
+    name: 'Fonts',
+    group: 'Look',
+    hint: 'The fonts load when the chart first asks for them | Drag a line: move it',
+    configure: (c) => {
+      const wave = new DataSource(240);
+      for (let i = 0; i < 240; i++) {
+        const x = (i * 10) / 239;
+        wave.append(x, 0.9 * Math.sin(x * 1.3));
+      }
+      const y = (chart: ChartSurface): Axis => chart.panes[0]?.axes[0] as Axis;
+      c.title(t('Fonts: Roboto Slab, bold and italic'))
+        .titleFont({ family: 'Roboto Slab', bold: true })
+        .axisFont({ italic: true })
+        .xAxis((a) => a.numeric('x').range(0, 10).title(t('Time in s')))
+        .yAxis((a) => a.numeric('y').range(-1.5, 1.5).title(t('Level')))
+        .addLine(wave, (s) => s.name(t('Wave')).stroke({ r: 80, g: 170, b: 240, a: 255 }).thickness(2))
+        .addModifier(() => new AnnotationEditModifier())
+        .addOverlay((chart) =>
+          Object.assign(new HorizontalLineAnnotation(y(chart)), {
+            y: 1.1,
+            label: t('Bold label'),
+            color: { r: 240, g: 90, b: 90, a: 255 },
+            isEditable: true,
+            appearance: { labelPlace: 'end', labelFont: { bold: true } },
+          }),
+        )
+        .addOverlay((chart) =>
+          Object.assign(new VerticalLineAnnotation(chart.horizontalAxes[0] as Axis), {
+            x: 6,
+            label: t('Italic label'),
+            color: { r: 110, g: 210, b: 130, a: 255 },
+            isEditable: true,
+            appearance: { labelFont: { italic: true } },
+          }),
+        )
+        .addOverlay((chart) =>
+          Object.assign(new HorizontalLineAnnotation(y(chart)), {
+            y: -1.2,
+            label: 'Roboto Slab, bold italic',
+            color: { r: 240, g: 160, b: 60, a: 255 },
+            isEditable: true,
+            appearance: { labelPlace: 'start', labelFont: { family: 'Roboto Slab', bold: true, italic: true } },
+          }),
+        );
+    },
+  },
+  {
     id: 'themes',
     name: 'Themes',
     group: 'Look',

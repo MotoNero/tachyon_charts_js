@@ -1129,6 +1129,19 @@ chart.chart = new ChartBuilder()
   .addOverlay((surface) => new RefiningOverlay(surface));
 ```
 
+## Fonts
+
+![A chart with its title in Roboto Slab bold, italic axes and annotation labels in bold, italic and Roboto Slab](docs/images/text-fonts.png)
+
+Titles, axes and the labels of annotations take a font of their own: bold, italic or another family. The element
+carries Roboto in all four cuts and Roboto Slab, and loads each only when a chart first asks for it; further families
+go into `TachyonChartElement.fontFaces`. On a text engine of one's own, `addFont` adds them.
+
+```ts
+builder.titleFont({ family: 'Roboto Slab', bold: true }).axisFont({ italic: true });
+TachyonChartElement.fontFaces['my font|'] = '/fonts/MyFont-Regular.ttf';
+```
+
 ## Themes
 
 ![The theme preview in the light theme: a line and markers with titled axes](docs/images/theme-light.png)
