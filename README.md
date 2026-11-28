@@ -557,6 +557,22 @@ display.axial.configure(axialBuilder);
 display.setPosition(new Point3D(90, 100, 60));
 ```
 
+![A curved section along an arc in front of the synthetic chest: ribs, sternum and lungs straightened](docs/images/medical-curved.png)
+
+`MedicalObliqueSlice` cuts the volume of a display along a plane in any direction, sampled between the voxels: it can
+stand upright on a distance drawn on a slice (`followLine`), move along its normal with the wheel, face the view of a 3D
+chart with the key V and show its outline in that chart (`configure3D`). `MedicalCurvedSlice` follows a line, an angle
+or a freehand path drawn on a slice down through the whole volume and shows it straightened, such as a section along
+the front of the chest.
+
+```ts
+const oblique = new MedicalObliqueSlice(display);
+oblique.followLine(display.axial);
+const curved = new MedicalCurvedSlice(display.axial);
+curved.path = display.axial.measurements.add('freehand', arc);
+curved.configure(curvedBuilder);
+```
+
 ## Legends
 
 ![A test bench with a legend of temperatures in the plot and a legend of pressures below it](docs/images/legends.png)

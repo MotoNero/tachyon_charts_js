@@ -23,3 +23,4 @@ export {
 } from './measurements';
 export { MedicalHistogram, MedicalProfile, type MedicalMeasuredImage } from './analysis';
 export { MedicalMprDisplay, MedicalMprSlice } from './mpr';
+export { MedicalCurvedSlice, MedicalObliqueSlice } from './reformat';

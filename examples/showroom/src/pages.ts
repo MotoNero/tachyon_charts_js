@@ -155,9 +155,11 @@ import {
   CtWindowPresets,
   DicomReader,
   DicomSeriesReader,
+  MedicalCurvedSlice,
   MedicalHistogram,
   MedicalImageDisplay,
   MedicalMprDisplay,
+  MedicalObliqueSlice,
   MedicalPhantoms,
   MedicalProfile,
   MedicalSlices,
@@ -1188,11 +1190,59 @@ function medicalAnalysisPage(): Page {
   };
 }
 
+function medicalReformatPage(): Page {
+  let charts: ChartBuilder[] = [];
+  return {
+    id: 'medical-reformat',
+    name: 'Medical oblique and curved',
+    group: 'Medical',
+    hint: 'Drag an end of the line: the oblique plane follows | Drag a point of the arc: the curved section follows | Wheel on the oblique plane: move it | Key V on the oblique plane: it faces the 3D view | Drag elsewhere: window',
+    configure: (c) => {
+      // The synthetic chest: a line across the axial slice for the oblique plane, an arc along the front of the body.
+      const display = new MedicalMprDisplay(MedicalPhantoms.thorax());
+      const axial = display.axial;
+      const width = axial.width * axial.spacing.column;
+      const height = axial.height * axial.spacing.row;
+      const oblique = new MedicalObliqueSlice(display);
+      oblique.followLine(axial);
+      const curved = new MedicalCurvedSlice(axial);
+      const layer = axial.measurements;
+      layer.add(
+        'distance',
+        [
+          { x: width * 0.156, y: height * 0.73 },
+          { x: width * 0.86, y: height * 0.35 },
+        ],
+        undefined,
+        t('Oblique plane'),
+      );
+      const arc = Array.from({ length: 13 }, (_, i) => {
+        const angle = Math.PI + 0.45 + ((Math.PI - 0.9) * i) / 12;
+        return { x: width * (0.5 + 0.396 * Math.cos(angle)), y: height * (0.5 + 0.285 * Math.sin(angle)) };
+      });
+      curved.path = layer.add('freehand', arc, undefined, t('Arc'));
+      scene3D(c, (s) => {
+        display.configure3D(s);
+        oblique.configure3D(s);
+        oblique.viewCamera = s.scene.camera;
+        return s;
+      });
+      charts = [
+        axial.configure(new ChartBuilder()),
+        oblique.configure(new ChartBuilder()),
+        curved.configure(new ChartBuilder()),
+      ];
+    },
+    start: () => chartRow(charts),
+  };
+}
+
 function medicalPages(): Page[] {
   return [
     medicalFilesPage(),
     medicalMprPage(),
     medicalAnalysisPage(),
+    medicalReformatPage(),
     {
       id: 'medical-measurements',
       name: 'Medical measurements',

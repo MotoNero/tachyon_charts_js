@@ -4,6 +4,7 @@
 
 ```ts
 
+import { Camera3D } from '@tachyon-charts/3d';
 import { Chart3DBuilder } from '@tachyon-charts/3d';
 import { ChartBuilder } from '@tachyon-charts/core';
 import { ChartLayoutResult } from '@tachyon-charts/core';
@@ -53,6 +54,20 @@ export type DicomTransferSyntax = 'implicitVrLittleEndian' | 'explicitVrLittleEn
 export interface ImageSpacing {
     readonly column: number;
     readonly row: number;
+}
+
+// @public
+export class MedicalCurvedSlice {
+    constructor(slice: MedicalMprSlice);
+    at(column: number, row: number): number;
+    configure(chart: ChartBuilder): ChartBuilder;
+    get length(): number;
+    onChanged(listener: () => void): () => void;
+    get path(): MedicalMeasurement | undefined;
+    set path(value: MedicalMeasurement | undefined);
+    get pixelSpacing(): number;
+    get rows(): number;
+    get shown(): MedicalMeasurement | undefined;
 }
 
 // @public
@@ -260,6 +275,26 @@ export class MedicalMprSlice {
     toVolumePosition(x: number, y: number): Point3D;
     values(): Float32Array;
     readonly width: number;
+}
+
+// @public
+export class MedicalObliqueSlice {
+    constructor(display: MedicalMprDisplay);
+    get across(): Point3D;
+    alignToView(camera: Camera3D): void;
+    get center(): Point3D;
+    configure(chart: ChartBuilder): ChartBuilder;
+    configure3D(chart: Chart3DBuilder): Chart3DBuilder;
+    get down(): Point3D;
+    followLine(slice: MedicalMprSlice | undefined): void;
+    move(millimetres: number): void;
+    get normal(): Point3D;
+    onChanged(listener: () => void): () => void;
+    get pixelSpacing(): number;
+    setPlane(center: Point3D, normal: Point3D): void;
+    get size(): number;
+    values(): Float32Array;
+    viewCamera: Camera3D | undefined;
 }
 
 // @public
