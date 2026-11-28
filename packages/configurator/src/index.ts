@@ -29,6 +29,7 @@ export {
   axesOf,
   parseColor,
   type ChartCategory,
+  type AnnotationInfo,
   type ChartModule,
   type ChartTypeInfo,
   type DataShape,

@@ -4,6 +4,7 @@ import { parseColor, type ChartModule, type ChartTypeInfo, type ModifierInfo, ty
 import { camel } from './build';
 import { num, rgba, str } from './code';
 import { colorCode, madeWith, seriesCode } from './series-code';
+import { coreAnnotations } from './annotations';
 import { scienceTypes } from './science-types';
 import { scienceSamples } from './samples-science';
 import { instrumentTypes } from './instrument-types';
@@ -450,6 +451,7 @@ const modifiers: readonly ModifierInfo[] = [
   plainModifier('measure', 'Measuring cursors', 'MeasureCursorModifier'),
   plainModifier('keyboard', 'Keyboard', 'KeyboardNavigationModifier'),
   plainModifier('legend', 'Legend', 'LegendModifier'),
+  plainModifier('annotationedit', 'Edit annotations by mouse', 'AnnotationEditModifier'),
   {
     id: 'selection',
     name: 'Select points',
@@ -485,4 +487,5 @@ export const coreModule: ChartModule = {
   ],
   samples: [...curveSamples, ...coreSamples, ...scienceSamples, ...instrumentSamples],
   modifiers,
+  annotations: coreAnnotations,
 };

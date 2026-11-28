@@ -12,6 +12,7 @@ import { defineTachyonChart, preferredTheme, TachyonChartElement } from '@tachyo
 import type { ChartRecording } from '@tachyon-charts/render-canvas';
 import logo from '../../../shared/logo/tachyon-charts-lockup-dark-transparent.svg?url';
 import icon from '../../../shared/logo/tachyon-charts-avatar-dark-32.png?url';
+import { configuratorTemplate } from './configurator-link';
 import { pages, type Page, type PageEntry, type PageRun } from './pages';
 import { t } from './texts';
 
@@ -132,6 +133,13 @@ function showPage(page: Page): void {
   chart.chart = builder;
   if (title) {
     title.textContent = t(page.name);
+  }
+  // The same chart as a description in the configurator, where its code can be taken.
+  const configurator = document.getElementById('open-configurator') as HTMLAnchorElement | null;
+  const template = configuratorTemplate(page.id, page.name);
+  if (configurator) {
+    configurator.hidden = template === undefined;
+    configurator.href = `../configurator/index.html#${template ?? ''}`;
   }
   if (hint) {
     hint.textContent = running?.status ? `${t(page.hint)} | ${t(running.status)}` : t(page.hint);

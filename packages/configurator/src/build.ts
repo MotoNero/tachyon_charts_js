@@ -4,7 +4,7 @@ import * as core from '@tachyon-charts/core';
 import { ChartBuilder } from '@tachyon-charts/core';
 import { axesOf, type ChartCatalog, type SampleInfo } from './catalog';
 import { CodeWriter, identifier, num, str, type CodeLanguage } from './code';
-import type { AxisSpec, ChartSpec, LegendSpec } from './spec';
+import type { AxisSpec, ChartSpec, FontSpec, LegendSpec, ThemeSpec } from './spec';
 
 /** A description that cannot be shown, with what keeps it from it. */
 export class ChartSpecProblem extends Error {
@@ -226,25 +226,83 @@ function describeViews(
   ].join('\n');
 }
 
-function describeChart(spec: ChartSpec, catalog: ChartCatalog, language: CodeLanguage): CodeParts {
-  const problems = catalog.check(spec);
-  if (problems.length > 0) {
-    throw new ChartSpecProblem(problems);
+// The names of the data made so far, shared by the charts of one description.
+interface DataNames {
+  readonly taken: Map<string, number>;
+  readonly made: Map<string, string>;
+}
+
+// A chart of a description: the statements that make its data, those that describe it on the chart builder `c`, and
+// the names of the data per series.
+interface ChartParts {
+  readonly data: string[];
+  readonly body: string[];
+  readonly names: (string | undefined)[];
+}
+
+const fontCode = (font: FontSpec): string => {
+  const parts = [
+    ...(font.family.length > 0 && font.family !== 'Default' ? [`family: ${str(font.family)}`] : []),
+    ...(font.bold ? ['bold: true'] : []),
+    ...(font.italic ? ['italic: true'] : []),
+  ];
+  return `{ ${parts.join(', ')} }`;
+};
+
+// A theme of its own: the values by their dotted names, nested as a theme document on the built-in base.
+function ownThemeCode(writer: CodeWriter, theme: ThemeSpec): string {
+  const groups = new Map<string, string[]>();
+  const top: string[] = [`name: ${str(theme.name)}`, `base: ${str(themeId(theme.base))}`];
+  for (const [key, value] of Object.entries(theme.values)) {
+    if (key === 'palette') {
+      top.push(
+        `palette: [${value
+          .split(',')
+          .map((part) => str(part.trim()))
+          .join(', ')}]`,
+      );
+      continue;
+    }
+    const [group, ...rest] = key.split('.');
+    if (group === undefined || rest.length === 0) {
+      continue;
+    }
+    const entries = groups.get(group) ?? [];
+    entries.push(`${rest.join('.')}: ${str(value)}`);
+    groups.set(group, entries);
   }
-  const writer = new CodeWriter(language);
-  const views = describeViews(spec, catalog, writer, language);
-  if (views !== undefined) {
-    return { writer, describe: views, several: true };
+  for (const [group, entries] of groups) {
+    top.push(`${group}: { ${entries.join(', ')} }`);
   }
+  return `${writer.use('resolveTheme')}({ ${top.join(', ')} })`;
+}
+
+function chartParts(
+  spec: ChartSpec,
+  catalog: ChartCatalog,
+  writer: CodeWriter,
+  names: DataNames,
+  reuse?: readonly (string | undefined)[],
+): ChartParts {
+  const data: string[] = [];
   const lines: string[] = [];
+  const dataNames: (string | undefined)[] = [];
   const scene = catalog.scene;
   const inScene = scene !== undefined && spec.series.some((series) => catalog.findType(series.type)?.inScene === true);
   if (spec.title.length > 0 && !inScene) {
     lines.push(`c.title(${str(spec.title)});`);
   }
-  if (spec.theme !== undefined) {
+  if (spec.ownTheme !== undefined) {
+    lines.push(`c.theme(${ownThemeCode(writer, spec.ownTheme)});`);
+  } else if (spec.theme !== undefined) {
     const find = writer.use('findBuiltInTheme');
     lines.push(`c.theme(${writer.as(`${find}(${str(themeId(spec.theme))})`, writer.useType('ThemeDocument'))});`);
+  }
+  if (spec.titleFont !== undefined) {
+    lines.push(`c.titleFont(${fontCode(spec.titleFont)});`);
+  }
+  if (spec.axisFont !== undefined) {
+    lines.push(`c.axisFont(${fontCode(spec.axisFont)});`);
   }
   const ownsAxes = spec.series.some((series) => catalog.findType(series.type)?.ownsAxes === true);
   if (!ownsAxes) {
@@ -255,47 +313,43 @@ function describeChart(spec: ChartSpec, catalog: ChartCatalog, language: CodeLan
       lines.push(`c.yAxis((a) => ${axisCode(writer, axis, 'right')});`);
     }
   }
-  const taken = new Map<string, number>();
-  const made = new Map<string, string>();
   const sceneLines: string[] = [];
   spec.series.forEach((series, index) => {
     const type = catalog.findType(series.type);
     const sample = catalog.findSample(series.data.sample);
     if (!type || !sample) {
+      dataNames.push(undefined);
       return;
     }
+    const axes = { ...axesOf(spec, series), inSharedBox: sceneLines.length > 0 };
     if (type.noData === true) {
-      const code = type.code(
-        writer,
-        series,
-        '',
-        { ...axesOf(spec, series), inSharedBox: sceneLines.length > 0 },
-        index,
-      );
-      (type.inScene === true ? sceneLines : lines).push(code);
+      dataNames.push(undefined);
+      (type.inScene === true ? sceneLines : lines).push(type.code(writer, series, '', axes, index));
       return;
     }
-    const make = sampleFunction(writer, sample);
-    const count = Math.min(series.data.count, sample.maximumCount ?? Number.POSITIVE_INFINITY);
-    const argument = sample.hasCount === false ? '' : num(count);
-    if (count < series.data.count) {
-      lines.push(`// ${num(series.data.count)} in the description; a browser tab holds ${num(count)}.`);
+    let name = reuse?.[index];
+    if (name === undefined) {
+      const make = sampleFunction(writer, sample);
+      const count = Math.min(series.data.count, sample.maximumCount ?? Number.POSITIVE_INFINITY);
+      const argument = sample.hasCount === false ? '' : num(count);
+      if (count < series.data.count) {
+        data.push(`// ${num(series.data.count)} in the description; a browser tab holds ${num(count)}.`);
+      }
+      const key = `${make}(${argument})`;
+      name = sample.shared === true ? names.made.get(key) : undefined;
+      if (name === undefined) {
+        const times = (names.taken.get(make) ?? 0) + 1;
+        names.taken.set(make, times);
+        name = `${make}Data${times === 1 ? '' : String(times)}`;
+        names.made.set(key, name);
+        data.push(`const ${name} = ${key};`);
+      }
     }
-    const key = `${make}(${argument})`;
-    let data = sample.shared === true ? made.get(key) : undefined;
-    if (data === undefined) {
-      const times = (taken.get(make) ?? 0) + 1;
-      taken.set(make, times);
-      data = `${make}Data${times === 1 ? '' : String(times)}`;
-      made.set(key, data);
-      lines.push(`const ${data} = ${key};`);
-    }
+    dataNames.push(name);
     if (type.inScene === true && scene) {
-      sceneLines.push(
-        type.code(writer, series, data, { ...axesOf(spec, series), inSharedBox: sceneLines.length > 0 }, index),
-      );
+      sceneLines.push(type.code(writer, series, name, axes, index));
     } else {
-      lines.push(type.code(writer, series, data, axesOf(spec, series), index));
+      lines.push(type.code(writer, series, name, axesOf(spec, series), index));
     }
   });
   if (inScene) {
@@ -314,6 +368,13 @@ function describeChart(spec: ChartSpec, catalog: ChartCatalog, language: CodeLan
         .join('\n')}\n});`,
     );
   }
+  const editable = spec.modifiers.some((modifier) => modifier.type === 'annotationedit');
+  for (const annotation of spec.annotations) {
+    const info = catalog.findAnnotation(annotation.type);
+    if (info) {
+      lines.push(`c.addOverlay((chart) => ${info.code(writer, annotation.parameters, editable)});`);
+    }
+  }
   for (const modifier of spec.modifiers) {
     const info = catalog.findModifier(modifier.type);
     if (info) {
@@ -328,18 +389,100 @@ function describeChart(spec: ChartSpec, catalog: ChartCatalog, language: CodeLan
   if (spec.group !== undefined && spec.group.length > 0) {
     lines.push(`c.group(${str(spec.group)});`);
   }
+  return { data, body: lines, names: dataNames };
+}
+
+// The overview below a chart: the same data at a glance, without titles, ranges, labels and interactions; dragging
+// its window moves the chart, as OverviewOf of the .NET version.
+function overviewOf(spec: ChartSpec): ChartSpec {
+  const overview: ChartSpec = JSON.parse(JSON.stringify(spec)) as ChartSpec;
+  overview.title = '';
+  overview.legend = undefined;
+  overview.secondLegend = undefined;
+  overview.group = undefined;
+  overview.overview = false;
+  overview.exportMenu = false;
+  overview.modifiers = [];
+  overview.annotations = [];
+  for (const axis of [...overview.xAxes, ...overview.yAxes]) {
+    axis.title = '';
+    axis.minimum = undefined;
+    axis.maximum = undefined;
+  }
+  for (const series of overview.series) {
+    if (series.type === 'line' || series.parameters.thickness !== undefined) {
+      series.parameters.thickness = 1;
+    }
+    for (const label of ['lastValue', 'values']) {
+      if (series.parameters[label] === true) {
+        series.parameters[label] = false;
+      }
+    }
+  }
+  return overview;
+}
+
+const indented = (lines: readonly string[], by = '  '): string[] =>
+  lines.flatMap((line) => line.split('\n')).map((line) => `${by}${line}`);
+
+// Linked charts of a description: its own and those of `charts`, or itself with an overview below.
+function describeLinked(spec: ChartSpec, catalog: ChartCatalog, writer: CodeWriter, language: CodeLanguage): string {
+  const names: DataNames = { taken: new Map(), made: new Map() };
+  const builder = writer.use('ChartBuilder');
+  const charts: { name: string; parts: ChartParts }[] = [];
+  if (spec.overview && spec.charts.length === 0) {
+    const main: ChartSpec = { ...spec, group: spec.group !== undefined && spec.group.length > 0 ? spec.group : 'Main' };
+    const parts = chartParts(main, catalog, writer, names);
+    charts.push({ name: 'Chart', parts });
+    const overview = chartParts(overviewOf(spec), catalog, writer, names, parts.names);
+    overview.body.push(`c.addModifier(() => ${writer.use('OverviewModifier')}.of(${str(main.group ?? 'Main')}));`);
+    charts.push({ name: 'Overview', parts: overview });
+  } else {
+    [{ ...spec, charts: [] }, ...spec.charts].forEach((each, i) => {
+      charts.push({ name: `Chart${i === 0 ? '' : String(i + 1)}`, parts: chartParts(each, catalog, writer, names) });
+    });
+  }
+  const columns = spec.overview && spec.charts.length === 0 ? 1 : Math.max(1, spec.columns);
+  const running = writer.isLive ? `${writer.parameter('running', '(() => void)[]')} = []` : '';
+  const result = language === 'typescript' ? `: { charts: ${builder}[]; columns: number }` : '';
+  const functions = charts.flatMap(({ name, parts }) => [
+    `// The chart ${name}.`,
+    `const describe${name} = (${writer.parameter('c', builder)})${writer.type(builder)} => {`,
+    ...indented([...parts.body, 'return c;']),
+    '};',
+  ]);
+  return [
+    `export function describeCharts(${running})${result} {`,
+    ...indented([...charts.flatMap(({ parts }) => parts.data), ...functions]),
+    '  return {',
+    `    columns: ${String(columns)},`,
+    `    charts: [${charts.map(({ name }) => `describe${name}(new ${builder}())`).join(', ')}],`,
+    '  };',
+    '}',
+  ].join('\n');
+}
+
+function describeChart(spec: ChartSpec, catalog: ChartCatalog, language: CodeLanguage): CodeParts {
+  const problems = [...catalog.check(spec), ...spec.charts.flatMap((each) => catalog.check(each))];
+  if (problems.length > 0) {
+    throw new ChartSpecProblem(problems);
+  }
+  const writer = new CodeWriter(language);
+  const views = describeViews(spec, catalog, writer, language);
+  if (views !== undefined) {
+    return { writer, describe: views, several: true };
+  }
+  if (spec.charts.length > 0 || spec.overview) {
+    return { writer, describe: describeLinked(spec, catalog, writer, language), several: true };
+  }
+  const parts = chartParts(spec, catalog, writer, { taken: new Map(), made: new Map() });
   const builder = writer.useType('ChartBuilder');
   const running = writer.isLive ? `, ${writer.parameter('running', '(() => void)[]')} = []` : '';
   const signature =
     language === 'typescript'
       ? `export function describeChart(c: ${builder}${running}): ${builder} {`
       : `export function describeChart(c${running}) {`;
-  const describe = [
-    signature,
-    ...lines.flatMap((line) => line.split('\n')).map((line) => `  ${line}`),
-    '  return c;',
-    '}',
-  ].join('\n');
+  const describe = [signature, ...indented([...parts.data, ...parts.body, 'return c;']), '}'].join('\n');
   return { writer, describe, several: false };
 }
 

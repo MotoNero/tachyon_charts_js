@@ -17,6 +17,7 @@ export default [
       'coverage/**',
       'test-results/**',
       'playwright-report/**',
+      'demo/**',
     ],
   },
   js.configs.recommended,

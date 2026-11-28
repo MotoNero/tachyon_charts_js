@@ -148,6 +148,21 @@ export interface SampleInfo {
   readonly shared?: boolean;
 }
 
+/** An annotation the configurator offers, as AnnotationInfo of the .NET version. */
+export interface AnnotationInfo {
+  /** The name it is known by. */
+  readonly id: string;
+  /** The name shown. */
+  readonly name: string;
+  /** The parameters. */
+  readonly parameters: readonly ParameterInfo[];
+  /**
+   * Writes the expression that makes the annotation on the chart `chart`, editable by mouse when `editable`.
+   * @returns An expression of the annotation, placed.
+   */
+  code(writer: CodeWriter, values: SpecValues, editable: boolean): string;
+}
+
 /** A module of types, interactions and samples, such as the core, 3D or medical images. */
 export interface ChartModule {
   /** The types of series. */
@@ -156,6 +171,8 @@ export interface ChartModule {
   readonly samples: readonly SampleInfo[];
   /** The interactions. */
   readonly modifiers?: readonly ModifierInfo[];
+  /** The annotations. */
+  readonly annotations?: readonly AnnotationInfo[];
   /**
    * Loads the packages its code imports from, by name, besides `@tachyon-charts/core`; they arrive on demand, so that a
    * page loads them only for charts that need them.
@@ -170,6 +187,7 @@ export class ChartCatalog {
   private readonly typeList: ChartTypeInfo[] = [];
   private readonly sampleList: SampleInfo[] = [];
   private readonly modifierList: ModifierInfo[] = [];
+  private readonly annotationList: AnnotationInfo[] = [];
   private readonly packageList: Record<string, Record<string, unknown>> = {};
   private readonly moduleList: ChartModule[] = [];
   private sceneSetup: SceneSetup | undefined;
@@ -212,6 +230,7 @@ export class ChartCatalog {
     replace(this.typeList, module.types);
     replace(this.sampleList, module.samples);
     replace(this.modifierList, module.modifiers ?? []);
+    replace(this.annotationList, module.annotations ?? []);
     this.moduleList.push(module);
     this.sceneSetup = module.scene ?? this.sceneSetup;
   }
@@ -259,6 +278,16 @@ export class ChartCatalog {
     return this.sampleList.find((sample) => sample.id === id);
   }
 
+  /** The annotations. */
+  get annotations(): readonly AnnotationInfo[] {
+    return this.annotationList;
+  }
+
+  /** An annotation by its id. */
+  findAnnotation(id: string): AnnotationInfo | undefined {
+    return this.annotationList.find((annotation) => annotation.id === id);
+  }
+
   /** An interaction by its id. */
   findModifier(id: string): ModifierInfo | undefined {
     return this.modifierList.find((modifier) => modifier.id === id);
@@ -277,6 +306,11 @@ export class ChartCatalog {
     for (const modifier of spec.modifiers) {
       if (!this.findModifier(modifier.type)) {
         problems.push(`The interaction ${modifier.type} is unknown.`);
+      }
+    }
+    for (const annotation of spec.annotations) {
+      if (!this.findAnnotation(annotation.type)) {
+        problems.push(`The annotation ${annotation.type} is unknown.`);
       }
     }
     return problems;

@@ -8,6 +8,14 @@ import { ChartBuilder } from '@tachyon-charts/core';
 import type { Rgba8 } from '@tachyon-charts/core';
 
 // @public
+export interface AnnotationInfo {
+    code(writer: CodeWriter, values: SpecValues, editable: boolean): string;
+    readonly id: string;
+    readonly name: string;
+    readonly parameters: readonly ParameterInfo[];
+}
+
+// @public
 export interface AnnotationSpec {
     parameters: SpecValues;
     type: string;
@@ -57,7 +65,9 @@ export function camel(name: string): string;
 export class ChartCatalog {
     constructor(modules: readonly ChartModule[]);
     add(module: ChartModule): void;
+    get annotations(): readonly AnnotationInfo[];
     check(spec: ChartSpec): string[];
+    findAnnotation(id: string): AnnotationInfo | undefined;
     findModifier(id: string): ModifierInfo | undefined;
     findSample(id: string): SampleInfo | undefined;
     findType(id: string): ChartTypeInfo | undefined;
@@ -77,6 +87,7 @@ export function chartCode(spec: ChartSpec, catalog: ChartCatalog, language?: Cod
 
 // @public
 export interface ChartModule {
+    readonly annotations?: readonly AnnotationInfo[];
     readonly load?: () => Promise<Record<string, Record<string, unknown>>>;
     readonly modifiers?: readonly ModifierInfo[];
     readonly samples: readonly SampleInfo[];

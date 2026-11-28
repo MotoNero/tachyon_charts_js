@@ -27,3 +27,4 @@ spikes/*/build/
 # SonarScanner
 .scannerwork/
 temp/
+demo/

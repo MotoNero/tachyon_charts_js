@@ -432,7 +432,7 @@ window.addEventListener('hashchange', openFromHash);
 const { pages } = await import('./templates');
 templates = pages.map(({ name, id, text }) => {
   const spec = readChartSpec(text);
-  const ready = spec.charts.length === 0 && catalog.check(spec).length === 0;
+  const ready = catalog.check(spec).length === 0 && spec.charts.every((each) => catalog.check(each).length === 0);
   return { name, id, spec, ready };
 });
 showTemplates();

@@ -1163,7 +1163,9 @@ language of the axes can be chosen at the top for all pages. Every new feature b
 `examples/configurator` builds a chart without writing code: choose a template or start a new chart, pick the type of
 each series, its sample data and parameters, the interactions and a legend. The code of the chart shows below it in
 TypeScript or JavaScript, ready to copy; the preview runs exactly this code, so the copied code draws the same chart.
-Descriptions save and open as `.chart.json`, the same format as the configurator of the .NET version.
+Descriptions save and open as `.chart.json`, the same format as the configurator of the .NET version, with their
+annotations, fonts, own themes, an overview below the chart and linked charts. Every showroom page has a link
+**Open in configurator** to the same chart there.
 3D series of a chart share one scene with the camera, the ranges and titles of the box and cut planes; medical
 images come with their window, measurements and linked planes; maps with their projection and tiles. Live charts, such as a running oscilloscope, a spectrum analyzer or a patient monitor, take a list as second
 argument: `describeChart(builder, running)` puts the functions that stop their data into it.

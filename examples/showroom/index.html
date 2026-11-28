@@ -37,6 +37,14 @@
         background: var(--panel);
         border-bottom: 1px solid var(--line);
       }
+      .configurator-link {
+        color: var(--accent);
+        text-decoration: none;
+        white-space: nowrap;
+      }
+      .configurator-link[hidden] {
+        display: none;
+      }
       header img {
         height: 28px;
       }
@@ -262,6 +270,14 @@
       <img id="logo" alt="Tachyon Charts" />
       <span class="spacer"></span>
       <span id="thread" class="thread"></span>
+      <a
+        id="open-configurator"
+        class="configurator-link"
+        href="../configurator/index.html"
+        target="_blank"
+        rel="noopener"
+        >Open in configurator</a
+      >
       <span class="export">
         <span data-text="Export">Export</span>
         <button id="export-png" type="button">PNG</button>
