@@ -3,7 +3,7 @@
 import {
   ChartCatalog,
   ChartSpecProblem,
-  applyChartSpec,
+  applyChartSpecs,
   chartCode,
   coreModule,
   medicalModule,
@@ -35,6 +35,7 @@ const element = (id: string): HTMLElement => {
 };
 const chart = element('chart') as TachyonChartElement;
 const editor = element('editor');
+const viewGrid = element('views');
 const codeView = element('code');
 const problemView = element('problem');
 const language = element('language') as HTMLSelectElement;
@@ -317,7 +318,26 @@ function show(): void {
     for (const stop of running.splice(0)) {
       stop();
     }
-    chart.chart = applyChartSpec(spec, catalog, new ChartBuilder(), running);
+    const described = applyChartSpecs(spec, catalog, running, new ChartBuilder());
+    const [first] = described.charts;
+    if (described.charts.length === 1 && first) {
+      chart.hidden = false;
+      viewGrid.hidden = true;
+      viewGrid.replaceChildren();
+      chart.chart = first;
+    } else {
+      // Linked charts stand in a grid of their own; the single chart rests meanwhile.
+      chart.hidden = true;
+      viewGrid.hidden = false;
+      viewGrid.style.gridTemplateColumns = `repeat(${String(described.columns)}, minmax(0, 1fr))`;
+      viewGrid.replaceChildren(
+        ...described.charts.map((builder) => {
+          const view = document.createElement('tachyon-chart');
+          view.chart = builder;
+          return view;
+        }),
+      );
+    }
   } catch (error: unknown) {
     problemView.textContent =
       error instanceof ChartSpecProblem

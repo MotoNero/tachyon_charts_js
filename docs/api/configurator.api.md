@@ -4,7 +4,7 @@
 
 ```ts
 
-import type { ChartBuilder } from '@tachyon-charts/core';
+import { ChartBuilder } from '@tachyon-charts/core';
 import type { Rgba8 } from '@tachyon-charts/core';
 
 // @public
@@ -15,6 +15,9 @@ export interface AnnotationSpec {
 
 // @public
 export function applyChartSpec(spec: ChartSpec, catalog: ChartCatalog, chart: ChartBuilder, running?: (() => void)[]): ChartBuilder;
+
+// @public
+export function applyChartSpecs(spec: ChartSpec, catalog: ChartCatalog, running?: (() => void)[], chart?: ChartBuilder): DescribedCharts;
 
 // @public
 export function axesOf(spec: ChartSpec, series: SeriesSpec): SeriesAxes;
@@ -122,6 +125,7 @@ export const chartSpecVersion = 1;
 export interface ChartTypeInfo {
     readonly category: ChartCategory;
     code(writer: CodeWriter, series: SeriesSpec, data: string, axes: SeriesAxes, index: number): string;
+    columns?(series: SeriesSpec, count: number): number;
     readonly defaultSample: string;
     readonly id: string;
     readonly name: string;
@@ -130,6 +134,7 @@ export interface ChartTypeInfo {
     readonly shape: DataShape;
     readonly takesInteractions?: boolean;
     readonly usesTime?: boolean;
+    views?(writer: CodeWriter, series: SeriesSpec, data: string): ViewCode[];
 }
 
 // @public
@@ -172,6 +177,12 @@ export interface DataSpec {
     options: SpecValues;
     path?: string | undefined;
     sample: string;
+}
+
+// @public
+export interface DescribedCharts {
+    readonly charts: readonly ChartBuilder[];
+    readonly columns: number;
 }
 
 // @public
@@ -298,6 +309,12 @@ export interface ThemeSpec {
 
 // @public
 export const version = "0.1.0-dev";
+
+// @public
+export interface ViewCode {
+    readonly code: string;
+    readonly name: string;
+}
 
 // @public
 export function writeChartSpec(spec: ChartSpec): string;

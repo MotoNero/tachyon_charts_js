@@ -104,6 +104,16 @@
         display: block;
         min-height: 0;
       }
+      .views {
+        display: grid;
+        grid-auto-rows: 1fr;
+        gap: 4px;
+        min-height: 0;
+      }
+      .views[hidden],
+      tachyon-chart[hidden] {
+        display: none;
+      }
       .code {
         display: grid;
         grid-template-rows: auto 1fr;
@@ -178,6 +188,7 @@
     <nav id="templates"></nav>
     <main>
       <tachyon-chart id="chart"></tachyon-chart>
+      <div id="views" class="views" hidden></div>
       <section class="code">
         <div class="bar">
           <select id="language" aria-label="Language of the code">

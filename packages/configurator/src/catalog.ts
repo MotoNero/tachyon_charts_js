@@ -41,6 +41,14 @@ export interface SeriesAxes {
   readonly y: string;
 }
 
+/** A chart of a type that shows its data in several linked charts, such as the planes of a volume. */
+export interface ViewCode {
+  /** The name of the chart, a word that names its function, such as `Axial`. */
+  readonly name: string;
+  /** Statements that describe the chart on the chart builder `c`, with the data in the variable the type was given. */
+  readonly code: string;
+}
+
 /** A type of series the configurator offers. */
 export interface ChartTypeInfo {
   /** The name it is known by. */
@@ -62,6 +70,13 @@ export interface ChartTypeInfo {
   code(writer: CodeWriter, series: SeriesSpec, data: string, axes: SeriesAxes, index: number): string;
   /** Whether the type sets the axes itself, such as a pie. */
   readonly ownsAxes?: boolean;
+  /**
+   * The linked charts of a type that shows its data in several, such as the planes of a volume; `code` then only
+   * prepares the data, and each chart takes them.
+   */
+  views?(writer: CodeWriter, series: SeriesSpec, data: string): ViewCode[];
+  /** The number of columns its linked charts stand in; two by default. */
+  columns?(series: SeriesSpec, count: number): number;
   /** Whether the type shows times along X, so that a new chart of it takes a time axis. */
   readonly usesTime?: boolean;
   /** Whether a new chart of a type that sets its axes itself still takes the usual interactions. */

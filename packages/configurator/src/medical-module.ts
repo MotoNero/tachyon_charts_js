@@ -1,6 +1,6 @@
 // The medical images of the configurator, as MedicalModule and MedicalSetup of the .NET version: an image or a plane of
 // a volume with window, colors, example measurements, measuring tools and the segments of the phantoms.
-import type { ChartModule, ChartTypeInfo, ParameterInfo, SampleInfo } from './catalog';
+import type { ChartModule, ChartTypeInfo, ParameterInfo, SampleInfo, ViewCode } from './catalog';
 import { camel } from './build';
 import { num, str, type CodeWriter } from './code';
 import { flagOf, numberOf, textOf, type SeriesSpec, type SpecValues } from './spec';
@@ -281,6 +281,328 @@ const medicalSlice: ChartTypeInfo = {
   },
 };
 
+const layouts = ['2 × 2', 'Row', 'Column'];
+const layoutParameter: ParameterInfo = {
+  name: 'layout',
+  label: 'Arrangement',
+  kind: 'choice',
+  default: '2 × 2',
+  choices: layouts,
+  description: 'How the linked charts stand in the window.',
+};
+const title3D: ParameterInfo = {
+  name: 'title3d',
+  label: 'Title of the 3D chart',
+  kind: 'text',
+  default: '',
+  description: 'Empty for the title the volume brings.',
+};
+const measurements3D: ParameterInfo = {
+  name: 'measurements3d',
+  label: 'Measurements in 3D',
+  kind: 'flag',
+  default: true,
+  description: 'Every measurement also as a line in the 3D chart, on the slice it was drawn on.',
+};
+const toolParameters = measuringParameters.filter((parameter) => parameter.name !== 'measurements');
+
+const columnsOf = (series: SeriesSpec, count: number): number => {
+  const layout = textOf(series.parameters, 'layout', '2 × 2');
+  return layout === 'Row' ? count : layout === 'Column' ? 1 : Math.min(2, count);
+};
+
+// The tools of the planes that take measurements by hand.
+function toolsCode(values: SpecValues, layers: readonly string[]): string[] {
+  const result: string[] = [];
+  const tool = textOf(values, 'tool', 'None');
+  for (const layer of layers) {
+    if (flagOf(values, 'toolBar', true)) {
+      result.push(`${layer}.showsTools = true;`);
+    }
+    if (tool !== 'None') {
+      result.push(`${layer}.tool = ${str(camel(tool))};`);
+    }
+  }
+  return result;
+}
+
+const sliceView = (plane: string, data: string): ViewCode => ({
+  name: plane.charAt(0).toUpperCase() + plane.slice(1),
+  code: `${data}.${plane}.configure(c);`,
+});
+
+// The volume in 3D with the title chosen for it, set after the volume has set its own.
+function volumeView(writer: CodeWriter, series: SeriesSpec, configure: string): ViewCode {
+  const title = textOf(series.parameters, 'title3d');
+  return {
+    name: 'Volume',
+    code: lines(
+      `${writer.use('scene3D', threeDPackage)}(c, (scene) => ${configure});`,
+      ...(title.length > 0 ? [`c.title(${str(title)});`] : []),
+    ),
+  };
+}
+
+function namedHelper(writer: CodeWriter): string {
+  const slice = writer.useType('MedicalMprSlice', medicalPackage);
+  return writer.helper(
+    'named',
+    lines(
+      '// The measurement of a plane with a name.',
+      `function named(${writer.parameter('slice', slice)}, ${writer.parameter('name', 'string')}) {`,
+      '  return slice.measurements.measurements.find((measurement) => measurement.name === name);',
+      '}',
+    ),
+  );
+}
+
+const medicalMpr: ChartTypeInfo = {
+  id: 'medicalMpr',
+  name: 'Medical MPR (linked)',
+  category: 'medical',
+  shape: 'medicalVolume',
+  defaultSample: 'headPhantom',
+  ownsAxes: true,
+  parameters: [
+    layoutParameter,
+    { name: 'axial', label: 'Axial', kind: 'flag', default: true },
+    { name: 'coronal', label: 'Coronal', kind: 'flag', default: true },
+    { name: 'sagittal', label: 'Sagittal', kind: 'flag', default: true },
+    { name: 'volume', label: 'Volume in 3D', kind: 'flag', default: true },
+    title3D,
+    measurements3D,
+    { name: 'x', label: 'Sagittal position in %', kind: 'number', default: 50, minimum: 0, maximum: 100 },
+    { name: 'y', label: 'Coronal position in %', kind: 'number', default: 50, minimum: 0, maximum: 100 },
+    { name: 'z', label: 'Axial position in %', kind: 'number', default: 50, minimum: 0, maximum: 100 },
+    ...windowParameters,
+    ...segmentationParameters,
+    { name: 'mode', label: 'Segments in 3D', kind: 'choice', default: 'Volume', choices: ['Volume', 'Surface'] },
+    ...measuringParameters,
+    {
+      name: 'cine',
+      label: 'Cine',
+      kind: 'choice',
+      default: 'Off',
+      choices: ['Off', ...planes],
+      description: 'Plays the slices of a plane in a loop; Space starts and stops it in a plane.',
+    },
+    { name: 'speed', label: 'Cine frames per second', kind: 'number', default: 10, minimum: 1, maximum: 120 },
+  ],
+  code(writer, series, data) {
+    const values = series.parameters;
+    const move = moveToHelper(writer);
+    const result = [
+      ...lookCode(writer, values, data),
+      ...windowCode(writer, values, data),
+      `${move}(${data}, 'sagittal', ${num(numberOf(values, 'x', 50) / 100)});`,
+      `${move}(${data}, 'coronal', ${num(numberOf(values, 'y', 50) / 100)});`,
+      `${move}(${data}, 'axial', ${num(numberOf(values, 'z', 50) / 100)});`,
+      ...segmentationCode(writer, series, data, camel(textOf(values, 'mode', 'Volume'))),
+    ];
+    if (flagOf(values, 'measurements')) {
+      const axial = `${data}.axial`;
+      result.push(
+        `${exampleMeasurementsHelper(writer)}(${axial}.measurements, ${axial}.width * ${axial}.spacing.column, ${axial}.height * ${axial}.spacing.row);`,
+      );
+    }
+    result.push(
+      ...toolsCode(
+        values,
+        ['axial', 'coronal', 'sagittal'].map((plane) => `${data}.${plane}.measurements`),
+      ),
+    );
+    if (!flagOf(values, 'measurements3d', true)) {
+      result.push(`${data}.showsMeasurements3D = false;`);
+    }
+    result.push(`${data}.cine.framesPerSecond = ${num(numberOf(values, 'speed', 10))};`);
+    const cine = textOf(values, 'cine', 'Off');
+    if (cine !== 'Off') {
+      result.push(`${data}.cine.play(${str(camel(cine))});`);
+    }
+    return result.join('\n');
+  },
+  views(writer, series, data) {
+    const values = series.parameters;
+    const views: ViewCode[] = [];
+    if (flagOf(values, 'volume', true)) {
+      views.push(volumeView(writer, series, `${data}.configure3D(scene)`));
+    }
+    for (const plane of ['axial', 'coronal', 'sagittal']) {
+      if (flagOf(values, plane, true)) {
+        views.push(sliceView(plane, data));
+      }
+    }
+    return views.length > 0 ? views : [sliceView('axial', data)];
+  },
+  columns: columnsOf,
+};
+
+const medicalAnalysis: ChartTypeInfo = {
+  id: 'medicalAnalysis',
+  name: 'Medical analysis (profile, histogram)',
+  category: 'medical',
+  shape: 'medicalVolume',
+  defaultSample: 'headPhantom',
+  ownsAxes: true,
+  parameters: [
+    layoutParameter,
+    { name: 'volume', label: 'Volume in 3D', kind: 'flag', default: true },
+    title3D,
+    { name: 'slice', label: 'Axial plane', kind: 'flag', default: true },
+    { name: 'profile', label: 'Profile', kind: 'flag', default: true },
+    { name: 'histogram', label: 'Histogram', kind: 'flag', default: true },
+    ...windowParameters,
+    ...segmentationParameters,
+    { name: 'bins', label: 'Histogram bins', kind: 'integer', default: 512, minimum: 8, maximum: 4096 },
+    ...toolParameters,
+  ],
+  code(writer, series, data) {
+    const values = series.parameters;
+    const axial = `${data}.axial`;
+    return [
+      ...lookCode(writer, values, data),
+      ...windowCode(writer, values, data),
+      ...segmentationCode(writer, series, data, 'volume'),
+      '// A line across the middle of the axial plane and a circle on the focus of the phantom.',
+      `const width = ${axial}.width * ${axial}.spacing.column;`,
+      `const height = ${axial}.height * ${axial}.spacing.row;`,
+      `${axial}.measurements.add('distance', [{ x: width * 0.12, y: height * 0.5 }, { x: width * 0.88, y: height * 0.5 }], undefined, 'Profile line');`,
+      `${axial}.measurements.add('circle', [{ x: width * 0.323, y: height * 0.43 }, { x: width * 0.358, y: height * 0.43 }], undefined, 'Focus');`,
+      ...toolsCode(values, [`${axial}.measurements`]),
+    ].join('\n');
+  },
+  views(writer, series, data) {
+    const values = series.parameters;
+    const views: ViewCode[] = [];
+    if (flagOf(values, 'volume', true)) {
+      views.push(volumeView(writer, series, `${data}.configure3D(scene)`));
+    }
+    if (flagOf(values, 'slice', true)) {
+      views.push(sliceView('axial', data));
+    }
+    if (flagOf(values, 'profile', true)) {
+      views.push({
+        name: 'Profile',
+        code: `new ${writer.use('MedicalProfile', medicalPackage)}(${data}.axial).configure(c);`,
+      });
+    }
+    if (flagOf(values, 'histogram', true)) {
+      const bins = Math.trunc(numberOf(values, 'bins', 512));
+      views.push({
+        name: 'Histogram',
+        code: lines(
+          `const histogram = new ${writer.use('MedicalHistogram', medicalPackage)}(${data}.axial, ${String(bins)});`,
+          `histogram.region = ${namedHelper(writer)}(${data}.axial, 'Focus');`,
+          'histogram.configure(c);',
+        ),
+      });
+    }
+    return views.length > 0 ? views : [sliceView('axial', data)];
+  },
+  columns: columnsOf,
+};
+
+function obliqueHelper(writer: CodeWriter): string {
+  const display = writer.useType('MedicalMprDisplay', medicalPackage);
+  const oblique = writer.use('MedicalObliqueSlice', medicalPackage);
+  return writer.helper(
+    'obliqueOf',
+    lines(
+      '// The oblique plane of a display along the line on its axial plane, one for all charts.',
+      `const obliques = new WeakMap${writer.language === 'typescript' ? `<${display}, ${oblique}>` : ''}();`,
+      `function obliqueOf(${writer.parameter('display', display)})${writer.type(oblique)} {`,
+      '  let oblique = obliques.get(display);',
+      '  if (!oblique) {',
+      `    oblique = new ${oblique}(display);`,
+      '    oblique.followLine(display.axial);',
+      '    obliques.set(display, oblique);',
+      '  }',
+      '  return oblique;',
+      '}',
+    ),
+  );
+}
+
+const medicalReformat: ChartTypeInfo = {
+  id: 'medicalReformat',
+  name: 'Medical oblique and curved',
+  category: 'medical',
+  shape: 'medicalVolume',
+  defaultSample: 'thoraxPhantom',
+  ownsAxes: true,
+  parameters: [
+    layoutParameter,
+    {
+      name: 'volume',
+      label: 'Volume in 3D',
+      kind: 'flag',
+      default: true,
+      description: 'With the oblique plane in it; the key V on the oblique plane turns it to face the 3D view.',
+    },
+    title3D,
+    { name: 'axial', label: 'Axial plane', kind: 'flag', default: true },
+    { name: 'oblique', label: 'Oblique plane', kind: 'flag', default: true },
+    { name: 'curved', label: 'Curved section', kind: 'flag', default: true },
+    measurements3D,
+    ...windowParameters,
+    ...toolParameters,
+  ],
+  code(writer, series, data) {
+    const values = series.parameters;
+    const axial = `${data}.axial`;
+    return [
+      ...lookCode(writer, values, data),
+      ...windowCode(writer, values, data),
+      `${obliqueHelper(writer)}(${data});`,
+      '// A line across the axial plane for the oblique plane, an arc along the front of the body for the curved section.',
+      `const width = ${axial}.width * ${axial}.spacing.column;`,
+      `const height = ${axial}.height * ${axial}.spacing.row;`,
+      `${axial}.measurements.add('distance', [{ x: width * 0.156, y: height * 0.73 }, { x: width * 0.86, y: height * 0.35 }], undefined, 'Oblique plane');`,
+      'const arc = Array.from({ length: 13 }, (_, i) => {',
+      '  const angle = Math.PI + 0.45 + ((Math.PI - 0.9) * i) / 12;',
+      '  return { x: width * (0.5 + 0.396 * Math.cos(angle)), y: height * (0.5 + 0.285 * Math.sin(angle)) };',
+      '});',
+      `${axial}.measurements.add('freehand', arc, undefined, 'Arc');`,
+      ...toolsCode(values, [`${axial}.measurements`]),
+      ...(flagOf(values, 'measurements3d', true) ? [] : [`${data}.showsMeasurements3D = false;`]),
+    ].join('\n');
+  },
+  views(writer, series, data) {
+    const values = series.parameters;
+    const oblique = obliqueHelper(writer);
+    const views: ViewCode[] = [];
+    if (flagOf(values, 'volume', true)) {
+      const configure = lines(
+        '{',
+        `  ${data}.configure3D(scene);`,
+        `  ${oblique}(${data}).configure3D(scene);`,
+        `  ${oblique}(${data}).viewCamera = scene.scene.camera;`,
+        '  return scene;',
+        '}',
+      );
+      views.push(volumeView(writer, series, configure));
+    }
+    if (flagOf(values, 'axial', true)) {
+      views.push(sliceView('axial', data));
+    }
+    if (flagOf(values, 'oblique', true)) {
+      views.push({ name: 'Oblique', code: `${oblique}(${data}).configure(c);` });
+    }
+    if (flagOf(values, 'curved', true)) {
+      views.push({
+        name: 'Curved',
+        code: lines(
+          `const curved = new ${writer.use('MedicalCurvedSlice', medicalPackage)}(${data}.axial);`,
+          `curved.path = ${namedHelper(writer)}(${data}.axial, 'Arc');`,
+          'curved.configure(c);',
+        ),
+      });
+    }
+    return views.length > 0 ? views : [sliceView('axial', data)];
+  },
+  columns: columnsOf,
+};
+
 const phantom = (id: string, name: string, which: 'head' | 'thorax'): SampleInfo => ({
   id,
   name,
@@ -330,7 +652,7 @@ const image = (id: string, name: string, which: 'head' | 'thorax', plane: string
 
 /** The medical images: an image or a plane of a volume, with the phantoms of the package as samples. */
 export const medicalModule: ChartModule = {
-  types: [medicalImage, medicalSlice],
+  types: [medicalImage, medicalSlice, medicalMpr, medicalAnalysis, medicalReformat],
   samples: [
     phantom('headPhantom', 'Head phantom', 'head'),
     phantom('thoraxPhantom', 'Thorax phantom', 'thorax'),

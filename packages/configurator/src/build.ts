@@ -1,7 +1,7 @@
 // The code of a chart from its description, and the chart itself by running that code, as CodeGenerator and
 // SpecChartBuilder of the .NET version in one: the preview and the code cannot differ.
 import * as core from '@tachyon-charts/core';
-import type { ChartBuilder } from '@tachyon-charts/core';
+import { ChartBuilder } from '@tachyon-charts/core';
 import { axesOf, type ChartCatalog, type SampleInfo } from './catalog';
 import { CodeWriter, identifier, num, str, type CodeLanguage } from './code';
 import type { AxisSpec, ChartSpec, LegendSpec } from './spec';
@@ -164,6 +164,60 @@ function legendCode(spec: LegendSpec): string {
 interface CodeParts {
   readonly writer: CodeWriter;
   readonly describe: string;
+  /** Whether the code describes several charts with `describeCharts` instead of one with `describeChart`. */
+  readonly several: boolean;
+}
+
+// The linked charts of a type with views: the data and their preparation once, then a function per chart.
+function describeViews(
+  spec: ChartSpec,
+  catalog: ChartCatalog,
+  writer: CodeWriter,
+  language: CodeLanguage,
+): string | undefined {
+  const series = spec.series[0];
+  const type = series && spec.series.length === 1 ? catalog.findType(series.type) : undefined;
+  const sample = series ? catalog.findSample(series.data.sample) : undefined;
+  if (!series || !type?.views || !sample) {
+    return undefined;
+  }
+  const make = sampleFunction(writer, sample);
+  const data = `${make}Data`;
+  const lines = [`const ${data} = ${make}(${sample.hasCount === false ? '' : num(series.data.count)});`];
+  const setup = type.code(writer, series, data, axesOf(spec, series), 0);
+  if (setup.length > 0) {
+    lines.push(setup);
+  }
+  const views = type.views(writer, series, data);
+  const builder = writer.use('ChartBuilder');
+  const theme =
+    spec.theme === undefined
+      ? []
+      : [
+          `c.theme(${writer.as(`${writer.use('findBuiltInTheme')}(${str(themeId(spec.theme))})`, writer.useType('ThemeDocument'))});`,
+        ];
+  const functions = views.map((view) =>
+    [
+      `// The chart ${view.name}.`,
+      `function describe${view.name}(${writer.parameter('c', builder)}, ${writer.parameter(data, sample.returns)})${writer.type(builder)} {`,
+      ...[...theme, ...view.code.split('\n')].map((line) => `  ${line}`),
+      '  return c;',
+      '}',
+    ].join('\n'),
+  );
+  const columns = Math.max(1, type.columns?.(series, views.length) ?? Math.min(2, views.length));
+  const running = writer.isLive ? `${writer.parameter('running', '(() => void)[]')} = []` : '';
+  const result = language === 'typescript' ? `: { charts: ${builder}[]; columns: number }` : '';
+  return [
+    ...functions.flatMap((code) => [code, '']),
+    `export function describeCharts(${running})${result} {`,
+    ...lines.flatMap((line) => line.split('\n')).map((line) => `  ${line}`),
+    '  return {',
+    `    columns: ${String(columns)},`,
+    `    charts: [${views.map((view) => `describe${view.name}(new ${builder}(), ${data})`).join(', ')}],`,
+    '  };',
+    '}',
+  ].join('\n');
 }
 
 function describeChart(spec: ChartSpec, catalog: ChartCatalog, language: CodeLanguage): CodeParts {
@@ -172,6 +226,10 @@ function describeChart(spec: ChartSpec, catalog: ChartCatalog, language: CodeLan
     throw new ChartSpecProblem(problems);
   }
   const writer = new CodeWriter(language);
+  const views = describeViews(spec, catalog, writer, language);
+  if (views !== undefined) {
+    return { writer, describe: views, several: true };
+  }
   const lines: string[] = [];
   if (spec.title.length > 0) {
     lines.push(`c.title(${str(spec.title)});`);
@@ -236,22 +294,30 @@ function describeChart(spec: ChartSpec, catalog: ChartCatalog, language: CodeLan
     '  return c;',
     '}',
   ].join('\n');
-  return { writer, describe };
+  return { writer, describe, several: false };
 }
 
 /**
  * The code of a chart: a module that exports `describeChart(c)`, to call with a `ChartBuilder` and give to a
- * `<tachyon-chart>` element.
+ * `<tachyon-chart>` element; for linked charts `describeCharts()`, which gives the charts and the columns they stand in.
  * @throws ChartSpecProblem when a type, a sample or an interaction of the description is unknown.
  */
 export function chartCode(spec: ChartSpec, catalog: ChartCatalog, language: CodeLanguage = 'typescript'): string {
-  const { writer, describe } = describeChart(spec, catalog, language);
+  const { writer, describe, several } = describeChart(spec, catalog, language);
   const usage = [
-    '// Shows the chart in a <tachyon-chart> element of the page:',
-    "// const element = document.querySelector('tachyon-chart');",
-    '// element.chart = describeChart(new ChartBuilder());',
+    ...(several
+      ? [
+          '// Shows the charts in <tachyon-chart> elements of the page, in a grid of `columns` columns:',
+          "// const elements = document.querySelectorAll('tachyon-chart');",
+          '// describeCharts().charts.forEach((chart, i) => { elements[i].chart = chart; });',
+        ]
+      : [
+          '// Shows the chart in a <tachyon-chart> element of the page:',
+          "// const element = document.querySelector('tachyon-chart');",
+          '// element.chart = describeChart(new ChartBuilder());',
+        ]),
     ...(writer.isLive
-      ? ['// Live data keep coming until the functions in the list `running`, given as second argument, are called.']
+      ? ['// Live data keep coming until the functions in the list `running`, given as last argument, are called.']
       : []),
   ];
   return [
@@ -265,19 +331,27 @@ export function chartCode(spec: ChartSpec, catalog: ChartCatalog, language: Code
   ].join('\n');
 }
 
+/** Charts described after a description: one, or the linked charts of a type with several views. */
+export interface DescribedCharts {
+  /** The charts. */
+  readonly charts: readonly ChartBuilder[];
+  /** The number of columns they stand in. */
+  readonly columns: number;
+}
+
 /**
- * Describes a chart after a description by running the code the configurator writes for it; the packages of its
- * modules must have arrived, see {@link ChartCatalog.load}. What keeps running, such
- * as live data, puts the function that stops it into `running`.
+ * Describes the charts of a description by running the code the configurator writes for it; the packages of its
+ * modules must have arrived, see {@link ChartCatalog.load}. What keeps running, such as live data, puts the function
+ * that stops it into `running`.
  * @throws ChartSpecProblem when a type, a sample or an interaction of the description is unknown.
  */
-export function applyChartSpec(
+export function applyChartSpecs(
   spec: ChartSpec,
   catalog: ChartCatalog,
-  chart: ChartBuilder,
   running: (() => void)[] = [],
-): ChartBuilder {
-  const { writer, describe } = describeChart(spec, catalog, 'javascript');
+  chart: ChartBuilder = new ChartBuilder(),
+): DescribedCharts {
+  const { writer, describe, several } = describeChart(spec, catalog, 'javascript');
   const names: string[] = [];
   const values: unknown[] = [];
   for (const [source, imported] of writer.importedNames()) {
@@ -290,11 +364,27 @@ export function applyChartSpec(
       values.push(module[name]);
     }
   }
-  const body = [...writer.helperCode(), describe.replace(/^export /u, ''), 'return describeChart;'].join('\n');
+  const entry = several ? 'describeCharts' : 'describeChart';
+  const body = [...writer.helperCode(), describe.replace(/^export /gmu, ''), `return ${entry};`].join('\n');
   // The code is the configurator's own, made from the description; running it keeps preview and code equal.
   // eslint-disable-next-line @typescript-eslint/no-implied-eval
-  const make = new Function(...names, body) as (
-    ...args: unknown[]
-  ) => (c: ChartBuilder, running: (() => void)[]) => ChartBuilder;
-  return make(...values)(chart, running);
+  const make = new Function(...names, body) as (...args: unknown[]) => (...args: unknown[]) => unknown;
+  const described = make(...values);
+  return several
+    ? (described(running) as DescribedCharts)
+    : { charts: [described(chart, running) as ChartBuilder], columns: 1 };
+}
+
+/**
+ * Describes a chart after a description by running the code the configurator writes for it; of linked charts the
+ * first, see {@link applyChartSpecs}.
+ * @throws ChartSpecProblem when a type, a sample or an interaction of the description is unknown.
+ */
+export function applyChartSpec(
+  spec: ChartSpec,
+  catalog: ChartCatalog,
+  chart: ChartBuilder,
+  running: (() => void)[] = [],
+): ChartBuilder {
+  return applyChartSpecs(spec, catalog, running, chart).charts[0] ?? chart;
 }
