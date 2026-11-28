@@ -58,7 +58,9 @@ export class ChartCatalog {
     findModifier(id: string): ModifierInfo | undefined;
     findSample(id: string): SampleInfo | undefined;
     findType(id: string): ChartTypeInfo | undefined;
+    load(spec?: ChartSpec): Promise<void>;
     get modifiers(): readonly ModifierInfo[];
+    get packages(): Readonly<Record<string, Record<string, unknown>>>;
     get samples(): readonly SampleInfo[];
     get types(): readonly ChartTypeInfo[];
 }
@@ -71,6 +73,7 @@ export function chartCode(spec: ChartSpec, catalog: ChartCatalog, language?: Cod
 
 // @public
 export interface ChartModule {
+    readonly load?: () => Promise<Record<string, Record<string, unknown>>>;
     readonly modifiers?: readonly ModifierInfo[];
     readonly samples: readonly SampleInfo[];
     readonly types: readonly ChartTypeInfo[];
@@ -190,6 +193,9 @@ export interface LegendSpec {
     series: string;
     title: string;
 }
+
+// @public
+export const medicalModule: ChartModule;
 
 // @public
 export interface ModifierInfo {

@@ -97,7 +97,10 @@ export interface SampleInfo {
   readonly body: string;
   /** The type the function returns, for TypeScript. */
   readonly returns: string;
-  /** The names of `@tachyon-charts/core` the body uses, and `round` for the rounding of the .NET version. */
+  /**
+   * The names the body uses: of `@tachyon-charts/core` by name, of another package as `package#Name`, and `round` for
+   * the rounding of the .NET version.
+   */
   readonly uses: readonly string[];
   /** The lowest count that makes sense. */
   readonly minimumCount?: number;
@@ -115,6 +118,11 @@ export interface ChartModule {
   readonly samples: readonly SampleInfo[];
   /** The interactions. */
   readonly modifiers?: readonly ModifierInfo[];
+  /**
+   * Loads the packages its code imports from, by name, besides `@tachyon-charts/core`; they arrive on demand, so that a
+   * page loads them only for charts that need them.
+   */
+  readonly load?: () => Promise<Record<string, Record<string, unknown>>>;
 }
 
 /** All that the modules offer. */
@@ -122,6 +130,9 @@ export class ChartCatalog {
   private readonly typeList: ChartTypeInfo[] = [];
   private readonly sampleList: SampleInfo[] = [];
   private readonly modifierList: ModifierInfo[] = [];
+  private readonly packageList: Record<string, Record<string, unknown>> = {};
+  private readonly moduleList: ChartModule[] = [];
+  private readonly loading = new Map<ChartModule, Promise<void>>();
 
   /** @param modules - The modules, the core first. */
   constructor(modules: readonly ChartModule[]) {
@@ -160,6 +171,35 @@ export class ChartCatalog {
     replace(this.typeList, module.types);
     replace(this.sampleList, module.samples);
     replace(this.modifierList, module.modifiers ?? []);
+    this.moduleList.push(module);
+  }
+
+  /**
+   * Loads the packages of the modules a description needs, or of all modules without one; the code of a chart runs only
+   * after its packages have arrived.
+   */
+  async load(spec?: ChartSpec): Promise<void> {
+    const used = spec ? new Set(spec.series.map((series) => series.type)) : undefined;
+    const wanted = this.moduleList.filter(
+      (module) => module.load !== undefined && (!used || module.types.some((type) => used.has(type.id))),
+    );
+    await Promise.all(
+      wanted.map((module) => {
+        let loading = this.loading.get(module);
+        if (!loading) {
+          loading = (module.load?.() ?? Promise.resolve({})).then((packages) => {
+            Object.assign(this.packageList, packages);
+          });
+          this.loading.set(module, loading);
+        }
+        return loading;
+      }),
+    );
+  }
+
+  /** The packages loaded so far that the code of the modules imports from, besides `@tachyon-charts/core`. */
+  get packages(): Readonly<Record<string, Record<string, unknown>>> {
+    return this.packageList;
   }
 
   /** A type by its id. */

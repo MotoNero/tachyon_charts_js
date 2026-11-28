@@ -1168,10 +1168,13 @@ Live charts, such as a running oscilloscope, a spectrum analyzer or a patient mo
 argument: `describeChart(builder, running)` puts the functions that stop their data into it.
 
 ```ts
-import { ChartCatalog, chartCode, coreModule, readChartSpec } from '@tachyon-charts/configurator';
+import { applyChartSpec, ChartCatalog, chartCode, coreModule, medicalModule, readChartSpec } from '@tachyon-charts/configurator';
 
-const catalog = new ChartCatalog([coreModule]);
-const code = chartCode(readChartSpec(json), catalog, 'typescript');
+const catalog = new ChartCatalog([coreModule, medicalModule]);
+const spec = readChartSpec(json);
+const code = chartCode(spec, catalog, 'typescript');
+await catalog.load(spec); // the packages of the modules the chart needs, such as medical images
+element.chart = applyChartSpec(spec, catalog, new ChartBuilder());
 ```
 
 ## Packages

@@ -66,10 +66,11 @@ function roundHelper(writer: CodeWriter): void {
 function sampleFunction(writer: CodeWriter, sample: SampleInfo): string {
   const name = identifier(sample.id);
   for (const used of sample.uses) {
+    const [from, name] = used.includes('#') ? used.split('#') : ['@tachyon-charts/core', used];
     if (used === 'round') {
       roundHelper(writer);
-    } else {
-      writer.use(used);
+    } else if (from !== undefined && name !== undefined) {
+      writer.use(name, from);
     }
   }
   if (sample.returns.includes('Rgba8')) {
@@ -265,7 +266,8 @@ export function chartCode(spec: ChartSpec, catalog: ChartCatalog, language: Code
 }
 
 /**
- * Describes a chart after a description by running the code the configurator writes for it. What keeps running, such
+ * Describes a chart after a description by running the code the configurator writes for it; the packages of its
+ * modules must have arrived, see {@link ChartCatalog.load}. What keeps running, such
  * as live data, puts the function that stops it into `running`.
  * @throws ChartSpecProblem when a type, a sample or an interaction of the description is unknown.
  */
@@ -279,9 +281,9 @@ export function applyChartSpec(
   const names: string[] = [];
   const values: unknown[] = [];
   for (const [source, imported] of writer.importedNames()) {
-    const module = codePackages[source];
+    const module = codePackages[source] ?? catalog.packages[source];
     if (!module) {
-      throw new ChartSpecProblem([`The package ${source} is not loaded.`]);
+      throw new ChartSpecProblem([`The package ${source} is not loaded; await catalog.load(spec) first.`]);
     }
     for (const name of imported) {
       names.push(name);

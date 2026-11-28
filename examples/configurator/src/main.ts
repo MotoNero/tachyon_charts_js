@@ -6,6 +6,7 @@ import {
   applyChartSpec,
   chartCode,
   coreModule,
+  medicalModule,
   newChartSpec,
   readChartSpec,
   writeChartSpec,
@@ -22,7 +23,7 @@ import icon from '../../../shared/logo/tachyon-charts-avatar-dark-32.png?url';
 
 defineTachyonChart();
 
-const catalog = new ChartCatalog([coreModule]);
+const catalog = new ChartCatalog([coreModule, medicalModule]);
 const themes = ['TachyonDark', 'TachyonLight', 'Instrument', 'Paper', 'Signal', 'Neon', 'HighContrast'];
 
 const element = (id: string): HTMLElement => {
@@ -290,7 +291,24 @@ function showEditor(): void {
   editor.append(make('h2', { textContent: 'Legend' }), row('Show a legend', legend));
 }
 
+let shown = 0;
+
 function refresh(): void {
+  const ticket = ++shown;
+  catalog.load(spec).then(
+    () => {
+      if (ticket === shown) {
+        show();
+      }
+    },
+    (error: unknown) => {
+      problemView.textContent = error instanceof Error ? error.message : String(error);
+    },
+  );
+}
+
+// The chart and its code, once the packages of its modules have arrived.
+function show(): void {
   try {
     code = chartCode(spec, catalog, language.value as CodeLanguage);
     codeView.textContent = code;
