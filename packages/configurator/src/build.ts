@@ -70,7 +70,13 @@ function sampleFunction(writer: CodeWriter, sample: SampleInfo): string {
     if (used === 'round') {
       roundHelper(writer);
     } else if (from !== undefined && name !== undefined) {
-      writer.use(name, from);
+      // A name only the type of the result mentions is a type: imported as one, so that JavaScript leaves it out.
+      const inBody = new RegExp(`\\b${name}\\b`, 'u').test(sample.body);
+      if (inBody) {
+        writer.use(name, from);
+      } else {
+        writer.useType(name, from);
+      }
     }
   }
   if (sample.returns.includes('Rgba8')) {

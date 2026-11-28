@@ -200,6 +200,9 @@ export interface FontSpec {
 }
 
 // @public
+export const geoModule: ChartModule;
+
+// @public
 export function identifier(text: string): string;
 
 // @public

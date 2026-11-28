@@ -8,6 +8,7 @@ import {
   coreModule,
   medicalModule,
   threeDModule,
+  geoModule,
   newChartSpec,
   readChartSpec,
   writeChartSpec,
@@ -24,7 +25,7 @@ import icon from '../../../shared/logo/tachyon-charts-avatar-dark-32.png?url';
 
 defineTachyonChart();
 
-const catalog = new ChartCatalog([coreModule, medicalModule, threeDModule]);
+const catalog = new ChartCatalog([coreModule, medicalModule, threeDModule, geoModule]);
 const themes = ['TachyonDark', 'TachyonLight', 'Instrument', 'Paper', 'Signal', 'Neon', 'HighContrast'];
 
 const element = (id: string): HTMLElement => {

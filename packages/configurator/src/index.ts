@@ -43,6 +43,7 @@ export {
 export { coreModule } from './core-module';
 export { medicalModule } from './medical-module';
 export { threeDModule } from './three-d-module';
+export { geoModule } from './geo-module';
 export {
   ChartSpecProblem,
   applyChartSpec,
