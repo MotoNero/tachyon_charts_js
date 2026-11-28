@@ -524,6 +524,24 @@ const volume = files.length === 1 ? await NiftiImageReader.readFile(files[0]) : 
 MedicalSlices.display(volume, 'axial', new Point3D(0, 0, 40)).configure(builder);
 ```
 
+![A distance across the skull, an angle, a circle and a freehand region with area, mean, deviation and range in HU](docs/images/medical-measurements.png)
+
+`MedicalImageDisplay.measurements` measures in millimetres, whatever the spacing of the pixels: distances, angles,
+circles, rectangles and freehand regions, the regions with their area, circumference and the mean, standard deviation,
+lowest and highest value of the pixels whose middles lie inside. Keys D, A, C, R and F or the bar of tools
+(`showsTools`) choose a tool, a drag draws, dragging a point changes a measurement, Delete removes it and Ctrl+Z takes
+any of it back. `save` and `load` keep the measurements as JSON, `volume(name)` adds up the regions of a name over the
+slices. `MedicalProfile` shows the values along a distance and `MedicalHistogram` the values of a region or the whole
+slice with the window as a band, each in a chart of its own that follows the measurements.
+
+```ts
+const layer = image.measurements;
+layer.add('distance', [{ x: 33, y: 140 }, { x: 159, y: 140 }], undefined, 'Width');
+const focus = layer.add('circle', [{ x: 62.5, y: 82 }, { x: 68.5, y: 82 }], undefined, 'Focus');
+console.log(focus.result.mean, focus.result.standardDeviation);
+new MedicalProfile(image).configure(profileBuilder);
+```
+
 ## Legends
 
 ![A test bench with a legend of temperatures in the plot and a legend of pressures below it](docs/images/legends.png)

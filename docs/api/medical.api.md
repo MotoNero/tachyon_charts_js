@@ -5,8 +5,15 @@
 ```ts
 
 import { ChartBuilder } from '@tachyon-charts/core';
+import { ChartLayoutResult } from '@tachyon-charts/core';
+import { ChartOverlay } from '@tachyon-charts/core';
+import { ChartSurface } from '@tachyon-charts/core';
 import { Colormap } from '@tachyon-charts/core';
+import { DataSource } from '@tachyon-charts/core';
 import { HeatmapData } from '@tachyon-charts/core';
+import { Histogram } from '@tachyon-charts/core';
+import { OverlayCanvas } from '@tachyon-charts/core';
+import { Point } from '@tachyon-charts/core';
 import { Point3D } from '@tachyon-charts/3d';
 import { VolumeData } from '@tachyon-charts/3d';
 
@@ -44,6 +51,16 @@ export type DicomTransferSyntax = 'implicitVrLittleEndian' | 'explicitVrLittleEn
 export interface ImageSpacing {
     readonly column: number;
     readonly row: number;
+}
+
+// @public
+export class MedicalHistogram {
+    constructor(image: MedicalMeasuredImage, bins?: number);
+    configure(chart: ChartBuilder): ChartBuilder;
+    get histogram(): Histogram;
+    get region(): MedicalMeasurement | undefined;
+    set region(value: MedicalMeasurement | undefined);
+    get shown(): MedicalMeasurement | undefined;
 }
 
 // @public
@@ -90,6 +107,7 @@ export class MedicalImageDisplay {
     // @internal
     readonly initialWindow: MedicalWindow;
     isInterpolated: boolean;
+    get measurements(): MedicalMeasurementLayer;
     onWindowChanged(listener: (window: MedicalWindow) => void): () => void;
     readonly orientation: PatientOrientation;
     readonly orientationMarks: MedicalOrientationMarks;
@@ -112,6 +130,81 @@ export interface MedicalImageProbe {
 }
 
 // @public
+export interface MedicalMeasuredImage {
+    readonly measurements: MedicalMeasurementLayer;
+    onSliceChanged?(listener: () => void): () => void;
+    onWindowChanged(listener: (window: MedicalWindow) => void): () => void;
+}
+
+// @public
+export class MedicalMeasurement {
+    // @internal
+    constructor(
+    kind: MedicalMeasurementKind, points: readonly MedicalPoint[],
+    slice: number,
+    name: string);
+    // @internal
+    get isRegion(): boolean;
+    readonly kind: MedicalMeasurementKind;
+    name: string;
+    // @internal
+    get outline(): readonly MedicalPoint[];
+    get points(): readonly MedicalPoint[];
+    get result(): MedicalMeasurementResult;
+    readonly slice: number;
+}
+
+// @public
+export type MedicalMeasurementKind = 'distance' | 'angle' | 'circle' | 'rectangle' | 'freehand';
+
+// @public
+export class MedicalMeasurementLayer extends ChartOverlay {
+    add(kind: MedicalMeasurementKind, points: readonly MedicalPoint[], slice?: number, name?: string): MedicalMeasurement;
+    // @internal
+    attach(chart: ChartSurface): this;
+    draw(canvas: OverlayCanvas): void;
+    // @internal
+    findPoint(layout: ChartLayoutResult, position: Point, reach: number): {
+        measurement: MedicalMeasurement;
+        index: number;
+    } | undefined;
+    // @internal
+    insert(measurement: MedicalMeasurement, index: number): void;
+    load(json: string): void;
+    // @internal
+    map(layout: ChartLayoutResult, point: MedicalPoint): Point | undefined;
+    get measurements(): readonly MedicalMeasurement[];
+    // @internal
+    moveTo(measurement: MedicalMeasurement, points: readonly MedicalPoint[]): void;
+    onChanged(listener: (measurement: MedicalMeasurement) => void): () => void;
+    remove(measurement: MedicalMeasurement): boolean;
+    save(): string;
+    // @internal
+    select(measurement: MedicalMeasurement | undefined): void;
+    get selected(): MedicalMeasurement | undefined;
+    get showsTools(): boolean;
+    set showsTools(value: boolean);
+    get tool(): MedicalMeasurementKind | undefined;
+    set tool(value: MedicalMeasurementKind | undefined);
+    get unit(): string;
+    // @internal
+    unmap(layout: ChartLayoutResult, position: Point): MedicalPoint | undefined;
+    volume(name: string): number;
+}
+
+// @public
+export interface MedicalMeasurementResult {
+    readonly angle: number;
+    readonly area: number;
+    readonly length: number;
+    readonly maximum: number;
+    readonly mean: number;
+    readonly minimum: number;
+    readonly pixelCount: number;
+    readonly standardDeviation: number;
+}
+
+// @public
 export type MedicalMprPlane = 'axial' | 'coronal' | 'sagittal';
 
 // @public
@@ -127,6 +220,22 @@ export const MedicalPhantoms: {
     head(): MedicalVolume;
     thorax(): MedicalVolume;
 };
+
+// @public
+export interface MedicalPoint {
+    readonly x: number;
+    readonly y: number;
+}
+
+// @public
+export class MedicalProfile {
+    constructor(image: MedicalMeasuredImage);
+    configure(chart: ChartBuilder): ChartBuilder;
+    readonly data: DataSource;
+    get line(): MedicalMeasurement | undefined;
+    set line(value: MedicalMeasurement | undefined);
+    get shown(): MedicalMeasurement | undefined;
+}
 
 // @public
 export interface MedicalSlice {

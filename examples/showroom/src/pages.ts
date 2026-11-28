@@ -1096,6 +1096,64 @@ function medicalPages(): Page[] {
   return [
     medicalFilesPage(),
     {
+      id: 'medical-measurements',
+      name: 'Medical measurements',
+      group: 'Medical',
+      hint: 'Keys D, A, C, R, F or the bar: distance, angle, circle, rectangle, freehand, then drag | Drag a point: change | Delete: remove | Ctrl+Z: undo | Left drag elsewhere: window',
+      configure: (c) => {
+        const slice = MedicalSlices.cut(MedicalPhantoms.head(), 'axial', new Point3D(0, 0, 97));
+        const image = new MedicalImageDisplay(
+          slice.values,
+          slice.width,
+          slice.height,
+          slice.spacing,
+          slice.orientation,
+          'HU',
+        );
+        image.applyPreset(CtWindowPresets.brain);
+        // Across the skull low down, the angle of two ventricle tips, the round region on the left and the right ventricle.
+        const layer = image.measurements;
+        layer.add(
+          'distance',
+          [
+            { x: 33, y: 140 },
+            { x: 159, y: 140 },
+          ],
+          undefined,
+          t('Width'),
+        );
+        layer.add('angle', [
+          { x: 87, y: 72 },
+          { x: 96, y: 122 },
+          { x: 105, y: 72 },
+        ]);
+        layer.add(
+          'circle',
+          [
+            { x: 62.5, y: 82 },
+            { x: 68.5, y: 82 },
+          ],
+          undefined,
+          t('Focus'),
+        );
+        layer.add(
+          'freehand',
+          [
+            { x: 100, y: 70 },
+            { x: 110, y: 72 },
+            { x: 112, y: 95 },
+            { x: 110, y: 120 },
+            { x: 101, y: 121 },
+            { x: 99, y: 95 },
+          ],
+          undefined,
+          t('Ventricle'),
+        );
+        layer.showsTools = true;
+        image.configure(c);
+      },
+    },
+    {
       id: 'medical-image',
       name: 'Medical image',
       group: 'Medical',

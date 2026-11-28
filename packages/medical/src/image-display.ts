@@ -9,6 +9,7 @@ import {
   DoubleRange,
   HeatmapData,
   HeatmapSeries,
+  KeyboardNavigationModifier,
   ZoomPanModifier,
   type ChartBuilder,
   type ChartInteraction,
@@ -22,6 +23,12 @@ import {
 } from '@tachyon-charts/core';
 import type { Point3D } from '@tachyon-charts/3d';
 import type { MedicalImage } from './dicom';
+import {
+  MedicalMeasurementModifier,
+  newMeasurementLayer,
+  type MedicalMeasurementLayer,
+  type MedicalMeasurementSource,
+} from './measurements';
 import {
   CtWindowPresets,
   MedicalWindow,
@@ -78,6 +85,8 @@ export class MedicalImageDisplay {
   readonly initialWindow: MedicalWindow;
   private current: MedicalWindow;
   private readonly listeners = new Set<(window: MedicalWindow) => void>();
+  private layer: MedicalMeasurementLayer | undefined;
+  private source: MedicalMeasurementSource | undefined;
 
   /**
    * @param values - The values, row after row from the top.
@@ -185,48 +194,87 @@ export class MedicalImageDisplay {
     return { column, row, x, y, value: this.data.at(column, row), unit: this.unit };
   }
 
+  /** The measurements of the image in millimetres: distances, angles and regions with their statistics. */
+  get measurements(): MedicalMeasurementLayer {
+    this.layer ??= newMeasurementLayer(this.measurementSource());
+    return this.layer;
+  }
+
+  // What the measurements read: a single image, one slice without a distance to the next.
+  private measurementSource(): MedicalMeasurementSource {
+    if (!this.source) {
+      let range: DoubleRange | undefined;
+      const read = (_slice: number, column: number, row: number): number => this.data.at(column, row);
+      const display = this as MedicalImageDisplay;
+      this.source = {
+        width: this.width,
+        height: this.height,
+        spacing: this.spacing,
+        slice: 0,
+        sliceCount: 1,
+        sliceDistance: 0,
+        unit: this.unit,
+        read,
+        get valueRange(): DoubleRange {
+          range ??= valueRange(display.data);
+          return range;
+        },
+        get window(): MedicalWindow {
+          return display.window;
+        },
+      };
+    }
+    return this.source;
+  }
+
   /** Describes the chart of the image: axes in millimetres, the image, the colour bar and the tools. */
   configure(chart: ChartBuilder): ChartBuilder {
     const xLength = this.width * this.spacing.column;
     const yLength = this.height * this.spacing.row;
     const window = this.current;
-    return chart
-      .title('Medical image')
-      .xAxis((axis) => axis.numeric(xAxisId).title('mm').range(0, xLength).limits(0, xLength))
-      .yAxis((axis) => axis.numeric(yAxisId).title('mm').range(0, yLength).limits(0, yLength).inverted())
-      .yAxis((axis) => axis.color('Grayscale', colorAxisId).range(window.minimum, window.maximum).title(this.unit))
-      .addSeries(
-        (x, y, axis) => {
-          const colors = axis(colorAxisId) as ColorAxis;
-          colors.colormap = this.colormap;
-          const series = new HeatmapSeries(this.data, x, y, colors);
-          series.name = this.unit;
-          series.xStart = 0;
-          series.xStep = this.spacing.column;
-          series.yStart = 0;
-          series.yStep = this.spacing.row;
-          series.isInterpolated = this.isInterpolated;
-          return series;
-        },
-        xAxisId,
-        yAxisId,
-      )
-      .addModifier(() => new MedicalImageModifier(this))
-      .addModifier(
-        () =>
-          new MedicalColorBarModifier(
-            () => this.window,
-            (value) => {
-              this.applyPreset(value);
-            },
-            this.initialWindow,
-          ),
-      )
-      .addModifier(() => {
-        const zoom = new ZoomPanModifier();
-        zoom.panButton = 'middle';
-        return zoom;
-      });
+    return (
+      chart
+        .title('Medical image')
+        .xAxis((axis) => axis.numeric(xAxisId).title('mm').range(0, xLength).limits(0, xLength))
+        .yAxis((axis) => axis.numeric(yAxisId).title('mm').range(0, yLength).limits(0, yLength).inverted())
+        .yAxis((axis) => axis.color('Grayscale', colorAxisId).range(window.minimum, window.maximum).title(this.unit))
+        .addSeries(
+          (x, y, axis) => {
+            const colors = axis(colorAxisId) as ColorAxis;
+            colors.colormap = this.colormap;
+            const series = new HeatmapSeries(this.data, x, y, colors);
+            series.name = this.unit;
+            series.xStart = 0;
+            series.xStep = this.spacing.column;
+            series.yStart = 0;
+            series.yStep = this.spacing.row;
+            series.isInterpolated = this.isInterpolated;
+            return series;
+          },
+          xAxisId,
+          yAxisId,
+        )
+        .addOverlay((surface) => this.measurements.attach(surface))
+        .addModifier(() => new MedicalMeasurementModifier(this.measurements))
+        .addModifier(() => new MedicalImageModifier(this))
+        .addModifier(
+          () =>
+            new MedicalColorBarModifier(
+              () => this.window,
+              (value) => {
+                this.applyPreset(value);
+              },
+              this.initialWindow,
+            ),
+        )
+        .addModifier(() => {
+          const zoom = new ZoomPanModifier();
+          zoom.panButton = 'middle';
+          return zoom;
+        })
+        // Ctrl+Z and Ctrl+Y undo and redo measurements as well as zooming.
+        .addModifier(() => new KeyboardNavigationModifier())
+    );
   }
 }
 

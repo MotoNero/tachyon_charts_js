@@ -40,6 +40,12 @@ const german: Readonly<Record<string, string>> = {
   Medical: 'Medizin',
   'Medical image': 'Medizinisches Bild',
   'Medical files': 'Medizinische Dateien',
+  'Medical measurements': 'Medizinisches Messen',
+  Width: 'Breite',
+  Focus: 'Herd',
+  Ventricle: 'Ventrikel',
+  'Keys D, A, C, R, F or the bar: distance, angle, circle, rectangle, freehand, then drag | Drag a point: change | Delete: remove | Ctrl+Z: undo | Left drag elsewhere: window':
+    'Tasten D, A, C, R, F oder die Leiste: Strecke, Winkel, Kreis, Rechteck, Freihand, dann ziehen | Punkt ziehen: ändern | Entf: löschen | Strg+Z: rückgängig | Anderswo links ziehen: Fenster',
   'DICOM or NIfTI files of your own': 'Eigene DICOM- oder NIfTI-Dateien',
   'Left drag: window and level | Keys 1, 2, 3: brain, bone, lung | Middle drag: pan | Wheel: zoom | Pointer: value and position':
     'Linke Maustaste ziehen: Fenster und Level | Tasten 1, 2, 3: Gehirn, Knochen, Lunge | Mittlere Maustaste ziehen: Pan | Rad: Zoom | Zeiger: Wert und Ort',

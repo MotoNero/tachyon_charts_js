@@ -14,3 +14,11 @@ export {
   type DicomTransferSyntax,
 } from './dicom';
 export { NiftiImageReader, NiftiReadError } from './nifti';
+export {
+  MedicalMeasurement,
+  MedicalMeasurementLayer,
+  type MedicalMeasurementKind,
+  type MedicalMeasurementResult,
+  type MedicalPoint,
+} from './measurements';
+export { MedicalHistogram, MedicalProfile, type MedicalMeasuredImage } from './analysis';
