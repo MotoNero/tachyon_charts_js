@@ -202,6 +202,17 @@
       main.with-pair {
         grid-template-rows: auto 2fr 1fr auto;
       }
+      /* A large chart above a row of charts that belong to it, such as the slices of a volume. */
+      main.with-row {
+        grid-template-rows: auto 3fr 2fr auto;
+      }
+      .chart-row {
+        display: grid;
+        grid-auto-flow: column;
+        grid-auto-columns: 1fr;
+        gap: 6px;
+        min-height: 0;
+      }
       tachyon-chart[hidden] {
         display: none;
       }

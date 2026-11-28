@@ -155,8 +155,11 @@ import {
   CtWindowPresets,
   DicomReader,
   DicomSeriesReader,
+  MedicalHistogram,
   MedicalImageDisplay,
+  MedicalMprDisplay,
   MedicalPhantoms,
+  MedicalProfile,
   MedicalSlices,
   NiftiImageReader,
   type MedicalVolume,
@@ -1092,9 +1095,104 @@ function medicalFilesPage(): Page {
   };
 }
 
+// Charts that belong to the chart of the page, in a row below it, in its theme.
+function chartRow(builders: readonly ChartBuilder[]): PageRun {
+  const main = document.querySelector<HTMLElement>('#chart');
+  const row = document.createElement('div');
+  row.className = 'chart-row';
+  const theme = main?.getAttribute('theme');
+  for (const builder of builders) {
+    const element = document.createElement('tachyon-chart') as HTMLElement & { chart: unknown };
+    if (theme) {
+      element.setAttribute('theme', theme);
+    }
+    element.chart = builder;
+    row.append(element);
+  }
+  main?.after(row);
+  main?.parentElement?.classList.add('with-row');
+  return {
+    dispose: () => {
+      row.remove();
+      main?.parentElement?.classList.remove('with-row');
+    },
+  };
+}
+
+const mprHint =
+  'Wheel or arrows: slices | Click: place | Drag: window and level | Keys 1, 2, 3: brain, bone, lung | Keys D, A, C, R, F: measure | Del: delete | Ctrl+Z: undo';
+
+function medicalMprPage(): Page {
+  let display: MedicalMprDisplay | undefined;
+  return {
+    id: 'medical-mpr',
+    name: 'Medical MPR',
+    group: 'Medical',
+    hint: mprHint,
+    configure: (c) => {
+      // The synthetic chest in the lung window: the volume with its planes, the three slices below.
+      display = new MedicalMprDisplay(MedicalPhantoms.thorax());
+      display.applyPreset(CtWindowPresets.lung);
+      const shown = display;
+      scene3D(c, (s) => shown.configure3D(s));
+    },
+    start: () =>
+      chartRow(
+        display
+          ? [display.axial, display.coronal, display.sagittal].map((slice) => slice.configure(new ChartBuilder()))
+          : [],
+      ),
+  };
+}
+
+function medicalAnalysisPage(): Page {
+  let charts: ChartBuilder[] = [];
+  return {
+    id: 'medical-analysis',
+    name: 'Medical analysis',
+    group: 'Medical',
+    hint: 'Drag a point of the line or the circle: profile and histogram follow | Drag elsewhere: window, the band in the histogram follows | Wheel: slices',
+    configure: (c) => {
+      const display = new MedicalMprDisplay(MedicalPhantoms.head());
+      display.applyPreset(CtWindowPresets.brain);
+      const axial = display.axial;
+      const width = axial.width * axial.spacing.column;
+      const height = axial.height * axial.spacing.row;
+      // A line across the middle of the axial slice and a circle on the focus of the phantom.
+      const layer = axial.measurements;
+      layer.add(
+        'distance',
+        [
+          { x: width * 0.12, y: height * 0.5 },
+          { x: width * 0.88, y: height * 0.5 },
+        ],
+        undefined,
+        t('Profile line'),
+      );
+      const focus = layer.add(
+        'circle',
+        [
+          { x: width * 0.323, y: height * 0.43 },
+          { x: width * 0.358, y: height * 0.43 },
+        ],
+        undefined,
+        t('Focus'),
+      );
+      const profile = new MedicalProfile(axial);
+      const histogram = new MedicalHistogram(axial);
+      histogram.region = focus;
+      axial.configure(c);
+      charts = [profile.configure(new ChartBuilder()), histogram.configure(new ChartBuilder())];
+    },
+    start: () => chartRow(charts),
+  };
+}
+
 function medicalPages(): Page[] {
   return [
     medicalFilesPage(),
+    medicalMprPage(),
+    medicalAnalysisPage(),
     {
       id: 'medical-measurements',
       name: 'Medical measurements',

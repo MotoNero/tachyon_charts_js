@@ -40,6 +40,13 @@ const german: Readonly<Record<string, string>> = {
   Medical: 'Medizin',
   'Medical image': 'Medizinisches Bild',
   'Medical files': 'Medizinische Dateien',
+  'Medical MPR': 'Medizinische MPR',
+  'Medical analysis': 'Medizinische Analyse',
+  'Profile line': 'Profillinie',
+  'Wheel or arrows: slices | Click: place | Drag: window and level | Keys 1, 2, 3: brain, bone, lung | Keys D, A, C, R, F: measure | Del: delete | Ctrl+Z: undo':
+    'Rad oder Pfeile: Schichten | Klick: Ort | Ziehen: Fenster und Level | Tasten 1, 2, 3: Gehirn, Knochen, Lunge | Tasten D, A, C, R, F: messen | Entf: löschen | Strg+Z: rückgängig',
+  'Drag a point of the line or the circle: profile and histogram follow | Drag elsewhere: window, the band in the histogram follows | Wheel: slices':
+    'Punkt der Linie oder des Kreises ziehen: Profil und Histogramm folgen | Anderswo ziehen: Fenster, das Band im Histogramm folgt | Rad: Schichten',
   'Medical measurements': 'Medizinisches Messen',
   Width: 'Breite',
   Focus: 'Herd',

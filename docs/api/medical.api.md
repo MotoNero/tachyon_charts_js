@@ -4,6 +4,7 @@
 
 ```ts
 
+import { Chart3DBuilder } from '@tachyon-charts/3d';
 import { ChartBuilder } from '@tachyon-charts/core';
 import { ChartLayoutResult } from '@tachyon-charts/core';
 import { ChartOverlay } from '@tachyon-charts/core';
@@ -15,6 +16,7 @@ import { Histogram } from '@tachyon-charts/core';
 import { OverlayCanvas } from '@tachyon-charts/core';
 import { Point } from '@tachyon-charts/core';
 import { Point3D } from '@tachyon-charts/3d';
+import { Volume3D } from '@tachyon-charts/3d';
 import { VolumeData } from '@tachyon-charts/3d';
 
 // @public
@@ -205,7 +207,60 @@ export interface MedicalMeasurementResult {
 }
 
 // @public
+export class MedicalMprDisplay {
+    constructor(
+    source: MedicalVolume);
+    applyPreset(window: MedicalWindow): void;
+    readonly axial: MedicalMprSlice;
+    colormap: Colormap;
+    configure3D(chart: Chart3DBuilder): Chart3DBuilder;
+    readonly coronal: MedicalMprSlice;
+    // @internal
+    readonly initialWindow: MedicalWindow;
+    isInterpolated: boolean;
+    get maximumPosition(): Point3D;
+    onPositionChanged(listener: (position: Point3D) => void): () => void;
+    onWindowChanged(listener: (window: MedicalWindow) => void): () => void;
+    get position(): Point3D;
+    readonly sagittal: MedicalMprSlice;
+    setPosition(position: Point3D): void;
+    setWindow(center: number, width: number): void;
+    readonly source: MedicalVolume;
+    readonly unit: string;
+    get volume(): Volume3D;
+    get window(): MedicalWindow;
+}
+
+// @public
 export type MedicalMprPlane = 'axial' | 'coronal' | 'sagittal';
+
+// @public
+export class MedicalMprSlice {
+    configure(chart: ChartBuilder): ChartBuilder;
+    // @internal
+    readonly data: HeatmapData;
+    readonly display: MedicalMprDisplay;
+    // @internal
+    fromVolumePosition(position: Point3D): Point;
+    readonly height: number;
+    get measurements(): MedicalMeasurementLayer;
+    onSliceChanged(listener: () => void): () => void;
+    onWindowChanged(listener: (window: MedicalWindow) => void): () => void;
+    readonly orientation: PatientOrientation;
+    readonly orientationMarks: MedicalOrientationMarks;
+    readonly plane: MedicalMprPlane;
+    showSlice(index: number): void;
+    get sliceCount(): number;
+    get sliceIndex(): number;
+    // @internal
+    get sliceText(): string;
+    readonly spacing: ImageSpacing;
+    step(steps: number): void;
+    // @internal
+    toVolumePosition(x: number, y: number): Point3D;
+    values(): Float32Array;
+    readonly width: number;
+}
 
 // @public
 export interface MedicalOrientationMarks {

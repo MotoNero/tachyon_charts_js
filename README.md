@@ -542,6 +542,21 @@ console.log(focus.result.mean, focus.result.standardDeviation);
 new MedicalProfile(image).configure(profileBuilder);
 ```
 
+![The synthetic head in 3D with three planes, and its axial, coronal and sagittal slices with the place as a cross](docs/images/medical-mpr.png)
+
+`MedicalMprDisplay` shows a volume in three planes through one place: `axial`, `coronal` and `sagittal` are slices to
+put in charts of their own (`configure`), with the place as a cross, the number of the slice and the directions of the
+patient, and `configure3D` shows the volume in a 3D chart with the three planes at the place. A click moves the place
+and all slices follow, the wheel and the arrow keys step through the slices, dragging sets one window for all, and
+each slice measures like a single image; `MedicalProfile` and `MedicalHistogram` follow a slice as well.
+
+```ts
+const display = new MedicalMprDisplay(volume);
+scene3D(builder, (scene) => display.configure3D(scene));
+display.axial.configure(axialBuilder);
+display.setPosition(new Point3D(90, 100, 60));
+```
+
 ## Legends
 
 ![A test bench with a legend of temperatures in the plot and a legend of pressures below it](docs/images/legends.png)

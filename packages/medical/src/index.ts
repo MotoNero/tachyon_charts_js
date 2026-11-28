@@ -22,3 +22,4 @@ export {
   type MedicalPoint,
 } from './measurements';
 export { MedicalHistogram, MedicalProfile, type MedicalMeasuredImage } from './analysis';
+export { MedicalMprDisplay, MedicalMprSlice } from './mpr';
