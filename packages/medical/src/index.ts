@@ -22,6 +22,7 @@ export {
   type MedicalPoint,
 } from './measurements';
 export { MedicalHistogram, MedicalProfile, type MedicalMeasuredImage } from './analysis';
-export { MedicalMprDisplay, MedicalMprSlice } from './mpr';
+export { MedicalCinePlayer, MedicalMprDisplay, MedicalMprSlice } from './mpr';
 export { MedicalCurvedSlice, MedicalObliqueSlice } from './reformat';
 export { MedicalSegment, MedicalSegmentation, type MedicalSegmentation3DMode } from './segmentation';
+export { DicomSegReader } from './dicom-seg';

@@ -362,6 +362,7 @@ export class MedicalMeasurementLayer extends ChartOverlay {
   private readonly items: MedicalMeasurement[] = [];
   private readonly labels = new Map<MedicalMeasurement, string>();
   private readonly listeners = new Set<(measurement: MedicalMeasurement) => void>();
+  private readonly selectionListeners = new Set<() => void>();
   private xAxis: Axis | undefined;
   private yAxis: Axis | undefined;
   private chosen: MedicalMeasurementKind | undefined;
@@ -582,8 +583,20 @@ export class MedicalMeasurementLayer extends ChartOverlay {
 
   /** @internal Selects a measurement, or none. */
   select(measurement: MedicalMeasurement | undefined): void {
+    const isNew = this.picked !== measurement;
     this.picked = measurement;
     this.changed();
+    if (isNew) {
+      for (const listener of this.selectionListeners) {
+        listener();
+      }
+    }
+  }
+
+  /** @internal Calls a function whenever another measurement is selected; returns a function that stops it. */
+  onSelectionChanged(listener: () => void): () => void {
+    this.selectionListeners.add(listener);
+    return () => this.selectionListeners.delete(listener);
   }
 
   /** @internal The nearest point of a measurement on the slice shown, within reach of the pointer. */

@@ -50,8 +50,8 @@ const german: Readonly<Record<string, string>> = {
   'Drag an end of the line: the oblique plane follows | Drag a point of the arc: the curved section follows | Wheel on the oblique plane: move it | Key V on the oblique plane: it faces the 3D view | Drag elsewhere: window':
     'Ende der Linie ziehen: die schräge Ebene folgt | Punkt des Bogens ziehen: der gekrümmte Schnitt folgt | Rad auf der schrägen Ebene: verschieben | Taste V auf der schrägen Ebene: zur 3D-Ansicht drehen | Anderswo ziehen: Fenster',
   'Profile line': 'Profillinie',
-  'Wheel or arrows: slices | Click: place | Drag: window and level | Keys 1, 2, 3: brain, bone, lung | Keys D, A, C, R, F: measure | Del: delete | Ctrl+Z: undo':
-    'Rad oder Pfeile: Schichten | Klick: Ort | Ziehen: Fenster und Level | Tasten 1, 2, 3: Gehirn, Knochen, Lunge | Tasten D, A, C, R, F: messen | Entf: löschen | Strg+Z: rückgängig',
+  'Wheel or arrows: slices | Space: play, + and -: speed | Click: place | Drag: window and level | Keys 1, 2, 3: brain, bone, lung | Keys D, A, C, R, F: measure | Del: delete | Ctrl+Z: undo':
+    'Rad oder Pfeile: Schichten | Leertaste: abspielen, + und -: Tempo | Klick: Ort | Ziehen: Fenster und Level | Tasten 1, 2, 3: Gehirn, Knochen, Lunge | Tasten D, A, C, R, F: messen | Entf: löschen | Strg+Z: rückgängig',
   'Drag a point of the line or the circle: profile and histogram follow | Drag elsewhere: window, the band in the histogram follows | Wheel: slices':
     'Punkt der Linie oder des Kreises ziehen: Profil und Histogramm folgen | Anderswo ziehen: Fenster, das Band im Histogramm folgt | Rad: Schichten',
   'Medical measurements': 'Medizinisches Messen',

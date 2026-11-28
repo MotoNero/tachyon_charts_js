@@ -585,6 +585,10 @@ const labels = await NiftiSegmentationReader.readFile(file, [new MedicalSegment(
 display.addSegmentation(labels);
 ```
 
+The measurements of the three slices show as lines in the 3D chart of the volume, a click on the volume moves the place
+of all slices, and `display.cine` plays the slices of a plane as a film (Space in a slice, + and − change the speed).
+`DicomSegReader` reads binary DICOM segmentation objects with the names and colours of their segments.
+
 ## Legends
 
 ![A test bench with a legend of temperatures in the plot and a legend of pressures below it](docs/images/legends.png)

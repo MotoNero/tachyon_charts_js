@@ -43,6 +43,12 @@ export class DicomReadError extends Error {
 }
 
 // @public
+export const DicomSegReader: {
+    read(bytes: Uint8Array | ArrayBuffer, threeDMode?: MedicalSegmentation3DMode): MedicalSegmentation;
+    readFile(file: Blob, threeDMode?: MedicalSegmentation3DMode): Promise<MedicalSegmentation>;
+};
+
+// @public
 export const DicomSeriesReader: {
     readFiles(files: readonly Blob[]): Promise<MedicalVolume>;
     build(images: readonly MedicalImage[]): MedicalVolume;
@@ -55,6 +61,29 @@ export type DicomTransferSyntax = 'implicitVrLittleEndian' | 'explicitVrLittleEn
 export interface ImageSpacing {
     readonly column: number;
     readonly row: number;
+}
+
+// @public
+export class MedicalCinePlayer {
+    // @internal
+    constructor(display: MedicalMprDisplay);
+    // @internal
+    advance(): void;
+    // @internal
+    attach(): void;
+    // @internal
+    detach(): void;
+    get framesPerSecond(): number;
+    set framesPerSecond(value: number);
+    get isPlaying(): boolean;
+    onStateChanged(listener: () => void): () => void;
+    pause(): void;
+    get plane(): MedicalMprPlane;
+    play(plane: MedicalMprPlane): void;
+    // @internal
+    get statusText(): string | undefined;
+    step(plane: MedicalMprPlane, slices: number): void;
+    toggle(plane: MedicalMprPlane): void;
 }
 
 // @public
@@ -195,6 +224,8 @@ export class MedicalMeasurementLayer extends ChartOverlay {
     // @internal
     moveTo(measurement: MedicalMeasurement, points: readonly MedicalPoint[]): void;
     onChanged(listener: (measurement: MedicalMeasurement) => void): () => void;
+    // @internal
+    onSelectionChanged(listener: () => void): () => void;
     remove(measurement: MedicalMeasurement): boolean;
     save(): string;
     // @internal
@@ -229,6 +260,7 @@ export class MedicalMprDisplay {
     addSegmentation(segmentation: MedicalSegmentation): void;
     applyPreset(window: MedicalWindow): void;
     readonly axial: MedicalMprSlice;
+    readonly cine: MedicalCinePlayer;
     colormap: Colormap;
     configure3D(chart: Chart3DBuilder): Chart3DBuilder;
     readonly coronal: MedicalMprSlice;
@@ -243,6 +275,7 @@ export class MedicalMprDisplay {
     get segmentations(): readonly MedicalSegmentation[];
     setPosition(position: Point3D): void;
     setWindow(center: number, width: number): void;
+    showsMeasurements3D: boolean;
     readonly source: MedicalVolume;
     readonly unit: string;
     get volume(): Volume3D;
@@ -271,11 +304,13 @@ export class MedicalMprSlice {
     get sliceCount(): number;
     get sliceIndex(): number;
     // @internal
+    slicePosition(index: number): Point3D;
+    // @internal
     get sliceText(): string;
     readonly spacing: ImageSpacing;
     step(steps: number): void;
     // @internal
-    toVolumePosition(x: number, y: number): Point3D;
+    toVolumePosition(x: number, y: number, current?: Point3D): Point3D;
     values(): Float32Array;
     readonly width: number;
 }

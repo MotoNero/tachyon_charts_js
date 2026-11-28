@@ -1,7 +1,7 @@
 // Multiplanar reconstruction, as MedicalMprDisplay and MedicalMprSlice of the .NET version: one place in a volume and
 // the axial, coronal and sagittal slices through it, each a chart of its own with the place as a cross, the slice
 // number, the directions of the patient and measurements; a click moves the place, the wheel and the arrows the slice.
-import { Point3D, Volume3D, type Chart3DBuilder, type Scene3D } from '@tachyon-charts/3d';
+import { Line3D, Point3D, Points3D, Volume3D, type Chart3DBuilder, type Scene3D } from '@tachyon-charts/3d';
 import {
   ChartModifier,
   ChartOverlay,
@@ -56,6 +56,8 @@ export class MedicalMprDisplay {
   readonly coronal: MedicalMprSlice;
   /** The slice from the side. */
   readonly sagittal: MedicalMprSlice;
+  /** Plays the slices of a plane one after the other, as a film. */
+  readonly cine: MedicalCinePlayer;
   /** The unit of the values: HU for CT. */
   readonly unit: string;
   /** The colours from the lowest to the highest value of the window. */
@@ -77,6 +79,9 @@ export class MedicalMprDisplay {
   }
   private readonly scenes: Scene3D[] = [];
   private segmentationChanges = 0;
+  private lines3D: Measurements3D | undefined;
+  /** Whether the 3D charts show the measurements of the slices as lines in the volume. */
+  showsMeasurements3D = true;
   private positionChanges = 0;
   private readonly positionListeners = new Set<(position: Point3D) => void>();
   private readonly windowListeners = new Set<(window: MedicalWindow) => void>();
@@ -94,6 +99,7 @@ export class MedicalMprDisplay {
     this.axial = newSlice(this, 'axial');
     this.coronal = newSlice(this, 'coronal');
     this.sagittal = newSlice(this, 'sagittal');
+    this.cine = new MedicalCinePlayer(this);
   }
 
   /** The place in millimetres from the first voxel where the three slices cross. */
@@ -225,7 +231,23 @@ export class MedicalMprDisplay {
         chart.addVolume(volume);
       }
     }
-    this.scenes.push(chart.scene);
+    if (this.showsMeasurements3D) {
+      this.lines3D ??= new Measurements3D(this);
+      chart.addLine(this.lines3D.lines).addLine(this.lines3D.selected);
+    }
+    const scene = chart.scene;
+    this.scenes.push(scene);
+    // A click on the volume or a label sets a marker there; the place follows it.
+    const before = scene.onMarkerAdded;
+    scene.onMarkerAdded = (marker) => {
+      before?.(marker);
+      if (
+        marker.source === this.volume3D ||
+        this.layers.some((layer) => layer.objects.includes(marker.source as Volume3D))
+      ) {
+        this.setPosition(marker.position);
+      }
+    };
     return chart;
   }
 
@@ -427,10 +449,9 @@ export class MedicalMprSlice {
       .addModifier(() => new KeyboardNavigationModifier());
   }
 
-  /** @internal The place in the volume of a point of the slice in millimetres. */
-  toVolumePosition(x: number, y: number): Point3D {
+  /** @internal The place in the volume of a point of the slice in millimetres, on the slice of a place or of the place. */
+  toVolumePosition(x: number, y: number, current: Point3D = this.display.position): Point3D {
     const source = this.display.source;
-    const current = this.display.position;
     const maximumZ = (source.data.depth - 1) * source.voxelSpacing.z;
     const column = x - this.spacing.column / 2;
     const row = y - this.spacing.row / 2;
@@ -456,6 +477,16 @@ export class MedicalMprSlice {
       default:
         return { x: position.y + this.spacing.column / 2, y: maximumZ - position.z + this.spacing.row / 2 };
     }
+  }
+
+  /** @internal A place on the slice of an index. */
+  slicePosition(index: number): Point3D {
+    const at = index * this.sliceDistance;
+    return this.plane === 'axial'
+      ? new Point3D(0, 0, at)
+      : this.plane === 'coronal'
+        ? new Point3D(0, at, 0)
+        : new Point3D(at, 0, 0);
   }
 
   /** @internal The text of the slice shown, such as 97 / 192 · 96 mm. */
@@ -521,6 +552,9 @@ class MedicalMprOverlay extends ChartOverlay {
     slice.display.onPositionChanged(() => {
       this.changed();
     });
+    slice.display.cine.onStateChanged(() => {
+      this.changed();
+    });
   }
 
   draw(canvas: OverlayCanvas): void {
@@ -529,13 +563,18 @@ class MedicalMprOverlay extends ChartOverlay {
     this.shown = slice.sliceText;
     const at = slice.fromVolumePosition(slice.display.position);
     const color = { r: 255, g: 160, b: 50, a: 220 };
-    canvas.drawLabel(
+    const label = canvas.drawLabel(
       this.shown,
       plot.x + 6,
       plot.y + 6,
       { r: 12, g: 16, b: 24, a: 220 },
       { r: 235, g: 240, b: 248, a: 255 },
     );
+    const cine = slice.display.cine;
+    const status = cine.statusText;
+    if (cine.plane === slice.plane && status !== undefined) {
+      canvas.drawLabel(status, plot.x + 6, label.bottom + 3, { r: 12, g: 16, b: 24, a: 220 }, color);
+    }
     const x = this.position(canvas, this.xAxis, at.x);
     if (x !== undefined) {
       canvas.drawLine(
@@ -599,7 +638,12 @@ class MedicalMprModifier extends ChartModifier {
 
   protected override onAttached(interaction: ChartInteraction): void {
     const chart = interaction.chart;
+    const cine = this.slice.display.cine;
+    cine.attach();
     this.stops = [
+      () => {
+        cine.detach();
+      },
       this.slice.display.onWindowChanged((window) => {
         interaction.run(() => {
           // Found when needed: a chart described anew may attach its modifiers before its axes are there.
@@ -679,22 +723,36 @@ class MedicalMprModifier extends ChartModifier {
       return 'handled';
     }
     const slice = this.slice;
+    const cine = slice.display.cine;
     switch (input.key) {
       case 'Up':
       case 'Right':
       case 'PageUp':
-        slice.step(1);
+        cine.pause();
+        cine.step(slice.plane, 1);
         return 'handled';
       case 'Down':
       case 'Left':
       case 'PageDown':
-        slice.step(-1);
+        cine.pause();
+        cine.step(slice.plane, -1);
         return 'handled';
       case 'Home':
+        cine.pause();
         slice.showSlice(0);
         return 'handled';
       case 'End':
+        cine.pause();
         slice.showSlice(slice.sliceCount - 1);
+        return 'handled';
+      case 'Space':
+        cine.toggle(slice.plane);
+        return 'handled';
+      case 'Add':
+        cine.framesPerSecond = Math.min(cine.framesPerSecond * 1.25, 120);
+        return 'handled';
+      case 'Subtract':
+        cine.framesPerSecond = Math.max(cine.framesPerSecond / 1.25, 0.5);
         return 'handled';
       default:
         return 'ignored';
@@ -705,6 +763,7 @@ class MedicalMprModifier extends ChartModifier {
     if (input.modifiers !== 0 || input.delta.y === 0 || !this.interaction?.hitPane(input.position)) {
       return 'ignored';
     }
+    this.slice.display.cine.pause();
     this.slice.step(input.delta.y > 0 ? 1 : -1);
     return 'handled';
   }
@@ -732,5 +791,231 @@ class MedicalMprModifier extends ChartModifier {
     this.slice.display.setPosition(
       this.slice.toVolumePosition((column + 0.5) * this.slice.spacing.column, (row + 0.5) * this.slice.spacing.row),
     );
+  }
+}
+
+// The points of all lines; the ring of points keeps this many, so a write of exactly as many replaces it.
+const lineCapacity = 8192;
+
+// The measurements of the three slices as lines in the volume, the selected one in its own colour, over everything.
+class Measurements3D {
+  readonly lines = new Line3D(new Points3D(lineCapacity), {
+    color: { r: 255, g: 214, b: 10, a: 255 },
+    width: 2,
+    drawsOnTop: true,
+  });
+  readonly selected = new Line3D(new Points3D(lineCapacity), {
+    color: { r: 80, g: 220, b: 255, a: 255 },
+    width: 2.5,
+    drawsOnTop: true,
+  });
+
+  constructor(private readonly display: MedicalMprDisplay) {
+    for (const slice of this.slices) {
+      slice.measurements.onChanged(() => {
+        this.refresh();
+      });
+      slice.measurements.onSelectionChanged(() => {
+        this.refresh();
+      });
+    }
+    this.refresh();
+  }
+
+  private get slices(): readonly MedicalMprSlice[] {
+    return [this.display.axial, this.display.coronal, this.display.sagittal];
+  }
+
+  private refresh(): void {
+    const all: (Point3D | undefined)[] = [];
+    const chosen: (Point3D | undefined)[] = [];
+    for (const slice of this.slices) {
+      const layer = slice.measurements;
+      for (const measurement of layer.measurements) {
+        const points = measurement.isRegion ? measurement.outline : measurement.points;
+        const at = slice.slicePosition(measurement.slice);
+        const line = points.map((point) => slice.toVolumePosition(point.x, point.y, at));
+        if (measurement.isRegion && points.length > 2) {
+          line.push(line[0] as Point3D);
+        }
+        // Over everything, like the outlines of the planes: a measurement behind a plane stays in sight.
+        const target = measurement === layer.selected ? chosen : all;
+        target.push(...line, undefined);
+      }
+    }
+    write(this.lines.points, all);
+    write(this.selected.points, chosen);
+  }
+}
+
+// All points of the ring at once: the measurements, then gaps up to the capacity, so nothing old stays.
+function write(target: Points3D, points: readonly (Point3D | undefined)[]): void {
+  for (let i = 0; i < lineCapacity; i++) {
+    const point = points[i];
+    if (point) {
+      target.append(point.x, point.y, point.z);
+    } else {
+      target.appendGap();
+    }
+  }
+}
+
+/** Plays the slices of one plane of a display one after the other, as a film, while one of its slices is in a chart. */
+export class MedicalCinePlayer {
+  private shownPlane: MedicalMprPlane = 'axial';
+  private speed = 24;
+  private playing = false;
+  private timer: ReturnType<typeof setInterval> | undefined;
+  private attached = 0;
+  private readonly listeners = new Set<() => void>();
+
+  /** @internal Use {@link MedicalMprDisplay.cine}. */
+  constructor(private readonly display: MedicalMprDisplay) {}
+
+  /** The plane that plays or played last. */
+  get plane(): MedicalMprPlane {
+    return this.shownPlane;
+  }
+
+  /** Whether the film plays. */
+  get isPlaying(): boolean {
+    return this.playing;
+  }
+
+  /**
+   * The slices a second; 24 by default.
+   * @throws RangeError unless finite, positive and at most 120.
+   */
+  get framesPerSecond(): number {
+    return this.speed;
+  }
+
+  set framesPerSecond(value: number) {
+    if (!(Number.isFinite(value) && value > 0 && value <= 120)) {
+      throw new RangeError('The speed must be finite, positive and no greater than 120 frames per second.');
+    }
+    if (value === this.speed) {
+      return;
+    }
+    this.speed = value;
+    if (this.timer !== undefined) {
+      this.stopTimer();
+      this.startTimer();
+    }
+    this.changed();
+  }
+
+  /** @internal The state for the overlay of a slice, such as ▶ 24 fps, or undefined while paused. */
+  get statusText(): string | undefined {
+    return this.playing ? `▶ ${String(Math.round(this.speed * 10) / 10)} fps` : undefined;
+  }
+
+  /** Calls a function whenever the film starts, stops, changes its speed or its plane; returns a function that stops it. */
+  onStateChanged(listener: () => void): () => void {
+    this.listeners.add(listener);
+    return () => this.listeners.delete(listener);
+  }
+
+  /** Shows the slice a number of steps further in a plane, kept inside the volume. */
+  step(plane: MedicalMprPlane, slices: number): void {
+    const changed = this.setPlane(plane);
+    if (slices !== 0) {
+      this.slice(plane).step(slices);
+    }
+    if (changed) {
+      this.changed();
+    }
+  }
+
+  /** Plays the slices of a plane, from the end back to the start. */
+  play(plane: MedicalMprPlane): void {
+    let changed = this.setPlane(plane);
+    if (!this.playing) {
+      this.playing = true;
+      changed = true;
+    }
+    this.startTimer();
+    if (changed) {
+      this.changed();
+    }
+  }
+
+  /** Stops the film. */
+  pause(): void {
+    if (!this.playing) {
+      return;
+    }
+    this.playing = false;
+    this.stopTimer();
+    this.changed();
+  }
+
+  /** Plays a plane, or stops it when it plays. */
+  toggle(plane: MedicalMprPlane): void {
+    if (this.playing && this.shownPlane === plane) {
+      this.pause();
+    } else {
+      this.play(plane);
+    }
+  }
+
+  /** @internal The next slice, the first after the last. */
+  advance(): void {
+    const slice = this.slice(this.shownPlane);
+    slice.showSlice(slice.sliceIndex + 1 === slice.sliceCount ? 0 : slice.sliceIndex + 1);
+  }
+
+  /** @internal A chart of a slice is there to play in. */
+  attach(): void {
+    this.attached++;
+    this.startTimer();
+  }
+
+  /** @internal A chart of a slice is gone; without any the film stops. */
+  detach(): void {
+    this.attached = Math.max(this.attached - 1, 0);
+    if (this.attached === 0) {
+      this.stopTimer();
+      if (this.playing) {
+        this.playing = false;
+        this.changed();
+      }
+    }
+  }
+
+  private slice(plane: MedicalMprPlane): MedicalMprSlice {
+    return plane === 'axial' ? this.display.axial : plane === 'coronal' ? this.display.coronal : this.display.sagittal;
+  }
+
+  private setPlane(plane: MedicalMprPlane): boolean {
+    if (this.shownPlane === plane) {
+      return false;
+    }
+    this.shownPlane = plane;
+    return true;
+  }
+
+  private startTimer(): void {
+    if (!this.playing || this.attached === 0 || this.timer !== undefined) {
+      return;
+    }
+    this.timer = setInterval(() => {
+      if (this.playing) {
+        this.advance();
+      }
+    }, 1000 / this.speed);
+  }
+
+  private stopTimer(): void {
+    if (this.timer !== undefined) {
+      clearInterval(this.timer);
+      this.timer = undefined;
+    }
+  }
+
+  private changed(): void {
+    for (const listener of this.listeners) {
+      listener();
+    }
   }
 }

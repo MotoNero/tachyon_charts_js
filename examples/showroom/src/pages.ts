@@ -1125,7 +1125,7 @@ function chartRow(builders: readonly ChartBuilder[]): PageRun {
 }
 
 const mprHint =
-  'Wheel or arrows: slices | Click: place | Drag: window and level | Keys 1, 2, 3: brain, bone, lung | Keys D, A, C, R, F: measure | Del: delete | Ctrl+Z: undo';
+  'Wheel or arrows: slices | Space: play, + and -: speed | Click: place | Drag: window and level | Keys 1, 2, 3: brain, bone, lung | Keys D, A, C, R, F: measure | Del: delete | Ctrl+Z: undo';
 
 function medicalMprPage(): Page {
   let display: MedicalMprDisplay | undefined;
