@@ -7,6 +7,7 @@ import {
   chartCode,
   coreModule,
   medicalModule,
+  threeDModule,
   newChartSpec,
   readChartSpec,
   writeChartSpec,
@@ -23,7 +24,7 @@ import icon from '../../../shared/logo/tachyon-charts-avatar-dark-32.png?url';
 
 defineTachyonChart();
 
-const catalog = new ChartCatalog([coreModule, medicalModule]);
+const catalog = new ChartCatalog([coreModule, medicalModule, threeDModule]);
 const themes = ['TachyonDark', 'TachyonLight', 'Instrument', 'Paper', 'Signal', 'Neon', 'HighContrast'];
 
 const element = (id: string): HTMLElement => {
@@ -430,7 +431,7 @@ window.addEventListener('hashchange', openFromHash);
 const { pages } = await import('./templates');
 templates = pages.map(({ name, id, text }) => {
   const spec = readChartSpec(text);
-  const ready = spec.charts.length === 0 && Object.keys(spec.scene).length === 0 && catalog.check(spec).length === 0;
+  const ready = spec.charts.length === 0 && catalog.check(spec).length === 0;
   return { name, id, spec, ready };
 });
 showTemplates();

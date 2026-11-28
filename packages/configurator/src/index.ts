@@ -36,11 +36,13 @@ export {
   type ParameterInfo,
   type ParameterKind,
   type SampleInfo,
+  type SceneSetup,
   type SeriesAxes,
   type ViewCode,
 } from './catalog';
 export { coreModule } from './core-module';
 export { medicalModule } from './medical-module';
+export { threeDModule } from './three-d-module';
 export {
   ChartSpecProblem,
   applyChartSpec,

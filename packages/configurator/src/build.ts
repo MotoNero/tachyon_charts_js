@@ -231,7 +231,9 @@ function describeChart(spec: ChartSpec, catalog: ChartCatalog, language: CodeLan
     return { writer, describe: views, several: true };
   }
   const lines: string[] = [];
-  if (spec.title.length > 0) {
+  const scene = catalog.scene;
+  const inScene = scene !== undefined && spec.series.some((series) => catalog.findType(series.type)?.inScene === true);
+  if (spec.title.length > 0 && !inScene) {
     lines.push(`c.title(${str(spec.title)});`);
   }
   if (spec.theme !== undefined) {
@@ -249,14 +251,30 @@ function describeChart(spec: ChartSpec, catalog: ChartCatalog, language: CodeLan
   }
   const taken = new Map<string, number>();
   const made = new Map<string, string>();
+  const sceneLines: string[] = [];
   spec.series.forEach((series, index) => {
     const type = catalog.findType(series.type);
     const sample = catalog.findSample(series.data.sample);
     if (!type || !sample) {
       return;
     }
+    if (type.noData === true) {
+      const code = type.code(
+        writer,
+        series,
+        '',
+        { ...axesOf(spec, series), inSharedBox: sceneLines.length > 0 },
+        index,
+      );
+      (type.inScene === true ? sceneLines : lines).push(code);
+      return;
+    }
     const make = sampleFunction(writer, sample);
-    const argument = sample.hasCount === false ? '' : num(series.data.count);
+    const count = Math.min(series.data.count, sample.maximumCount ?? Number.POSITIVE_INFINITY);
+    const argument = sample.hasCount === false ? '' : num(count);
+    if (count < series.data.count) {
+      lines.push(`// ${num(series.data.count)} in the description; a browser tab holds ${num(count)}.`);
+    }
     const key = `${make}(${argument})`;
     let data = sample.shared === true ? made.get(key) : undefined;
     if (data === undefined) {
@@ -266,8 +284,30 @@ function describeChart(spec: ChartSpec, catalog: ChartCatalog, language: CodeLan
       made.set(key, data);
       lines.push(`const ${data} = ${key};`);
     }
-    lines.push(type.code(writer, series, data, axesOf(spec, series), index));
+    if (type.inScene === true && scene) {
+      sceneLines.push(
+        type.code(writer, series, data, { ...axesOf(spec, series), inSharedBox: sceneLines.length > 0 }, index),
+      );
+    } else {
+      lines.push(type.code(writer, series, data, axesOf(spec, series), index));
+    }
   });
+  if (inScene) {
+    // The series of the scene in one 3D chart: its settings first, its axes and planes after the series.
+    const body = [
+      ...(spec.title.length > 0 ? [`s.title(${str(spec.title)});`] : []),
+      ...scene.start(writer, spec),
+      ...sceneLines,
+      ...scene.end(writer, spec),
+      'return s;',
+    ];
+    lines.push(
+      `${writer.use(scene.host.name, scene.host.from)}(c, (s) => {\n${body
+        .flatMap((line) => line.split('\n'))
+        .map((line) => `  ${line}`)
+        .join('\n')}\n});`,
+    );
+  }
   for (const modifier of spec.modifiers) {
     const info = catalog.findModifier(modifier.type);
     if (info) {

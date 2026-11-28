@@ -65,6 +65,7 @@ export class ChartCatalog {
     get modifiers(): readonly ModifierInfo[];
     get packages(): Readonly<Record<string, Record<string, unknown>>>;
     get samples(): readonly SampleInfo[];
+    get scene(): SceneSetup | undefined;
     get types(): readonly ChartTypeInfo[];
 }
 
@@ -79,6 +80,7 @@ export interface ChartModule {
     readonly load?: () => Promise<Record<string, Record<string, unknown>>>;
     readonly modifiers?: readonly ModifierInfo[];
     readonly samples: readonly SampleInfo[];
+    readonly scene?: SceneSetup;
     readonly types: readonly ChartTypeInfo[];
 }
 
@@ -128,7 +130,9 @@ export interface ChartTypeInfo {
     columns?(series: SeriesSpec, count: number): number;
     readonly defaultSample: string;
     readonly id: string;
+    readonly inScene?: boolean;
     readonly name: string;
+    readonly noData?: boolean;
     readonly ownsAxes?: boolean;
     readonly parameters: readonly ParameterInfo[];
     readonly shape: DataShape;
@@ -264,6 +268,7 @@ export interface SampleInfo {
     readonly defaultCount: number;
     readonly hasCount?: boolean;
     readonly id: string;
+    readonly maximumCount?: number;
     readonly minimumCount?: number;
     readonly name: string;
     readonly returns: string;
@@ -273,7 +278,19 @@ export interface SampleInfo {
 }
 
 // @public
+export interface SceneSetup {
+    end(writer: CodeWriter, spec: ChartSpec): string[];
+    readonly host: {
+        readonly name: string;
+        readonly from: string;
+    };
+    readonly parameters: readonly ParameterInfo[];
+    start(writer: CodeWriter, spec: ChartSpec): string[];
+}
+
+// @public
 export interface SeriesAxes {
+    readonly inSharedBox?: boolean;
     readonly x: string;
     readonly y: string;
 }
@@ -306,6 +323,9 @@ export interface ThemeSpec {
     name: string;
     values: Record<string, string>;
 }
+
+// @public
+export const threeDModule: ChartModule;
 
 // @public
 export const version = "0.1.0-dev";

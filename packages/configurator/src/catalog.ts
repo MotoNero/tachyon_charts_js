@@ -39,6 +39,23 @@ export interface SeriesAxes {
   readonly x: string;
   /** The Y axis. */
   readonly y: string;
+  /** In a 3D scene: whether an earlier series has set up the box, so that this one leaves the axes alone. */
+  readonly inSharedBox?: boolean;
+}
+
+/**
+ * The 3D scene that series of a module share, as SceneInfo of the .NET version: its settings, and the statements on
+ * the scene builder `s` before and after the series.
+ */
+export interface SceneSetup {
+  /** The settings of the scene. */
+  readonly parameters: readonly ParameterInfo[];
+  /** The function that puts a scene into a chart builder, such as `scene3D`, and the package it comes from. */
+  readonly host: { readonly name: string; readonly from: string };
+  /** Statements before the series. */
+  start(writer: CodeWriter, spec: ChartSpec): string[];
+  /** Statements after the series. */
+  end(writer: CodeWriter, spec: ChartSpec): string[];
 }
 
 /** A chart of a type that shows its data in several linked charts, such as the planes of a volume. */
@@ -75,6 +92,10 @@ export interface ChartTypeInfo {
    * prepares the data, and each chart takes them.
    */
   views?(writer: CodeWriter, series: SeriesSpec, data: string): ViewCode[];
+  /** Whether the type shows no data of its own, such as the axis box alone; then no sample is made for it. */
+  readonly noData?: boolean;
+  /** Whether the series goes into the 3D scene of the chart; its code then uses the scene builder `s`. */
+  readonly inScene?: boolean;
   /** The number of columns its linked charts stand in; two by default. */
   columns?(series: SeriesSpec, count: number): number;
   /** Whether the type shows times along X, so that a new chart of it takes a time axis. */
@@ -119,6 +140,8 @@ export interface SampleInfo {
   readonly uses: readonly string[];
   /** The lowest count that makes sense. */
   readonly minimumCount?: number;
+  /** The highest count a browser tab holds; a description with more takes this many. */
+  readonly maximumCount?: number;
   /** Whether the count changes the data. */
   readonly hasCount?: boolean;
   /** Whether series of the same sample and count share one set of data, as the channels of one bus do. */
@@ -138,6 +161,8 @@ export interface ChartModule {
    * page loads them only for charts that need them.
    */
   readonly load?: () => Promise<Record<string, Record<string, unknown>>>;
+  /** The 3D scene its series share, if any. */
+  readonly scene?: SceneSetup;
 }
 
 /** All that the modules offer. */
@@ -147,6 +172,7 @@ export class ChartCatalog {
   private readonly modifierList: ModifierInfo[] = [];
   private readonly packageList: Record<string, Record<string, unknown>> = {};
   private readonly moduleList: ChartModule[] = [];
+  private sceneSetup: SceneSetup | undefined;
   private readonly loading = new Map<ChartModule, Promise<void>>();
 
   /** @param modules - The modules, the core first. */
@@ -187,6 +213,12 @@ export class ChartCatalog {
     replace(this.sampleList, module.samples);
     replace(this.modifierList, module.modifiers ?? []);
     this.moduleList.push(module);
+    this.sceneSetup = module.scene ?? this.sceneSetup;
+  }
+
+  /** The 3D scene of the modules, if one brings it. */
+  get scene(): SceneSetup | undefined {
+    return this.sceneSetup;
   }
 
   /**

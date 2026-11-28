@@ -1164,7 +1164,8 @@ language of the axes can be chosen at the top for all pages. Every new feature b
 each series, its sample data and parameters, the interactions and a legend. The code of the chart shows below it in
 TypeScript or JavaScript, ready to copy; the preview runs exactly this code, so the copied code draws the same chart.
 Descriptions save and open as `.chart.json`, the same format as the configurator of the .NET version.
-Live charts, such as a running oscilloscope, a spectrum analyzer or a patient monitor, take a list as second
+3D series of a chart share one scene with the camera, the ranges and titles of the box and cut planes; medical
+images come with their window, measurements and linked planes. Live charts, such as a running oscilloscope, a spectrum analyzer or a patient monitor, take a list as second
 argument: `describeChart(builder, running)` puts the functions that stop their data into it.
 
 ```ts
